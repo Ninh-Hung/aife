@@ -58,8 +58,8 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  // Mock implementation - automatically authenticated
-  const [user, setUser] = useState<User | null>(mockUser);
+  // Mock implementation - starts unauthenticated
+  const [user, setUser] = useState<User | null>(null);
 
   const login = async (email: string, password: string) => {
     // Mock login - in production, call actual auth API

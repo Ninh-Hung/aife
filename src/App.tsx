@@ -12,6 +12,8 @@ import { Layout } from './components/layout/Layout';
 import { Header } from './components/layout/Header';
 import { TranslationPage } from './features/translate/TranslationPage';
 import { AgentDrawer } from './components/agents/AgentDrawer';
+import LandingPage from './pages/LandingPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Bot, LayoutDashboard, Users, CreditCard, Code, Image as ImageIcon } from 'lucide-react';
 
 // ============================================
@@ -98,69 +100,85 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Layout header={getHeader()}>
+    <>
       <Routes>
-        {/* Default redirect to translate page */}
-        <Route path="/" element={<Navigate to="/translate" replace />} />
+        {/* Landing Page (no layout) */}
+        <Route path="/" element={<LandingPage />} />
 
-        {/* Translation Service */}
+        {/* App routes with layout - Protected */}
         <Route
-          path="/translate"
+          path="/*"
           element={
-            <TranslationPage
-              agents={agents}
-              onCreateAgent={handleCreateAgent}
-              selectedAgentId={selectedAgentId}
-            />
-          }
-        />
+            <ProtectedRoute>
+              <Layout header={getHeader()}>
+                <Routes>
+                  {/* Translation Service */}
+                  <Route
+                    path="/translate"
+                    element={
+                      <TranslationPage
+                        agents={agents}
+                        onCreateAgent={handleCreateAgent}
+                        selectedAgentId={selectedAgentId}
+                      />
+                    }
+                  />
 
-        {/* Placeholder routes for other pages */}
-        <Route
-          path="/dashboard"
-          element={
-            <div className="p-8 text-gray-900 dark:text-slate-100">Dashboard - Coming Soon</div>
-          }
-        />
-        <Route
-          path="/agents"
-          element={
-            <div className="p-8 text-gray-900 dark:text-slate-100">My Agents - Coming Soon</div>
-          }
-        />
-        <Route
-          path="/subscription"
-          element={
-            <div className="p-8 text-gray-900 dark:text-slate-100">Subscription - Coming Soon</div>
-          }
-        />
-        <Route
-          path="/code"
-          element={
-            <div className="p-8 text-gray-900 dark:text-slate-100">Generate Code - Coming Soon</div>
-          }
-        />
-        <Route
-          path="/image"
-          element={
-            <div className="p-8 text-gray-900 dark:text-slate-100">
-              Generate Picture - Coming Soon
-            </div>
-          }
-        />
+                  {/* Placeholder routes for other pages */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <div className="p-8 text-gray-900 dark:text-slate-100">Dashboard - Coming Soon</div>
+                    }
+                  />
+                  <Route
+                    path="/agents"
+                    element={
+                      <div className="p-8 text-gray-900 dark:text-slate-100">My Agents - Coming Soon</div>
+                    }
+                  />
+                  <Route
+                    path="/subscription"
+                    element={
+                      <div className="p-8 text-gray-900 dark:text-slate-100">Subscription - Coming Soon</div>
+                    }
+                  />
+                  <Route
+                    path="/code"
+                    element={
+                      <div className="p-8 text-gray-900 dark:text-slate-100">Generate Code - Coming Soon</div>
+                    }
+                  />
+                  <Route
+                    path="/image"
+                    element={
+                      <div className="p-8 text-gray-900 dark:text-slate-100">
+                        Generate Picture - Coming Soon
+                      </div>
+                    }
+                  />
 
-        {/* 404 Not Found */}
-        <Route
-          path="*"
-          element={
-            <div className="p-8 text-gray-900 dark:text-slate-100">404 - Page Not Found</div>
+                  {/* 404 Not Found */}
+                  <Route
+                    path="*"
+                    element={
+                      <div className="p-8 text-gray-900 dark:text-slate-100">404 - Page Not Found</div>
+                    }
+                  />
+                </Routes>
+
+                {/* Agent Drawer - Global component */}
+                <AgentDrawer
+                  open={isAgentDrawerOpen}
+                  onClose={handleCloseAgentDrawer}
+                  onSave={createAgent}
+                />
+              </Layout>
+            </ProtectedRoute>
           }
         />
       </Routes>
-
-      {/* Agent Drawer - Global component */}
-      <AgentDrawer open={isAgentDrawerOpen} onClose={handleCloseAgentDrawer} onSave={createAgent} />
-    </Layout>
+    </>
   );
 };
 
