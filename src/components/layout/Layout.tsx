@@ -39,22 +39,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
   }
 
   return (
-    <Box className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      {/* Full-Width Header at Top */}
-      {header}
-
-      {/* Sidebar Below Header */}
+    <Box className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
+      {/* Fixed Full-Height Sidebar */}
       <Sidebar
         user={user}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
       />
 
-      {/* Main Content Area - Adjust margin based on sidebar state */}
+      {/* Main Content Area - Positioned to the right of sidebar */}
       <Box
-        className={`pt-16 transition-all duration-300 ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}`}
+        className={`flex min-h-screen flex-1 flex-col transition-all duration-300 ${
+          isSidebarCollapsed ? 'ml-16' : 'ml-64'
+        }`}
       >
-        {children}
+        {/* Header - Sticky at top of content area */}
+        {header}
+
+        {/* Page Content */}
+        <Box className="flex-1">{children}</Box>
       </Box>
     </Box>
   );

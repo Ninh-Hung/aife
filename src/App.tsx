@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { AgentsProvider, useAgents } from './contexts/AgentsContext';
@@ -16,7 +16,9 @@ import LandingPage from './pages/LandingPage';
 import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { EmailVerification } from './pages/EmailVerification';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Dashboard } from './pages/Dashboard';
 import { Bot, LayoutDashboard, Users, CreditCard, Code, Image as ImageIcon } from 'lucide-react';
+import { CreateAgentInput } from './types';
 
 // ============================================
 // Main App Component (with contexts)
@@ -40,6 +42,10 @@ const AppContent: React.FC = () => {
 
   const handleAgentChange = (agentId: string) => {
     setSelectedAgentId(agentId);
+  };
+
+  const handleSaveAgent = async (input: CreateAgentInput) => {
+    await createAgent(input);
   };
 
   // Determine header content based on route
@@ -132,29 +138,30 @@ const AppContent: React.FC = () => {
                     }
                   />
 
-                  {/* Placeholder routes for other pages */}
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">Dashboard - Coming Soon</div>
-                    }
-                  />
+                  {/* Dashboard Page */}
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route
                     path="/agents"
                     element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">My Agents - Coming Soon</div>
+                      <div className="p-8 text-gray-900 dark:text-slate-100">
+                        My Agents - Coming Soon
+                      </div>
                     }
                   />
                   <Route
                     path="/subscription"
                     element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">Subscription - Coming Soon</div>
+                      <div className="p-8 text-gray-900 dark:text-slate-100">
+                        Subscription - Coming Soon
+                      </div>
                     }
                   />
                   <Route
                     path="/code"
                     element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">Generate Code - Coming Soon</div>
+                      <div className="p-8 text-gray-900 dark:text-slate-100">
+                        Generate Code - Coming Soon
+                      </div>
                     }
                   />
                   <Route
@@ -170,7 +177,9 @@ const AppContent: React.FC = () => {
                   <Route
                     path="*"
                     element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">404 - Page Not Found</div>
+                      <div className="p-8 text-gray-900 dark:text-slate-100">
+                        404 - Page Not Found
+                      </div>
                     }
                   />
                 </Routes>
@@ -179,7 +188,7 @@ const AppContent: React.FC = () => {
                 <AgentDrawer
                   open={isAgentDrawerOpen}
                   onClose={handleCloseAgentDrawer}
-                  onSave={createAgent}
+                  onSave={handleSaveAgent}
                 />
               </Layout>
             </ProtectedRoute>

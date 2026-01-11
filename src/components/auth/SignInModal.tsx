@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Mail, Lock, Eye, EyeOff, User, Loader2, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { USERNAME_REGEX, MIN_USERNAME_LENGTH } from '../../common/constants';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ============================================
 // Props Interface
@@ -23,6 +24,7 @@ interface SignInModalProps {
 
 export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
@@ -36,7 +38,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
-  const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const usernameCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -201,8 +203,18 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
         setIsLoading(false);
       }
     } else {
-      // TODO: Handle login logic
-      console.log('Login:', { email, password });
+      // Handle login
+      setIsLoading(true);
+      try {
+        await login(email, password);
+        // Login successful - close modal and redirect to Dashboard
+        handleClose();
+        navigate('/dashboard');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -220,32 +232,32 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
     >
       {/* Modal Container */}
       <div
-        className={`relative w-full max-w-md max-h-[90vh] transition-all duration-200 ${
+        className={`relative max-h-[90vh] w-full max-w-md transition-all duration-200 ${
           isAnimating ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
         {/* Modal Card */}
-        <div className="bg-[#0F1F38] border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-700/50 bg-[#0F1F38] shadow-2xl">
           {/* Header */}
-          <div className="relative px-8 pt-8 pb-6 border-b border-slate-700/50 flex-shrink-0">
+          <div className="relative flex-shrink-0 border-b border-slate-700/50 px-8 pb-6 pt-8">
             <button
               onClick={handleClose}
-              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
+              className="absolute right-6 top-6 text-slate-400 transition-colors hover:text-white"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
 
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">AI</span>
+            <div className="mb-2 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
+                <span className="text-sm font-bold text-white">AI</span>
               </div>
               <span className="text-lg font-semibold text-white">AppAIHelp.com</span>
             </div>
 
-            <h2 className="text-2xl font-bold text-white mt-4">
+            <h2 className="mt-4 text-2xl font-bold text-white">
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </h2>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="mt-1 text-sm text-slate-400">
               {isSignUp
                 ? 'Sign up to access all AI-powered tools'
                 : 'Sign in to continue to your account'}
@@ -253,14 +265,14 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
           </div>
 
           {/* Body - Scrollable */}
-          <div className="px-8 py-6 overflow-y-auto flex-1">
+          <div className="flex-1 overflow-y-auto px-8 py-6">
             {/* OAuth Buttons */}
-            <div className="space-y-3 mb-6">
+            <div className="mb-6 space-y-3">
               <button
                 onClick={() => handleOAuthLogin('google')}
-                className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-3"
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-white px-4 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-50"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -283,9 +295,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
               <button
                 onClick={() => handleOAuthLogin('facebook')}
-                className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-3"
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#1877F2] px-4 py-3 font-medium text-white transition-colors hover:bg-[#166FE5]"
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
                 Continue with Facebook
@@ -293,9 +305,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
               <button
                 onClick={() => handleOAuthLogin('apple')}
-                className="w-full bg-black hover:bg-gray-900 text-white font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-3"
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-black px-4 py-3 font-medium text-white transition-colors hover:bg-gray-900"
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                 </svg>
                 Continue with Apple
@@ -308,13 +320,13 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
                 <div className="w-full border-t border-slate-700/50"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-[#0F1F38] text-slate-400">Or continue with email</span>
+                <span className="bg-[#0F1F38] px-4 text-slate-400">Or continue with email</span>
               </div>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+              <div className="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 p-3">
                 <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
@@ -324,12 +336,15 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
               {/* Username Input - Only for Sign Up */}
               {isSignUp && (
                 <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
+                  <label
+                    htmlFor="username"
+                    className="mb-2 block text-sm font-medium text-slate-300"
+                  >
                     Username
                   </label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                      <User className="w-5 h-5" />
+                      <User className="h-5 w-5" />
                     </div>
                     <input
                       id="username"
@@ -337,29 +352,29 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Choose a username"
-                      className={`w-full bg-slate-800/50 border text-white placeholder-slate-500 rounded-lg pl-11 pr-11 py-3 focus:outline-none focus:ring-2 transition-all ${
+                      className={`w-full rounded-lg border bg-slate-800/50 py-3 pl-11 pr-11 text-white placeholder-slate-500 transition-all focus:outline-none focus:ring-2 ${
                         usernameError && isUsernameAvailable === false
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
                           : isUsernameAvailable === true
-                          ? 'border-teal-500 focus:border-teal-500 focus:ring-teal-500/20'
-                          : 'border-slate-700 focus:border-teal-500 focus:ring-teal-500/20'
+                            ? 'border-teal-500 focus:border-teal-500 focus:ring-teal-500/20'
+                            : 'border-slate-700 focus:border-teal-500 focus:ring-teal-500/20'
                       }`}
                       required
                     />
                     {/* Loading / Success / Error Indicator */}
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       {isCheckingUsername && (
-                        <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                       )}
                       {!isCheckingUsername && isUsernameAvailable === true && (
-                        <CheckCircle2 className="w-5 h-5 text-teal-400" />
+                        <CheckCircle2 className="h-5 w-5 text-teal-400" />
                       )}
                     </div>
                   </div>
                   {/* Username Error Message */}
                   {usernameError && (
                     <p
-                      className={`text-sm mt-1.5 ${
+                      className={`mt-1.5 text-sm ${
                         isUsernameAvailable === false ? 'text-red-400' : 'text-yellow-400'
                       }`}
                     >
@@ -371,12 +386,12 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
               {/* Email/Username Input */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-300">
                   {isSignUp ? 'Email Address' : 'Email or Username'}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    {isSignUp ? <Mail className="w-5 h-5" /> : <User className="w-5 h-5" />}
+                    {isSignUp ? <Mail className="h-5 w-5" /> : <User className="h-5 w-5" />}
                   </div>
                   <input
                     id="email"
@@ -384,7 +399,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={isSignUp ? 'Enter your email' : 'Enter your email or username'}
-                    className="w-full bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-800/50 py-3 pl-11 pr-4 text-white placeholder-slate-500 transition-all focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     required
                   />
                 </div>
@@ -392,12 +407,12 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
               {/* Password Input */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-300">
                   Password
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Lock className="w-5 h-5" />
+                    <Lock className="h-5 w-5" />
                   </div>
                   <input
                     id="password"
@@ -405,15 +420,15 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 rounded-lg pl-11 pr-12 py-3 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-800/50 py-3 pl-11 pr-12 text-white placeholder-slate-500 transition-all focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-white"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
@@ -423,7 +438,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    className="text-sm text-teal-400 hover:text-teal-300 transition-colors"
+                    className="text-sm text-teal-400 transition-colors hover:text-teal-300"
                   >
                     Forgot password?
                   </button>
@@ -434,18 +449,17 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
               <button
                 type="submit"
                 disabled={
-                  isLoading ||
-                  (isSignUp && (isCheckingUsername || isUsernameAvailable === false))
+                  isLoading || (isSignUp && (isCheckingUsername || isUsernameAvailable === false))
                 }
-                className="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-teal-500/50 disabled:cursor-not-allowed text-white font-medium px-4 py-3 rounded-lg transition-colors mt-6"
+                className="mt-6 w-full rounded-lg bg-teal-500 px-4 py-3 font-medium text-white transition-colors hover:bg-teal-600 disabled:cursor-not-allowed disabled:bg-teal-500/50"
               >
                 {isLoading
                   ? 'Loading...'
                   : isCheckingUsername
-                  ? 'Verifying username...'
-                  : isSignUp
-                  ? 'Create Account'
-                  : 'Sign In'}
+                    ? 'Verifying username...'
+                    : isSignUp
+                      ? 'Create Account'
+                      : 'Sign In'}
               </button>
             </form>
 
@@ -456,7 +470,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
               </span>
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-teal-400 hover:text-teal-300 font-medium transition-colors"
+                className="text-sm font-medium text-teal-400 transition-colors hover:text-teal-300"
               >
                 {isSignUp ? 'Sign In' : 'Sign Up'}
               </button>
@@ -464,14 +478,14 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-4 bg-slate-800/30 border-t border-slate-700/50 flex-shrink-0">
-            <p className="text-xs text-center text-slate-400">
+          <div className="flex-shrink-0 border-t border-slate-700/50 bg-slate-800/30 px-8 py-4">
+            <p className="text-center text-xs text-slate-400">
               By continuing, you agree to our{' '}
-              <a href="#terms" className="text-teal-400 hover:text-teal-300 transition-colors">
+              <a href="#terms" className="text-teal-400 transition-colors hover:text-teal-300">
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="#privacy" className="text-teal-400 hover:text-teal-300 transition-colors">
+              <a href="#privacy" className="text-teal-400 transition-colors hover:text-teal-300">
                 Privacy Policy
               </a>
             </p>

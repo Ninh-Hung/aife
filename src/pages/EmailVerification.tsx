@@ -77,33 +77,31 @@ export const EmailVerification: React.FC = () => {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#0F1F38] to-[#1a2942] flex items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0A1628] via-[#0F1F38] to-[#1a2942] p-4">
         <div className="w-full max-w-md">
-          <div className="bg-[#0F1F38] border border-slate-700/50 rounded-2xl shadow-2xl p-8">
+          <div className="rounded-2xl border border-slate-700/50 bg-[#0F1F38] p-8 shadow-2xl">
             {/* Loading Icon */}
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+            <div className="mb-6 flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
               </div>
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl font-bold text-white text-center mb-2">
-              Verifying your email
-            </h1>
+            <h1 className="mb-2 text-center text-2xl font-bold text-white">Verifying your email</h1>
 
             {/* Message */}
-            <p className="text-slate-300 text-center">
+            <p className="text-center text-slate-300">
               Please wait while we verify your email address...
             </p>
           </div>
 
           {/* Branding */}
           <div className="mt-6 flex items-center justify-center gap-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">AI</span>
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
+              <span className="text-xs font-bold text-white">AI</span>
             </div>
-            <span className="text-slate-400 text-sm">AppAIHelp.com</span>
+            <span className="text-sm text-slate-400">AppAIHelp.com</span>
           </div>
         </div>
       </div>
@@ -116,25 +114,26 @@ export const EmailVerification: React.FC = () => {
 
   if (status === 'success') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#0F1F38] to-[#1a2942] flex items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0A1628] via-[#0F1F38] to-[#1a2942] p-4">
         <div className="w-full max-w-md">
-          <div className="bg-[#0F1F38] border border-slate-700/50 rounded-2xl shadow-2xl p-8">
+          <div className="rounded-2xl border border-slate-700/50 bg-[#0F1F38] p-8 shadow-2xl">
             {/* Success Icon */}
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-400" />
+            <div className="mb-6 flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
+                <CheckCircle className="h-8 w-8 text-green-400" />
               </div>
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl font-bold text-white text-center mb-2">
+            <h1 className="mb-2 text-center text-2xl font-bold text-white">
               Email verified successfully!
             </h1>
 
             {/* Message */}
-            <div className="text-center mb-6">
-              <p className="text-slate-300 mb-4">
-                Your email has been verified. You can now sign in to your account and access all features.
+            <div className="mb-6 text-center">
+              <p className="mb-4 text-slate-300">
+                Your email has been verified. You can now sign in to your account and access all
+                features.
               </p>
             </div>
 
@@ -142,15 +141,15 @@ export const EmailVerification: React.FC = () => {
             <div className="space-y-3">
               <button
                 onClick={handleBackToLogin}
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-3 font-medium text-white transition-colors hover:bg-teal-600"
               >
                 Continue to Sign In
               </button>
             </div>
 
             {/* Additional Info */}
-            <div className="mt-6 pt-6 border-t border-slate-700/50">
-              <p className="text-xs text-center text-slate-400">
+            <div className="mt-6 border-t border-slate-700/50 pt-6">
+              <p className="text-center text-xs text-slate-400">
                 Welcome to AppAIHelp! Sign in to get started with AI-powered services.
               </p>
             </div>
@@ -158,10 +157,10 @@ export const EmailVerification: React.FC = () => {
 
           {/* Branding */}
           <div className="mt-6 flex items-center justify-center gap-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">AI</span>
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
+              <span className="text-xs font-bold text-white">AI</span>
             </div>
-            <span className="text-slate-400 text-sm">AppAIHelp.com</span>
+            <span className="text-sm text-slate-400">AppAIHelp.com</span>
           </div>
         </div>
       </div>
@@ -173,31 +172,30 @@ export const EmailVerification: React.FC = () => {
   // ============================================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A1628] via-[#0F1F38] to-[#1a2942] flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0A1628] via-[#0F1F38] to-[#1a2942] p-4">
       <div className="w-full max-w-md">
-        <div className="bg-[#0F1F38] border border-slate-700/50 rounded-2xl shadow-2xl p-8">
+        <div className="rounded-2xl border border-slate-700/50 bg-[#0F1F38] p-8 shadow-2xl">
           {/* Error Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
-              <XCircle className="w-8 h-8 text-red-400" />
+          <div className="mb-6 flex justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/20">
+              <XCircle className="h-8 w-8 text-red-400" />
             </div>
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-bold text-white text-center mb-2">
-            Verification Failed
-          </h1>
+          <h1 className="mb-2 text-center text-2xl font-bold text-white">Verification Failed</h1>
 
           {/* Error Message */}
-          <div className="text-center mb-6">
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-              <p className="text-red-300 text-sm">
+          <div className="mb-6 text-center">
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+              <p className="text-sm text-red-300">
                 {errorMessage || 'Unable to verify your email. The link may be invalid or expired.'}
               </p>
             </div>
 
-            <p className="text-slate-300 text-sm">
-              If you continue to experience issues, please contact support or request a new verification email.
+            <p className="text-sm text-slate-300">
+              If you continue to experience issues, please contact support or request a new
+              verification email.
             </p>
           </div>
 
@@ -205,16 +203,16 @@ export const EmailVerification: React.FC = () => {
           <div className="space-y-3">
             <button
               onClick={handleBackToLogin}
-              className="w-full bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-3 font-medium text-white transition-colors hover:bg-teal-600"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
               Back to Sign In
             </button>
           </div>
 
           {/* Additional Info */}
-          <div className="mt-6 pt-6 border-t border-slate-700/50">
-            <p className="text-xs text-center text-slate-400">
+          <div className="mt-6 border-t border-slate-700/50 pt-6">
+            <p className="text-center text-xs text-slate-400">
               Need help? Contact our support team for assistance.
             </p>
           </div>
@@ -222,10 +220,10 @@ export const EmailVerification: React.FC = () => {
 
         {/* Branding */}
         <div className="mt-6 flex items-center justify-center gap-2">
-          <div className="w-6 h-6 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-lg flex items-center justify-center">
-            <span className="text-white text-xs font-bold">AI</span>
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
+            <span className="text-xs font-bold text-white">AI</span>
           </div>
-          <span className="text-slate-400 text-sm">AppAIHelp.com</span>
+          <span className="text-sm text-slate-400">AppAIHelp.com</span>
         </div>
       </div>
     </div>

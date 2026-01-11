@@ -8,13 +8,14 @@
 // ============================================
 
 export interface User {
-  id: string;
-  name: string;
+  publicId: string; // Backend uses publicId instead of id
+  userName: string; // Backend uses userName instead of name
   email: string;
+  role: string; // ADMIN, USER, etc.
   avatar?: string;
-  subscription: SubscriptionTier;
-  createdAt: Date;
-  updatedAt: Date;
+  subscription?: SubscriptionTier; // Optional from backend
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export type SubscriptionTier = 'free' | 'pro' | 'enterprise';

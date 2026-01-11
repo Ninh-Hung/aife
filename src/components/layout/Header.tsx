@@ -48,46 +48,24 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <Box
-      className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8 dark:border-slate-700 dark:bg-slate-800"
-      sx={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1300,
-      }}
+      className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8 dark:border-slate-700 dark:bg-slate-800"
     >
-      {/* Left Section: Logo */}
-      <Box className="flex items-center gap-6">
-        <Link to="/" className="no-underline">
-          <Typography
-            variant="h6"
-            className="bg-gradient-to-r from-indigo-600 to-pink-600 bg-clip-text font-bold text-transparent dark:from-indigo-400 dark:to-pink-400"
-          >
-            appaihelp.com
-          </Typography>
-        </Link>
-
-        {/* Divider */}
-        <Box className="h-8 w-px bg-gray-200 dark:bg-slate-700" />
-
-        {/* Page Title */}
-        <Box className="flex items-center gap-3">
-          {icon && (
-            <Box className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-              {icon}
-            </Box>
-          )}
-          <Box>
-            <Typography variant="h6" className="font-bold text-gray-900 dark:text-white">
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                {subtitle}
-              </Typography>
-            )}
+      {/* Left Section: Page Title */}
+      <Box className="flex items-center gap-3">
+        {icon && (
+          <Box className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500 text-white">
+            {icon}
           </Box>
+        )}
+        <Box>
+          <Typography variant="h6" className="font-bold text-gray-900 dark:text-white">
+            {title}
+          </Typography>
+          {subtitle && (
+            <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+              {subtitle}
+            </Typography>
+          )}
         </Box>
       </Box>
 
@@ -103,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
               const agent = agents.find((a) => a.id === value);
               return (
                 <Box className="flex items-center gap-2">
-                  <Bot size={16} className="text-blue-600 dark:text-blue-400" />
+                  <Bot size={16} className="text-blue-500 dark:text-blue-400" />
                   <span>{agent?.name || 'Translation Agent'}</span>
                 </Box>
               );
@@ -112,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
             {agents.map((agent) => (
               <MenuItem key={agent.id} value={agent.id}>
                 <Box className="flex items-center gap-2">
-                  <Bot size={16} className="text-blue-600 dark:text-blue-400" />
+                  <Bot size={16} className="text-blue-500 dark:text-blue-400" />
                   <span>{agent.name}</span>
                   {agent.isDefault && <Chip label="Default" size="small" color="primary" />}
                 </Box>

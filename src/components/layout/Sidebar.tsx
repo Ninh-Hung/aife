@@ -86,18 +86,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
 
   return (
     <Box
-      className={`flex h-[calc(100vh-64px)] flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-slate-700 dark:bg-slate-800 ${
+      className={`fixed left-0 top-0 flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-slate-700 dark:bg-slate-800 ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
-      sx={{
-        position: 'fixed',
-        left: 0,
-        top: 64,
-        zIndex: 1200,
-      }}
     >
-      {/* Toggle Button */}
-      <Box className="flex items-center justify-end border-b border-gray-200 p-2 dark:border-slate-700">
+      {/* Logo Section */}
+      <Box
+        className={`flex items-center border-b border-gray-200 dark:border-slate-700 ${
+          isCollapsed ? 'justify-center px-2 py-4' : 'justify-between px-6 py-4'
+        }`}
+      >
+        {!isCollapsed && (
+          <Link to="/dashboard" className="no-underline">
+            <Typography
+              variant="h6"
+              className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"
+            >
+              appaihelp
+            </Typography>
+          </Link>
+        )}
         <Tooltip title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
           <IconButton
             onClick={onToggleCollapse}
@@ -128,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                   to={path}
                   className={`rounded-lg transition-all ${
                     isActive(path)
-                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
+                      ? 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'
                   } ${isCollapsed ? 'justify-center' : ''}`}
                   sx={{
@@ -139,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                   <ListItemIcon
                     className={
                       isActive(path)
-                        ? 'text-indigo-600 dark:text-indigo-400'
+                        ? 'text-blue-500 dark:text-blue-400'
                         : 'text-gray-500 dark:text-slate-400'
                     }
                     sx={{ minWidth: isCollapsed ? 'auto' : 40 }}
@@ -181,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                   to={path}
                   className={`rounded-lg transition-all ${
                     isActive(path)
-                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
+                      ? 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'
                   } ${isCollapsed ? 'justify-center' : ''}`}
                   sx={{
@@ -192,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                   <ListItemIcon
                     className={
                       isActive(path)
-                        ? 'text-indigo-600 dark:text-indigo-400'
+                        ? 'text-blue-500 dark:text-blue-400'
                         : 'text-gray-500 dark:text-slate-400'
                     }
                     sx={{ minWidth: isCollapsed ? 'auto' : 40 }}
@@ -240,15 +248,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
         {/* User Profile Widget */}
         <Box className={`bg-gray-50 py-4 dark:bg-slate-900/50 ${isCollapsed ? 'px-2' : 'px-4'}`}>
           {isCollapsed ? (
-            <Tooltip title={`${user.name} (${user.subscription})`} placement="right" arrow>
+            <Tooltip
+              title={`${user.userName} (${user.subscription || 'free'})`}
+              placement="right"
+              arrow
+            >
               <Box className="flex justify-center">
                 <Avatar
                   src={user.avatar}
-                  alt={user.name}
+                  alt={user.userName}
                   className="bg-gradient-to-br from-indigo-500 to-pink-500"
                   sx={{ width: 32, height: 32 }}
                 >
-                  {user.name.charAt(0).toUpperCase()}
+                  {user.userName.charAt(0).toUpperCase()}
                 </Avatar>
               </Box>
             </Tooltip>
@@ -257,18 +269,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
               <Box className="flex items-center gap-3">
                 <Avatar
                   src={user.avatar}
-                  alt={user.name}
+                  alt={user.userName}
                   className="bg-gradient-to-br from-indigo-500 to-pink-500"
                   sx={{ width: 40, height: 40 }}
                 >
-                  {user.name.charAt(0).toUpperCase()}
+                  {user.userName.charAt(0).toUpperCase()}
                 </Avatar>
                 <Box className="min-w-0 flex-1">
                   <Typography
                     variant="body2"
                     className="truncate font-semibold text-gray-900 dark:text-slate-100"
                   >
-                    {user.name}
+                    {user.userName}
                   </Typography>
                   <Typography
                     variant="caption"
@@ -279,20 +291,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                 </Box>
               </Box>
               {/* Subscription Badge */}
-              <Box className="mt-2">
-                <Typography
-                  variant="caption"
-                  className={`inline-block rounded-full px-2 py-0.5 font-semibold ${
-                    user.subscription === 'enterprise'
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      : user.subscription === 'pro'
-                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                        : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  {user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1)} Plan
-                </Typography>
-              </Box>
+              {user.subscription && (
+                <Box className="mt-2">
+                  <Typography
+                    variant="caption"
+                    className={`inline-block rounded-full px-2 py-0.5 font-semibold ${
+                      user.subscription === 'enterprise'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        : user.subscription === 'pro'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1)} Plan
+                  </Typography>
+                </Box>
+              )}
             </>
           )}
         </Box>

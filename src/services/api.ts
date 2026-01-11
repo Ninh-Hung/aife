@@ -3,17 +3,14 @@
  * Handles all backend API communications
  */
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL;
-
-if (!SERVER_URL) {
-  throw new Error('VITE_SERVER_URL environment variable is not defined');
-}
+import axiosInstance from '../lib/axios';
+import { AxiosError } from 'axios';
 
 // ============================================
 // API Response Types
 // ============================================
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -31,36 +28,26 @@ export interface ApiResponse<T = any> {
  */
 export const verifyEmail = async (token: string): Promise<ApiResponse> => {
   try {
-    const response = await fetch(
-      `${SERVER_URL}/auth/verify-email?token=${encodeURIComponent(token)}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.error || data.message || 'Verification failed',
-        message: data.message,
-      };
-    }
+    const response = await axiosInstance.get('/auth/verify-email', {
+      params: { token },
+    });
 
     return {
       success: true,
-      data: data.data,
-      message: data.message || 'Email verified successfully',
+      data: response.data.data,
+      message: response.data.message || 'Email verified successfully',
     };
   } catch (error) {
     console.error('Email verification error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
     return {
       success: false,
-      error: 'Network error. Please check your connection and try again.',
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Network error. Please check your connection and try again.',
+      message: axiosError.response?.data?.message,
     };
   }
 };
