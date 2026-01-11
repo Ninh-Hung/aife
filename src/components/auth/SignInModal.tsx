@@ -3,8 +3,10 @@
  * Supports traditional email/password and OAuth (Google, Facebook, Apple)
  */
 
-import React, { useState, useEffect } from 'react';
-import { X, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Mail, Lock, Eye, EyeOff, User, Loader2, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { USERNAME_REGEX, MIN_USERNAME_LENGTH } from '../../common/constants';
 
 // ============================================
 // Props Interface
@@ -20,12 +22,21 @@ interface SignInModalProps {
 // ============================================
 
 export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Username availability check states
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,6 +53,92 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
     };
   }, [isOpen]);
 
+  // Reset username availability states when toggling between sign in/up
+  useEffect(() => {
+    setIsCheckingUsername(false);
+    setIsUsernameAvailable(null);
+    setUsernameError(null);
+    if (usernameCheckTimeoutRef.current) {
+      clearTimeout(usernameCheckTimeoutRef.current);
+    }
+  }, [isSignUp]);
+
+  // Debounced username availability check
+  useEffect(() => {
+    // Only check username availability during sign up
+    if (!isSignUp) return;
+
+    // Clear previous timeout
+    if (usernameCheckTimeoutRef.current) {
+      clearTimeout(usernameCheckTimeoutRef.current);
+    }
+
+    // Reset states if username is empty or too short
+    if (!username || username.length < MIN_USERNAME_LENGTH) {
+      setIsCheckingUsername(false);
+      setIsUsernameAvailable(null);
+      setUsernameError(null);
+      return;
+    }
+
+    // Validate username format (alphanumeric and underscore only)
+    if (!USERNAME_REGEX.test(username)) {
+      setIsCheckingUsername(false);
+      setIsUsernameAvailable(false);
+      setUsernameError('Username can only contain letters, numbers, and underscores');
+      return;
+    }
+
+    // Set checking state and debounce the API call (400ms)
+    setIsCheckingUsername(true);
+    setUsernameError(null);
+    setIsUsernameAvailable(null);
+
+    usernameCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const SERVER_URL = import.meta.env.VITE_SERVER_URL;
+        const response = await fetch(
+          `${SERVER_URL}/v1/common/check-availability?userName=${encodeURIComponent(username)}`,
+          {
+            method: 'GET',
+          }
+        );
+
+        const data = await response.json();
+
+        // Check if the response indicates success
+        if (data.success) {
+          // data.exists === true means username is taken
+          // data.exists === false means username is available
+          if (data.data.exists) {
+            setIsUsernameAvailable(false);
+            setUsernameError('This username is already taken');
+          } else {
+            setIsUsernameAvailable(true);
+            setUsernameError(null);
+          }
+        } else {
+          // Non-blocking warning if API returns success: false
+          setUsernameError('Unable to verify username right now');
+          setIsUsernameAvailable(null);
+        }
+      } catch (err) {
+        // Non-blocking warning on network error
+        setUsernameError('Unable to verify username right now');
+        setIsUsernameAvailable(null);
+      } finally {
+        setIsCheckingUsername(false);
+      }
+    }, 400);
+
+    // Cleanup timeout on unmount or username change
+    return () => {
+      if (usernameCheckTimeoutRef.current) {
+        clearTimeout(usernameCheckTimeoutRef.current);
+      }
+    };
+  }, [username, isSignUp]);
+
   if (!isOpen && !isAnimating) return null;
 
   const handleClose = () => {
@@ -57,10 +154,56 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Add authentication logic
-    console.log('Form submitted:', { username, email, password, isSignUp });
+    setError(null);
+
+    // Handle registration
+    if (isSignUp) {
+      // Prevent submission if username check is in progress
+      if (isCheckingUsername) {
+        setError('Please wait while we verify your username');
+        return;
+      }
+
+      // Prevent submission if username is not available
+      if (isUsernameAvailable === false) {
+        setError('Please choose a different username');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const SERVER_URL = import.meta.env.VITE_SERVER_URL;
+        const response = await fetch(`${SERVER_URL}/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userName: username,
+            email,
+            password,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Registration failed. Please try again.');
+        }
+
+        // Registration successful - redirect to "check your email" page
+        navigate('/email-sent', { state: { email } });
+        handleClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // TODO: Handle login logic
+      console.log('Login:', { email, password });
+    }
   };
 
   const handleOAuthLogin = (provider: 'google' | 'facebook' | 'apple') => {
@@ -169,6 +312,13 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
               </div>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
+
             {/* Email/Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username Input - Only for Sign Up */}
@@ -187,10 +337,35 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Choose a username"
-                      className="w-full bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 rounded-lg pl-11 pr-4 py-3 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                      className={`w-full bg-slate-800/50 border text-white placeholder-slate-500 rounded-lg pl-11 pr-11 py-3 focus:outline-none focus:ring-2 transition-all ${
+                        usernameError && isUsernameAvailable === false
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                          : isUsernameAvailable === true
+                          ? 'border-teal-500 focus:border-teal-500 focus:ring-teal-500/20'
+                          : 'border-slate-700 focus:border-teal-500 focus:ring-teal-500/20'
+                      }`}
                       required
                     />
+                    {/* Loading / Success / Error Indicator */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {isCheckingUsername && (
+                        <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                      )}
+                      {!isCheckingUsername && isUsernameAvailable === true && (
+                        <CheckCircle2 className="w-5 h-5 text-teal-400" />
+                      )}
+                    </div>
                   </div>
+                  {/* Username Error Message */}
+                  {usernameError && (
+                    <p
+                      className={`text-sm mt-1.5 ${
+                        isUsernameAvailable === false ? 'text-red-400' : 'text-yellow-400'
+                      }`}
+                    >
+                      {usernameError}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -258,9 +433,19 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-3 rounded-lg transition-colors mt-6"
+                disabled={
+                  isLoading ||
+                  (isSignUp && (isCheckingUsername || isUsernameAvailable === false))
+                }
+                className="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-teal-500/50 disabled:cursor-not-allowed text-white font-medium px-4 py-3 rounded-lg transition-colors mt-6"
               >
-                {isSignUp ? 'Create Account' : 'Sign In'}
+                {isLoading
+                  ? 'Loading...'
+                  : isCheckingUsername
+                  ? 'Verifying username...'
+                  : isSignUp
+                  ? 'Create Account'
+                  : 'Sign In'}
               </button>
             </form>
 

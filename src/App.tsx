@@ -13,6 +13,8 @@ import { Header } from './components/layout/Header';
 import { TranslationPage } from './features/translate/TranslationPage';
 import { AgentDrawer } from './components/agents/AgentDrawer';
 import LandingPage from './pages/LandingPage';
+import { EmailVerificationPending } from './pages/EmailVerificationPending';
+import { EmailVerification } from './pages/EmailVerification';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Bot, LayoutDashboard, Users, CreditCard, Code, Image as ImageIcon } from 'lucide-react';
 
@@ -104,6 +106,12 @@ const AppContent: React.FC = () => {
       <Routes>
         {/* Landing Page (no layout) */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* Email Verification Pending - shown after registration (no layout, not protected) */}
+        <Route path="/email-sent" element={<EmailVerificationPending />} />
+
+        {/* Email Verification Handler - processes token from email link (no layout, not protected) */}
+        <Route path="/verify-email" element={<EmailVerification />} />
 
         {/* App routes with layout - Protected */}
         <Route
