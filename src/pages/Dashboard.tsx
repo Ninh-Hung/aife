@@ -90,7 +90,10 @@ export const Dashboard: React.FC = () => {
                   size="medium"
                 />
               </Box>
-              <Typography variant="caption" className="mt-2 block text-gray-500 dark:text-slate-400">
+              <Typography
+                variant="caption"
+                className="mt-2 block text-gray-500 dark:text-slate-400"
+              >
                 {user?.subscription === 'pro'
                   ? 'Advanced features enabled'
                   : user?.subscription === 'enterprise'

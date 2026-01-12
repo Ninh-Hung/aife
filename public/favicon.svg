@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="64" height="64" rx="12" fill="url(#bgGradient)"/>
+
+  <!-- AI brain/circuit symbol -->
+  <g transform="translate(16, 16)">
+    <!-- Central AI symbol -->
+    <path d="M 16 4 L 20 8 L 16 12 L 12 8 Z" fill="white" opacity="0.9"/>
+
+    <!-- Circuit connections -->
+    <circle cx="8" cy="4" r="2.5" fill="white" opacity="0.85"/>
+    <circle cx="24" cy="4" r="2.5" fill="white" opacity="0.85"/>
+    <circle cx="8" cy="28" r="2.5" fill="white" opacity="0.85"/>
+    <circle cx="24" cy="28" r="2.5" fill="white" opacity="0.85"/>
+
+    <!-- Connecting lines -->
+    <line x1="10" y1="5" x2="12" y2="7" stroke="white" stroke-width="1.5" opacity="0.7"/>
+    <line x1="22" y1="5" x2="20" y2="7" stroke="white" stroke-width="1.5" opacity="0.7"/>
+    <line x1="10" y1="27" x2="12" y2="25" stroke="white" stroke-width="1.5" opacity="0.7"/>
+    <line x1="22" y1="27" x2="20" y2="25" stroke="white" stroke-width="1.5" opacity="0.7"/>
+
+    <!-- AI text -->
+    <text x="16" y="22" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white" text-anchor="middle">AI</text>
+  </g>
+</svg>

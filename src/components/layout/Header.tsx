@@ -4,7 +4,6 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import {
   Box,
   FormControl,
@@ -47,9 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <Box
-      className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8 dark:border-slate-700 dark:bg-slate-800"
-    >
+    <Box className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-8 dark:border-slate-700 dark:bg-slate-800">
       {/* Left Section: Page Title */}
       <Box className="flex items-center gap-3">
         {icon && (

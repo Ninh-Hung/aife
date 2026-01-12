@@ -17,7 +17,16 @@ import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { EmailVerification } from './pages/EmailVerification';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
-import { Bot, LayoutDashboard, Users, CreditCard, Code, Image as ImageIcon } from 'lucide-react';
+import { ApiKeyManagement } from './pages/ApiKeyManagement';
+import {
+  Bot,
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  Code,
+  Image as ImageIcon,
+  KeyRound,
+} from 'lucide-react';
 import { CreateAgentInput } from './types';
 
 // ============================================
@@ -102,6 +111,14 @@ const AppContent: React.FC = () => {
             icon={<ImageIcon className="text-white" size={24} />}
           />
         );
+      case '/api-keys':
+        return (
+          <Header
+            title="API Keys"
+            subtitle="Manage your API authentication tokens"
+            icon={<KeyRound className="text-white" size={24} />}
+          />
+        );
       default:
         return null;
     }
@@ -140,6 +157,10 @@ const AppContent: React.FC = () => {
 
                   {/* Dashboard Page */}
                   <Route path="/dashboard" element={<Dashboard />} />
+
+                  {/* API Key Management */}
+                  <Route path="/api-keys" element={<ApiKeyManagement />} />
+
                   <Route
                     path="/agents"
                     element={

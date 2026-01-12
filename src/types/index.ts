@@ -120,3 +120,34 @@ export interface ServiceNavItem extends NavItem {
   description?: string;
   badge?: string;
 }
+
+// ============================================
+// API Key Management
+// ============================================
+
+export interface ApiKey {
+  publicId: string;
+  name: string;
+  prefix: string;
+  status: 'ACTIVE' | 'REVOKED';
+  metadata?: {
+    appName?: string;
+    environment?: string;
+    description?: string;
+  };
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+export interface CreateApiKeyInput {
+  name: string;
+  metadata?: {
+    appName?: string;
+    environment?: string;
+    description?: string;
+  };
+}
+
+export interface CreateApiKeyResponse {
+  apiKey: string;
+}

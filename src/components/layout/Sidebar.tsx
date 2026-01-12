@@ -3,7 +3,7 @@
  * Features: Logo, Navigation, Services, Dark Mode Toggle, User Profile
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -17,6 +17,8 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   LayoutDashboard,
@@ -29,6 +31,10 @@ import {
   Moon,
   ChevronLeft,
   ChevronRight,
+  UserCircle,
+  Settings,
+  LogOut,
+  KeyRound,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { User } from '../../types';
@@ -50,6 +56,7 @@ interface SidebarProps {
 const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard },
   { id: 'agents', label: 'My Agents', path: '/agents', Icon: Users },
+  { id: 'api-keys', label: 'API Keys', path: '/api-keys', Icon: KeyRound },
   { id: 'subscription', label: 'Subscription', path: '/subscription', Icon: CreditCard },
 ];
 
@@ -81,8 +88,36 @@ const serviceNavItems = [
 export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
   const { mode, toggleTheme } = useTheme();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const isMenuOpen = Boolean(anchorEl);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handlePersonalDetail = () => {
+    handleMenuClose();
+    // TODO: Navigate to personal detail page or open modal
+    console.log('Navigate to personal detail');
+  };
+
+  const handleUserSettings = () => {
+    handleMenuClose();
+    // TODO: Navigate to settings page or open modal
+    console.log('Navigate to user settings');
+  };
+
+  const handleLogout = () => {
+    handleMenuClose();
+    // TODO: Implement logout logic
+    console.log('Logout');
+  };
 
   return (
     <Box
@@ -246,7 +281,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
         </Box>
 
         {/* User Profile Widget */}
-        <Box className={`bg-gray-50 py-4 dark:bg-slate-900/50 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+        <Box
+          className={`cursor-pointer bg-gray-50 py-4 transition-colors hover:bg-gray-100 dark:bg-slate-900/50 dark:hover:bg-slate-900/70 ${isCollapsed ? 'px-2' : 'px-4'}`}
+          onClick={handleProfileClick}
+        >
           {isCollapsed ? (
             <Tooltip
               title={`${user.userName} (${user.subscription || 'free'})`}
@@ -310,6 +348,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
             </>
           )}
         </Box>
+
+        {/* User Profile Menu */}
+        <Menu
+          anchorEl={anchorEl}
+          open={isMenuOpen}
+          onClose={handleMenuClose}
+          anchorOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'bottom',
+            horizontal: isCollapsed ? 'left' : 'right',
+          }}
+          slotProps={{
+            paper: {
+              className: 'mt-2 min-w-[200px] rounded-lg shadow-lg',
+            },
+          }}
+        >
+          <MenuItem
+            onClick={handlePersonalDetail}
+            className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            <UserCircle size={18} className="text-gray-500 dark:text-slate-400" />
+            <Typography variant="body2">Personal Detail</Typography>
+          </MenuItem>
+          <MenuItem
+            onClick={handleUserSettings}
+            className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            <Settings size={18} className="text-gray-500 dark:text-slate-400" />
+            <Typography variant="body2">User Settings</Typography>
+          </MenuItem>
+          <Divider className="my-1" />
+          <MenuItem
+            onClick={handleLogout}
+            className="gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <LogOut size={18} />
+            <Typography variant="body2">Logout</Typography>
+          </MenuItem>
+        </Menu>
       </Box>
     </Box>
   );
