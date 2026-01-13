@@ -82,6 +82,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                 onClick={handleCopy}
                 size="small"
                 className="text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+                sx={{ minWidth: 44, minHeight: 44 }} // Touch target optimization
               >
                 {copied ? <Check size={18} /> : <Copy size={18} />}
               </IconButton>
@@ -91,6 +92,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                 onClick={handleSpeak}
                 size="small"
                 className="text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+                sx={{ minWidth: 44, minHeight: 44 }} // Touch target optimization
               >
                 <Volume2 size={18} />
               </IconButton>

@@ -25,10 +25,14 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box className="p-8">
+    <>
       {/* Page Header */}
-      <Box className="mb-8">
-        <Typography variant="h4" className="font-bold text-gray-900 dark:text-white">
+      <Box className="mb-6 md:mb-8">
+        <Typography
+          variant="h4"
+          className="font-bold text-gray-900 dark:text-white"
+          sx={{ fontSize: { xs: '1.5rem', md: '2rem' } }}
+        >
           Welcome back, {user?.userName}!
         </Typography>
         <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
@@ -37,7 +41,7 @@ export const Dashboard: React.FC = () => {
       </Box>
 
       {/* Stats Cards Row */}
-      <Box className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+      <Box className="mb-6 grid grid-cols-1 gap-4 md:mb-8 md:grid-cols-3 md:gap-6">
         {/* Total Agents Card */}
         <Card
           className="border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
@@ -156,7 +160,7 @@ export const Dashboard: React.FC = () => {
       </Box>
 
       {/* Additional Content Section */}
-      <Box className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Box className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
         {/* Recent Activity Card */}
         <Card
           className="border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
@@ -233,6 +237,6 @@ export const Dashboard: React.FC = () => {
           </Box>
         </Card>
       </Box>
-    </Box>
+    </>
   );
 };

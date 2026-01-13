@@ -5,6 +5,7 @@ A scalable, modern web application built with React, TypeScript, Material UI, an
 ## 🎯 Features
 
 ### Translation Service
+
 - **AI-Powered Translation**: Translate text into multiple languages simultaneously
 - **Custom AI Agents**: Create and manage translation agents with different personas and creativity levels
 - **Multi-language Output**: View translations in a clean, organized grid layout
@@ -12,6 +13,7 @@ A scalable, modern web application built with React, TypeScript, Material UI, an
 - **Copy Functionality**: Quick copy-to-clipboard for all translations
 
 ### Core Features
+
 - **Dark/Light Mode**: Seamless theme switching with synced MUI and Tailwind styles
 - **Responsive Design**: Mobile-first approach with beautiful UI across all devices
 - **Type Safety**: Full TypeScript implementation with strict type checking
@@ -56,16 +58,19 @@ src/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    cd /Users/mac/Desktop/PERSONAL_PROJECT/ai/aife
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -110,12 +115,10 @@ The project uses a unique configuration where:
 3. **Color Palette** is aligned across both systems for consistency
 
 Example usage:
+
 ```tsx
 // MUI component with Tailwind classes
-<Button
-  variant="contained"
-  className="bg-indigo-600 hover:bg-indigo-700"
->
+<Button variant="contained" className="bg-indigo-600 hover:bg-indigo-700">
   Click Me
 </Button>
 ```
@@ -123,6 +126,7 @@ Example usage:
 ### Theme Toggle
 
 Dark/light mode is controlled via:
+
 - `ThemeContext` - Manages theme state
 - `syncTailwindDarkMode()` - Toggles `dark` class on `<html>` element
 - `MuiThemeProvider` - Updates MUI component styles
@@ -157,17 +161,14 @@ Dark/light mode is controlled via:
 export const MyComponent: React.FC<Props> = ({ prop1, prop2 }) => {
   const [state, setState] = useState<Type>(initialValue);
 
-  return (
-    <Box className="tailwind-classes">
-      {/* Component content */}
-    </Box>
-  );
+  return <Box className="tailwind-classes">{/* Component content */}</Box>;
 };
 ```
 
 ### Type-Safe Interfaces
 
 All data models are defined in `src/types/index.ts`:
+
 - `User` - User account information
 - `Agent` - AI agent configuration
 - `TranslationResult` - Translation output data
@@ -192,18 +193,18 @@ All data models are defined in `src/types/index.ts`:
 5. **Performance**: Code splitting and lazy loading ready
 6. **Scalability**: Feature-based organization for easy expansion
 
-## 🔐 Authentication
+## 🔐 Authentication (Completed)
 
-The current implementation includes a mock authentication system (`AuthContext`). In production:
+The authentication system is fully integrated using `AuthContext`.
 
-1. Replace `AuthContext` with actual auth provider (Firebase, Auth0, etc.)
-2. Implement protected routes
-3. Add token management
-4. Connect to backend API
+- **User Data**: Access user info via `useAuth()` hook.
+- **Protected Routes**: Use the `ProtectedRoute` component to wrap private pages.
+- **API Interceptor**: Axios instance is configured to automatically attach the Bearer Token to headers for all requests.
 
 ## 🚧 Development Roadmap
 
 ### Completed ✅
+
 - [x] Project structure and configuration
 - [x] Theme system (MUI + Tailwind)
 - [x] Sidebar navigation
@@ -213,6 +214,7 @@ The current implementation includes a mock authentication system (`AuthContext`)
 - [x] User profile widget
 
 ### Coming Soon 🔜
+
 - [ ] Connect to actual translation API
 - [ ] Code generation service
 - [ ] Image generation service

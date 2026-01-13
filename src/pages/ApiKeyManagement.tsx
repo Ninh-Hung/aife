@@ -99,12 +99,14 @@ export const ApiKeyManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-8">
+    <>
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">API Keys</h1>
-          <p className="mt-2 text-gray-600 dark:text-slate-400">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 md:text-3xl">
+            API Keys
+          </h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-slate-400 md:text-base">
             Manage authentication tokens for accessing platform APIs
           </p>
         </div>
@@ -113,6 +115,7 @@ export const ApiKeyManagement: React.FC = () => {
           startIcon={<Plus size={20} />}
           onClick={handleCreateClick}
           className="bg-blue-600 hover:bg-blue-700"
+          sx={{ minHeight: 44 }} // Touch target optimization
         >
           Create API Key
         </Button>
@@ -257,7 +260,7 @@ export const ApiKeyManagement: React.FC = () => {
           setRevokeDialog({ open: false, apiKey: null });
         }}
       />
-    </div>
+    </>
   );
 };
 

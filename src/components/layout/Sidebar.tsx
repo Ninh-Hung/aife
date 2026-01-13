@@ -47,6 +47,8 @@ interface SidebarProps {
   user: User;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  isMobileDrawer?: boolean; // If true, render as drawer content (no fixed positioning)
+  onNavigate?: () => void; // Callback when navigation item is clicked (for closing drawer)
 }
 
 // ============================================
@@ -85,13 +87,25 @@ const serviceNavItems = [
 // Sidebar Component
 // ============================================
 
-export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCollapse }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  user,
+  isCollapsed,
+  onToggleCollapse,
+  isMobileDrawer = false,
+  onNavigate,
+}) => {
   const location = useLocation();
   const { mode, toggleTheme } = useTheme();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const isMenuOpen = Boolean(anchorEl);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleNavigation = () => {
+    if (onNavigate) {
+      onNavigate();
+    }
+  };
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -121,18 +135,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
 
   return (
     <Box
-      className={`fixed left-0 top-0 flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-slate-700 dark:bg-slate-800 ${
-        isCollapsed ? 'w-16' : 'w-64'
-      }`}
+      className={`flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-slate-700 dark:bg-slate-800 ${
+        isMobileDrawer ? 'w-64' : isCollapsed ? 'w-16' : 'w-64'
+      } ${!isMobileDrawer ? 'fixed left-0 top-0' : ''}`}
     >
       {/* Logo Section */}
       <Box
         className={`flex items-center border-b border-gray-200 dark:border-slate-700 ${
-          isCollapsed ? 'justify-center px-2 py-4' : 'justify-between px-6 py-4'
+          isCollapsed && !isMobileDrawer ? 'justify-center px-2 py-4' : 'justify-between px-6 py-4'
         }`}
       >
-        {!isCollapsed && (
-          <Link to="/dashboard" className="no-underline">
+        {(!isCollapsed || isMobileDrawer) && (
+          <Link to="/dashboard" className="no-underline" onClick={handleNavigation}>
             <Typography
               variant="h6"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"
@@ -141,21 +155,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
             </Typography>
           </Link>
         )}
-        <Tooltip title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
-          <IconButton
-            onClick={onToggleCollapse}
-            size="small"
-            className="text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700"
-          >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </IconButton>
-        </Tooltip>
+        {/* Hide collapse button in mobile drawer mode */}
+        {!isMobileDrawer && (
+          <Tooltip title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
+            <IconButton
+              onClick={onToggleCollapse}
+              size="small"
+              className="text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
 
       {/* Main Navigation */}
       <Box className="flex-1 overflow-y-auto py-4">
         <List className="px-3">
-          {!isCollapsed && (
+          {(!isCollapsed || !isMobileDrawer) && (
             <Typography
               variant="caption"
               className="px-4 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
@@ -165,18 +182,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
           )}
           {mainNavItems.map(({ id, label, path, Icon }) => (
             <ListItem key={id} disablePadding className="mb-1">
-              <Tooltip title={isCollapsed ? label : ''} placement="right" arrow>
+              <Tooltip title={isCollapsed && !isMobileDrawer ? label : ''} placement="right" arrow>
                 <ListItemButton
                   component={Link}
                   to={path}
+                  onClick={handleNavigation}
                   className={`rounded-lg transition-all ${
                     isActive(path)
                       ? 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
+                  } ${isCollapsed && !isMobileDrawer ? 'justify-center' : ''}`}
                   sx={{
                     py: 1.5,
-                    px: isCollapsed ? 1 : 2,
+                    px: isCollapsed && !isMobileDrawer ? 1 : 2,
+                    minHeight: 44, // Touch target optimization
                   }}
                 >
                   <ListItemIcon
@@ -185,11 +204,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                         ? 'text-blue-500 dark:text-blue-400'
                         : 'text-gray-500 dark:text-slate-400'
                     }
-                    sx={{ minWidth: isCollapsed ? 'auto' : 40 }}
+                    sx={{ minWidth: isCollapsed && !isMobileDrawer ? 'auto' : 40 }}
                   >
                     <Icon size={20} />
                   </ListItemIcon>
-                  {!isCollapsed && (
+                  {(!isCollapsed || isMobileDrawer) && (
                     <ListItemText
                       primary={label}
                       primaryTypographyProps={{
@@ -208,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
 
         {/* Services Navigation */}
         <List className="px-3">
-          {!isCollapsed && (
+          {(!isCollapsed || !isMobileDrawer) && (
             <Typography
               variant="caption"
               className="px-4 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
@@ -218,18 +237,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
           )}
           {serviceNavItems.map(({ id, label, path, Icon }) => (
             <ListItem key={id} disablePadding className="mb-1">
-              <Tooltip title={isCollapsed ? label : ''} placement="right" arrow>
+              <Tooltip title={isCollapsed && !isMobileDrawer ? label : ''} placement="right" arrow>
                 <ListItemButton
                   component={Link}
                   to={path}
+                  onClick={handleNavigation}
                   className={`rounded-lg transition-all ${
                     isActive(path)
                       ? 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
+                  } ${isCollapsed && !isMobileDrawer ? 'justify-center' : ''}`}
                   sx={{
                     py: 1.5,
-                    px: isCollapsed ? 1 : 2,
+                    px: isCollapsed && !isMobileDrawer ? 1 : 2,
+                    minHeight: 44, // Touch target optimization
                   }}
                 >
                   <ListItemIcon
@@ -238,11 +259,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
                         ? 'text-blue-500 dark:text-blue-400'
                         : 'text-gray-500 dark:text-slate-400'
                     }
-                    sx={{ minWidth: isCollapsed ? 'auto' : 40 }}
+                    sx={{ minWidth: isCollapsed && !isMobileDrawer ? 'auto' : 40 }}
                   >
                     <Icon size={20} />
                   </ListItemIcon>
-                  {!isCollapsed && (
+                  {(!isCollapsed || isMobileDrawer) && (
                     <ListItemText
                       primary={label}
                       primaryTypographyProps={{
@@ -262,9 +283,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
       <Box className="border-t border-gray-200 dark:border-slate-700">
         {/* Dark Mode Toggle */}
         <Box
-          className={`flex items-center py-3 ${isCollapsed ? 'justify-center px-2' : 'justify-between px-6'}`}
+          className={`flex items-center py-3 ${isCollapsed && !isMobileDrawer ? 'justify-center px-2' : 'justify-between px-6'}`}
         >
-          {!isCollapsed && (
+          {(!isCollapsed || isMobileDrawer) && (
             <Typography variant="body2" className="font-medium text-gray-700 dark:text-slate-300">
               {mode === 'light' ? 'Light Mode' : 'Dark Mode'}
             </Typography>
@@ -274,6 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
               onClick={toggleTheme}
               className="text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700"
               size="small"
+              sx={{ minWidth: 44, minHeight: 44 }} // Touch target optimization
             >
               {mode === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </IconButton>
@@ -282,10 +304,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggleCol
 
         {/* User Profile Widget */}
         <Box
-          className={`cursor-pointer bg-gray-50 py-4 transition-colors hover:bg-gray-100 dark:bg-slate-900/50 dark:hover:bg-slate-900/70 ${isCollapsed ? 'px-2' : 'px-4'}`}
+          className={`cursor-pointer bg-gray-50 py-4 transition-colors hover:bg-gray-100 dark:bg-slate-900/50 dark:hover:bg-slate-900/70 ${isCollapsed && !isMobileDrawer ? 'px-2' : 'px-4'}`}
           onClick={handleProfileClick}
+          sx={{ minHeight: 44 }} // Touch target optimization
         >
-          {isCollapsed ? (
+          {isCollapsed && !isMobileDrawer ? (
             <Tooltip
               title={`${user.userName} (${user.subscription || 'free'})`}
               placement="right"
