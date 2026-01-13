@@ -151,3 +151,50 @@ export interface CreateApiKeyInput {
 export interface CreateApiKeyResponse {
   apiKey: string;
 }
+
+// ============================================
+// Subscription & Billing
+// ============================================
+
+export interface PackageMetadata {
+  color: string;
+  icon: string; // Lucide icon name (e.g., "Zap", "Crown", "Shield")
+}
+
+export interface PackageFeature {
+  icon: string; // Lucide icon name
+  quota: string; // e.g., "100 requests/day"
+  description: string;
+}
+
+export interface Package {
+  publicId: string;
+  name: string;
+  price: number;
+  duration: string; // e.g., "month", "year"
+  metadata: string; // JSON string containing PackageMetadata
+  features: PackageFeature[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CurrentSubscription {
+  publicId: string;
+  packageId: string;
+  packageName: string;
+  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
+  startDate: string;
+  endDate: string;
+  autoRenew: boolean;
+  createdAt: string;
+}
+
+export interface BillingHistoryItem {
+  publicId: string;
+  packageName: string;
+  amount: number;
+  status: 'PAID' | 'PENDING' | 'FAILED' | 'REFUNDED';
+  paymentDate: string;
+  invoiceUrl?: string;
+  createdAt: string;
+}

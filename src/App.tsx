@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { AgentsProvider, useAgents } from './contexts/AgentsContext';
+import { NotificationProvider } from './components/notifications/NotificationProvider';
 import { Layout } from './components/layout/Layout';
 import { Header } from './components/layout/Header';
 import { TranslationPage } from './features/translate/TranslationPage';
@@ -18,6 +19,7 @@ import { EmailVerification } from './pages/EmailVerification';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
+import { SubscriptionPage } from './pages/SubscriptionPage';
 import {
   Bot,
   LayoutDashboard,
@@ -169,14 +171,7 @@ const AppContent: React.FC = () => {
                       </div>
                     }
                   />
-                  <Route
-                    path="/subscription"
-                    element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">
-                        Subscription - Coming Soon
-                      </div>
-                    }
-                  />
+                  <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
                     path="/code"
                     element={
@@ -229,9 +224,11 @@ const App: React.FC = () => {
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <AgentsProvider>
-            <AppContent />
-          </AgentsProvider>
+          <NotificationProvider>
+            <AgentsProvider>
+              <AppContent />
+            </AgentsProvider>
+          </NotificationProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>

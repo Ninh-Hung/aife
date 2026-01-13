@@ -13,7 +13,6 @@ import {
   Slider,
   IconButton,
   Divider,
-  Alert,
   FormControl,
   InputLabel,
   OutlinedInput,
@@ -21,6 +20,7 @@ import {
 } from '@mui/material';
 import { X, Sparkles, Save } from 'lucide-react';
 import { CreateAgentInput } from '../../types';
+import { useNotification } from '../../hooks/useNotification';
 
 // ============================================
 // Props Interface
@@ -48,10 +48,10 @@ const initialFormState: CreateAgentInput = {
 // ============================================
 
 export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave }) => {
+  const { success, error } = useNotification();
   const [formData, setFormData] = useState<CreateAgentInput>(initialFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof CreateAgentInput, string>>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   // ============================================
   // Handlers
@@ -105,15 +105,15 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
     }
 
     setIsSaving(true);
-    setSaveError(null);
 
     try {
       await onSave(formData);
       // Reset form and close drawer on success
+      success('Agent created successfully!');
       setFormData(initialFormState);
       onClose();
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save agent');
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Failed to save agent');
     } finally {
       setIsSaving(false);
     }
@@ -123,7 +123,6 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
     if (!isSaving) {
       setFormData(initialFormState);
       setErrors({});
-      setSaveError(null);
       onClose();
     }
   };
@@ -165,12 +164,6 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
 
         {/* Form Content */}
         <Box className="flex-1 overflow-y-auto px-6 py-6">
-          {saveError && (
-            <Alert severity="error" className="mb-4" onClose={() => setSaveError(null)}>
-              {saveError}
-            </Alert>
-          )}
-
           <Box className="space-y-6">
             {/* Agent Name */}
             <FormControl fullWidth error={!!errors.name}>
