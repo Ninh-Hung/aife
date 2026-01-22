@@ -1,26 +1,31 @@
 /**
  * Agent Management Drawer
- * Slides in from the right for creating/editing AI agents
+ * Refactored to support capability-driven, data-driven architecture
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Drawer,
   Box,
   Typography,
   TextField,
   Button,
-  Slider,
   IconButton,
   Divider,
   FormControl,
   InputLabel,
   OutlinedInput,
   FormHelperText,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
-import { X, Sparkles, Save } from 'lucide-react';
-import { CreateAgentInput } from '../../types';
+import { X, Sparkles, Save, ChevronDown } from 'lucide-react';
+import { Agent, CreateAgentInput, Characteristic, Knowledge } from '../../types';
 import { useNotification } from '../../hooks/useNotification';
+import { CapabilitiesSection } from './CapabilitiesSection';
+import { CharacteristicsSection } from './CharacteristicsSection';
+import { KnowledgeSection } from './KnowledgeSection';
 
 // ============================================
 // Props Interface
@@ -30,6 +35,8 @@ interface AgentDrawerProps {
   open: boolean;
   onClose: () => void;
   onSave: (agent: CreateAgentInput) => Promise<void>;
+  agent?: Agent | null;
+  onUpdate?: (id: string, agent: Partial<CreateAgentInput>) => Promise<void>;
 }
 
 // ============================================
@@ -38,20 +45,49 @@ interface AgentDrawerProps {
 
 const initialFormState: CreateAgentInput = {
   name: '',
-  role: '',
-  systemPrompt: '',
-  creativityLevel: 50,
+  description: '',
+  capabilityIds: [],
+  characteristicIds: [],
+  knowledgeIds: [],
+  ownerType: 'USER',
 };
 
 // ============================================
 // AgentDrawer Component
 // ============================================
 
-export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave }) => {
+export const AgentDrawer: React.FC<AgentDrawerProps> = ({
+  open,
+  onClose,
+  onSave,
+  agent,
+  onUpdate,
+}) => {
   const { success, error } = useNotification();
   const [formData, setFormData] = useState<CreateAgentInput>(initialFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof CreateAgentInput, string>>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  const isEditMode = !!agent;
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (agent && open) {
+      setFormData({
+        name: agent.name,
+        description: agent.description || '',
+        capabilityIds: agent.capabilityIds || [],
+        characteristicIds: agent.characteristicIds || [],
+        knowledgeIds: agent.knowledgeIds || [],
+        ownerType: agent.ownerType || 'USER',
+        ownerId: agent.ownerId,
+      });
+    } else if (!open) {
+      // Reset form when drawer closes
+      setFormData(initialFormState);
+      setErrors({});
+    }
+  }, [agent, open]);
 
   // ============================================
   // Handlers
@@ -71,11 +107,64 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
       }));
     };
 
-  const handleCreativityChange = (_: Event, value: number | number[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      creativityLevel: value as number,
-    }));
+  const handleCapabilityToggle = (capabilityId: number) => {
+    setFormData((prev) => {
+      const isSelected = prev.capabilityIds.includes(capabilityId);
+      return {
+        ...prev,
+        capabilityIds: isSelected
+          ? prev.capabilityIds.filter((id) => id !== capabilityId)
+          : [...prev.capabilityIds, capabilityId],
+      };
+    });
+    // Clear capability error if any
+    setErrors((prev) => ({ ...prev, capabilityIds: undefined }));
+  };
+
+  const handleCharacteristicToggle = (characteristicId: number) => {
+    setFormData((prev) => {
+      const isSelected = prev.characteristicIds.includes(characteristicId);
+      return {
+        ...prev,
+        characteristicIds: isSelected
+          ? prev.characteristicIds.filter((id) => id !== characteristicId)
+          : [...prev.characteristicIds, characteristicId],
+      };
+    });
+  };
+
+  const handleKnowledgeToggle = (knowledgeId: number) => {
+    setFormData((prev) => {
+      const isSelected = prev.knowledgeIds.includes(knowledgeId);
+      return {
+        ...prev,
+        knowledgeIds: isSelected
+          ? prev.knowledgeIds.filter((id) => id !== knowledgeId)
+          : [...prev.knowledgeIds, knowledgeId],
+      };
+    });
+  };
+
+  const handleCharacteristicCreated = (characteristic: Characteristic) => {
+    // Auto-select newly created characteristic
+    const charId = parseInt(characteristic.publicId);
+    if (!formData.characteristicIds.includes(charId)) {
+      setFormData((prev) => ({
+        ...prev,
+        characteristicIds: [...prev.characteristicIds, charId],
+      }));
+    }
+  };
+
+  const handleKnowledgeCreated = (knowledge: Knowledge) => {
+    // Auto-select newly created knowledge
+    const knowledgeId = parseInt(knowledge.publicId);
+    if (!formData.knowledgeIds.includes(knowledgeId)) {
+      setFormData((prev) => ({
+        ...prev,
+        knowledgeIds: [...prev.knowledgeIds, knowledgeId],
+      }));
+    }
   };
 
   const validateForm = (): boolean => {
@@ -85,14 +174,8 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
       newErrors.name = 'Agent name is required';
     }
 
-    if (!formData.role.trim()) {
-      newErrors.role = 'Role/Persona is required';
-    }
-
-    if (!formData.systemPrompt.trim()) {
-      newErrors.systemPrompt = 'System prompt is required';
-    } else if (formData.systemPrompt.length < 20) {
-      newErrors.systemPrompt = 'System prompt must be at least 20 characters';
+    if (formData.capabilityIds.length === 0) {
+      newErrors.capabilityIds = 'At least one capability is required';
     }
 
     setErrors(newErrors);
@@ -107,9 +190,14 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
     setIsSaving(true);
 
     try {
-      await onSave(formData);
+      if (isEditMode && agent && onUpdate) {
+        await onUpdate(agent.id, formData);
+        success('Agent updated successfully!');
+      } else {
+        await onSave(formData);
+        success('Agent created successfully!');
+      }
       // Reset form and close drawer on success
-      success('Agent created successfully!');
       setFormData(initialFormState);
       onClose();
     } catch (err) {
@@ -138,7 +226,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
       onClose={handleClose}
       PaperProps={{
         sx: {
-          width: { xs: '100%', sm: 500 },
+          width: { xs: '100%', sm: 600 },
         },
         className: 'bg-white dark:bg-slate-800',
       }}
@@ -149,7 +237,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
           <Box className="flex items-center gap-2">
             <Sparkles className="text-indigo-600 dark:text-indigo-400" size={24} />
             <Typography variant="h6" className="font-semibold text-gray-900 dark:text-slate-100">
-              Create New Agent
+              {isEditMode ? 'Edit Agent' : 'Create New Agent'}
             </Typography>
           </Box>
           <IconButton
@@ -165,109 +253,120 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
         {/* Form Content */}
         <Box className="flex-1 overflow-y-auto px-6 py-6">
           <Box className="space-y-6">
-            {/* Agent Name */}
-            <FormControl fullWidth error={!!errors.name}>
-              <InputLabel htmlFor="agent-name">Agent Name</InputLabel>
-              <OutlinedInput
-                id="agent-name"
-                label="Agent Name"
-                value={formData.name}
-                onChange={handleChange('name')}
-                placeholder="e.g., Professional Translator"
-                disabled={isSaving}
-              />
-              {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
-            </FormControl>
-
-            {/* Role/Persona */}
-            <FormControl fullWidth error={!!errors.role}>
-              <InputLabel htmlFor="agent-role">Role / Persona</InputLabel>
-              <OutlinedInput
-                id="agent-role"
-                label="Role / Persona"
-                value={formData.role}
-                onChange={handleChange('role')}
-                placeholder="e.g., Expert Translator with cultural awareness"
-                disabled={isSaving}
-              />
-              {errors.role && <FormHelperText>{errors.role}</FormHelperText>}
-              <FormHelperText>Describe the agent's expertise and personality</FormHelperText>
-            </FormControl>
-
-            <Divider />
-
-            {/* System Prompt */}
-            <FormControl fullWidth error={!!errors.systemPrompt}>
-              <TextField
-                label="System Prompt"
-                multiline
-                rows={8}
-                value={formData.systemPrompt}
-                onChange={handleChange('systemPrompt')}
-                placeholder="You are a professional translator specializing in accurate, context-aware translations. Maintain the tone and style of the original text while ensuring cultural appropriateness..."
-                disabled={isSaving}
-                error={!!errors.systemPrompt}
-                helperText={
-                  errors.systemPrompt ||
-                  'Define how the agent should behave and what guidelines it should follow'
-                }
-              />
-            </FormControl>
-
-            <Divider />
-
-            {/* Creativity Level */}
+            {/* 1. Basic Information */}
             <Box>
               <Typography
-                variant="subtitle2"
-                className="mb-2 font-semibold text-gray-900 dark:text-slate-100"
+                variant="subtitle1"
+                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
               >
-                Creativity Level
-              </Typography>
-              <Typography
-                variant="caption"
-                className="mb-4 block text-gray-600 dark:text-slate-400"
-              >
-                Lower values (0-30): More precise and consistent translations
-                <br />
-                Medium values (30-70): Balanced creativity and accuracy
-                <br />
-                Higher values (70-100): More creative and varied translations
+                1. Basic Information
               </Typography>
 
-              <Box className="px-2">
-                <Slider
-                  value={formData.creativityLevel}
-                  onChange={handleCreativityChange}
-                  valueLabelDisplay="on"
-                  min={0}
-                  max={100}
-                  step={5}
-                  marks={[
-                    { value: 0, label: '0' },
-                    { value: 50, label: '50' },
-                    { value: 100, label: '100' },
-                  ]}
-                  disabled={isSaving}
-                  className="text-indigo-600 dark:text-indigo-400"
-                />
-              </Box>
+              <Box className="space-y-4">
+                <FormControl fullWidth error={!!errors.name}>
+                  <InputLabel htmlFor="agent-name">Agent Name *</InputLabel>
+                  <OutlinedInput
+                    id="agent-name"
+                    label="Agent Name *"
+                    value={formData.name}
+                    onChange={handleChange('name')}
+                    placeholder="e.g., Professional Translator"
+                    disabled={isSaving}
+                  />
+                  {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
+                </FormControl>
 
-              <Box className="mt-2 flex justify-between text-xs">
-                <Typography variant="caption" className="text-gray-500 dark:text-slate-500">
-                  Precise
-                </Typography>
-                <Typography
-                  variant="caption"
-                  className="font-semibold text-indigo-600 dark:text-indigo-400"
-                >
-                  {formData.creativityLevel}
-                </Typography>
-                <Typography variant="caption" className="text-gray-500 dark:text-slate-500">
-                  Creative
-                </Typography>
+                <FormControl fullWidth>
+                  <TextField
+                    label="Description"
+                    multiline
+                    rows={3}
+                    value={formData.description}
+                    onChange={handleChange('description')}
+                    placeholder="Describe what this agent does and its personality..."
+                    disabled={isSaving}
+                    helperText="Optional: Metadata describing this agent (not used as system prompt)"
+                  />
+                </FormControl>
               </Box>
             </Box>
+
+            <Divider />
+
+            {/* 2. Capabilities */}
+            <Box>
+              <Typography
+                variant="subtitle1"
+                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+              >
+                2. Capabilities *
+              </Typography>
+              <CapabilitiesSection
+                selectedCapabilityIds={formData.capabilityIds}
+                onCapabilityToggle={handleCapabilityToggle}
+                error={errors.capabilityIds}
+              />
+            </Box>
+
+            <Divider />
+
+            {/* 3. Characteristics */}
+            <Box>
+              <Typography
+                variant="subtitle1"
+                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+              >
+                3. Behavior & Persona
+              </Typography>
+              <CharacteristicsSection
+                selectedCharacteristicIds={formData.characteristicIds}
+                onCharacteristicToggle={handleCharacteristicToggle}
+                onCharacteristicCreated={handleCharacteristicCreated}
+              />
+            </Box>
+
+            <Divider />
+
+            {/* 4. Knowledge */}
+            <Box>
+              <Typography
+                variant="subtitle1"
+                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+              >
+                4. Knowledge & Context
+              </Typography>
+              <KnowledgeSection
+                selectedKnowledgeIds={formData.knowledgeIds}
+                onKnowledgeToggle={handleKnowledgeToggle}
+                onKnowledgeCreated={handleKnowledgeCreated}
+              />
+            </Box>
+
+            <Divider />
+
+            {/* 5. Advanced (Placeholder) */}
+            <Accordion
+              className="border border-gray-200 dark:border-slate-700"
+              sx={{ boxShadow: 'none' }}
+            >
+              <AccordionSummary
+                expandIcon={<ChevronDown size={20} />}
+                className="bg-gray-50 dark:bg-slate-800/50"
+              >
+                <Typography
+                  variant="subtitle1"
+                  className="font-semibold text-gray-900 dark:text-slate-100"
+                >
+                  5. Advanced Settings (Coming Soon)
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails className="bg-gray-50 dark:bg-slate-800/50">
+                <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
+                  Future options: Default language, output format, agent visibility, scheduling
+                  hints
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
           </Box>
         </Box>
 
@@ -290,7 +389,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({ open, onClose, onSave 
             startIcon={<Save size={18} />}
             className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-slate-700"
           >
-            {isSaving ? 'Saving...' : 'Save Agent'}
+            {isSaving ? 'Saving...' : isEditMode ? 'Update Agent' : 'Save Agent'}
           </Button>
         </Box>
       </Box>

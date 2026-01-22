@@ -48,3 +48,5 @@ This document defines the coding standards, project structure, and patterns for 
 ### 4. Rules
 
 - always apply responsive when generate screen
+- always apply dark/night mode
+- break to small components, find components to re-use before create new

@@ -285,3 +285,184 @@ export const upgradeSubscription = async (packageId: string): Promise<ApiRespons
     };
   }
 };
+
+// ============================================
+// Capabilities API
+// ============================================
+
+import type { Capability } from '../types';
+
+/**
+ * Fetches all active capabilities available for agent creation
+ * @returns Promise with array of capabilities
+ */
+export const listCapabilities = async (): Promise<ApiResponse<Capability[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/capabilities');
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List capabilities error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load capabilities',
+    };
+  }
+};
+
+// ============================================
+// Characteristics API
+// ============================================
+
+import type { Characteristic, CharacteristicScope, CreateCharacteristicInput } from '../types';
+
+/**
+ * Fetches characteristics filtered by scope and optional search
+ * @param scope - Filter by scope (system, user, project, all)
+ * @param search - Optional search keyword
+ * @param projectId - Optional project ID for project-scoped characteristics
+ * @returns Promise with array of characteristics
+ */
+export const listCharacteristics = async (
+  scope: CharacteristicScope = 'all',
+  search?: string,
+  projectId?: number
+): Promise<ApiResponse<Characteristic[]>> => {
+  try {
+    const params: Record<string, string | number> = { scope };
+    if (search) params.search = search;
+    if (projectId) params.projectId = projectId;
+
+    const response = await axiosInstance.get('/v1/characteristics', { params });
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List characteristics error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load characteristics',
+    };
+  }
+};
+
+/**
+ * Creates a new user characteristic
+ * @param input - Characteristic creation parameters
+ * @returns Promise with the created characteristic
+ */
+export const createCharacteristic = async (
+  input: CreateCharacteristicInput
+): Promise<ApiResponse<Characteristic>> => {
+  try {
+    const response = await axiosInstance.post('/v1/characteristics', input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Characteristic created successfully',
+    };
+  } catch (error) {
+    console.error('Create characteristic error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create characteristic',
+    };
+  }
+};
+
+// ============================================
+// Knowledge API
+// ============================================
+
+import type { Knowledge, KnowledgeScope, KnowledgeSourceType, CreateKnowledgeInput } from '../types';
+
+/**
+ * Fetches knowledge filtered by scope and optional type/search
+ * @param scope - Filter by scope (system, user, project, all)
+ * @param type - Optional filter by source type
+ * @param search - Optional search keyword
+ * @param projectId - Optional project ID for project-scoped knowledge
+ * @returns Promise with array of knowledge
+ */
+export const listKnowledge = async (
+  scope: KnowledgeScope = 'all',
+  type?: KnowledgeSourceType,
+  search?: string,
+  projectId?: number
+): Promise<ApiResponse<Knowledge[]>> => {
+  try {
+    const params: Record<string, string | number> = { scope };
+    if (type) params.type = type;
+    if (search) params.search = search;
+    if (projectId) params.projectId = projectId;
+
+    const response = await axiosInstance.get('/v1/knowledges', { params });
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List knowledge error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load knowledge',
+    };
+  }
+};
+
+/**
+ * Creates a new knowledge source
+ * @param input - Knowledge creation parameters
+ * @returns Promise with the created knowledge
+ */
+export const createKnowledge = async (
+  input: CreateKnowledgeInput
+): Promise<ApiResponse<Knowledge>> => {
+  try {
+    const response = await axiosInstance.post('/v1/knowledges', input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Knowledge created successfully',
+    };
+  } catch (error) {
+    console.error('Create knowledge error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create knowledge',
+    };
+  }
+};

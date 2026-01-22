@@ -1,6 +1,7 @@
 /**
  * Agents Context
  * Manages AI agents state and operations
+ * Refactored to support capability-driven, data-driven architecture
  */
 
 import React, { createContext, useContext, useState } from 'react';
@@ -36,33 +37,53 @@ export const useAgents = (): AgentsContextValue => {
 };
 
 // ============================================
-// Mock Default Agents
+// Mock Default Agents (Updated Structure)
 // ============================================
 
 const defaultAgents: Agent[] = [
   {
     id: 'agent-001',
     name: 'Professional Translator',
-    role: 'Expert Translator',
-    systemPrompt:
-      'You are a professional translator with expertise in multiple languages. Provide accurate, context-aware translations while maintaining the tone and style of the original text. Ensure cultural appropriateness and natural phrasing in the target language.',
-    creativityLevel: 30,
+    description: 'Expert translator with cultural awareness and context-sensitive translation capabilities',
+    capabilityIds: [1], // Assuming Translation capability has ID 1
+    characteristicIds: [1, 2], // Professional tone, accurate
+    knowledgeIds: [],
+    ownerType: 'USER',
     userId: 'user-001',
     isDefault: true,
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date(),
+    // Mock populated capabilities for display
+    capabilities: [
+      {
+        publicId: '1',
+        code: 'translation',
+        name: 'Translation',
+        description: 'Translate text between multiple languages',
+      },
+    ],
   },
   {
     id: 'agent-002',
-    name: 'Creative Translator',
-    role: 'Creative Language Expert',
-    systemPrompt:
-      'You are a creative translator who excels at adapting content for different cultures. Focus on conveying the meaning and emotion of the original text while allowing for creative interpretations that resonate with the target audience.',
-    creativityLevel: 75,
+    name: 'Creative Writer',
+    description: 'Creative content generation with artistic flair and engaging storytelling',
+    capabilityIds: [2], // Assuming Content Generation capability has ID 2
+    characteristicIds: [3], // Creative, engaging
+    knowledgeIds: [1], // Writing style guide
+    ownerType: 'USER',
     userId: 'user-001',
     isDefault: false,
     createdAt: new Date('2024-02-01'),
     updatedAt: new Date(),
+    // Mock populated capabilities for display
+    capabilities: [
+      {
+        publicId: '2',
+        code: 'content_generation',
+        name: 'Content Generation',
+        description: 'Generate creative and engaging content',
+      },
+    ],
   },
 ];
 
@@ -87,7 +108,13 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
 
     const newAgent: Agent = {
       id: `agent-${Date.now()}`,
-      ...input,
+      name: input.name,
+      description: input.description,
+      capabilityIds: input.capabilityIds,
+      characteristicIds: input.characteristicIds,
+      knowledgeIds: input.knowledgeIds,
+      ownerType: input.ownerType,
+      ownerId: input.ownerId,
       userId: 'user-001', // Should come from auth context in production
       isDefault: false,
       createdAt: new Date(),

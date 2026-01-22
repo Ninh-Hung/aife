@@ -20,6 +20,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
 import { SubscriptionPage } from './pages/SubscriptionPage';
+import { AgentManagement } from './pages/AgentManagement';
 import {
   Bot,
   LayoutDashboard,
@@ -163,14 +164,7 @@ const AppContent: React.FC = () => {
                   {/* API Key Management */}
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
 
-                  <Route
-                    path="/agents"
-                    element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">
-                        My Agents - Coming Soon
-                      </div>
-                    }
-                  />
+                  <Route path="/agents" element={<AgentManagement />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
                     path="/code"

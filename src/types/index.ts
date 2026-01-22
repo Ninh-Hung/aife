@@ -27,20 +27,106 @@ export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 export interface Agent {
   id: string;
   name: string;
-  role: string; // e.g., "Professional Translator", "Casual Translator"
+  description?: string;
+  capabilityIds: number[];
+  characteristicIds: number[];
+  knowledgeIds: number[];
+  ownerType: 'USER' | 'PROJECT';
+  ownerId?: number;
+  userId: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  // Populated relations
+  capabilities?: Capability[];
+  characteristics?: Characteristic[];
+  knowledges?: Knowledge[];
+}
+
+export interface CreateAgentInput {
+  name: string;
+  description?: string;
+  capabilityIds: number[];
+  characteristicIds: number[];
+  knowledgeIds: number[];
+  ownerType: 'USER' | 'PROJECT';
+  ownerId?: number;
+}
+
+// Deprecated - kept for backward compatibility during migration
+export interface LegacyAgent {
+  id: string;
+  name: string;
+  role: string;
   systemPrompt: string;
-  creativityLevel: number; // 0-100 (maps to temperature)
+  creativityLevel: number;
   userId: string;
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateAgentInput {
+// ============================================
+// Capabilities
+// ============================================
+
+export interface Capability {
+  publicId: string;
+  code: string;
   name: string;
-  role: string;
-  systemPrompt: string;
-  creativityLevel: number;
+  description: string;
+}
+
+// ============================================
+// Characteristics
+// ============================================
+
+export type CharacteristicScope = 'system' | 'user' | 'project' | 'all';
+
+export interface Characteristic {
+  publicId: string;
+  code: string;
+  name: string;
+  prompt: string;
+  isSystem: boolean;
+  userId?: number;
+  projectId?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateCharacteristicInput {
+  code: string;
+  name: string;
+  prompt: string;
+  projectId?: number;
+}
+
+// ============================================
+// Knowledge
+// ============================================
+
+export type KnowledgeScope = 'system' | 'user' | 'project' | 'all';
+export type KnowledgeSourceType = 'text' | 'file' | 'url' | 'pdf' | 'repo';
+
+export interface Knowledge {
+  publicId: string;
+  name: string;
+  description?: string;
+  sourceType: KnowledgeSourceType;
+  sourceContent?: string;
+  ownerType: 'SYSTEM' | 'USER' | 'PROJECT';
+  ownerId: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateKnowledgeInput {
+  name: string;
+  description?: string;
+  sourceType: KnowledgeSourceType;
+  sourceContent?: string;
+  projectId?: number;
 }
 
 // ============================================
