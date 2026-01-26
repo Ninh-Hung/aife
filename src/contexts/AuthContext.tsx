@@ -186,15 +186,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Call backend logout to revoke refresh token
+      // Call backend logout to revoke refresh token (with credentials: "include")
+      // Note: axiosInstance already configured with withCredentials: true
       await axiosInstance.post('/auth/logout');
+      console.log('[AuthContext] Logout successful');
     } catch (error) {
-      // Even if logout fails, clear local state
-      console.error('Logout error:', error);
+      // Even if logout fails, clear local state to avoid stuck session
+      console.error('[AuthContext] Logout API error (proceeding with local cleanup):', error);
     } finally {
-      // Clear in-memory state
+      // Clear access token from memory
       clearAccessToken();
+
+      // Clear user-related state (user profile, permissions, cached auth data)
       setUser(null);
+
+      console.log('[AuthContext] Local auth state cleared');
+
+      // Redirect to login page
+      window.location.href = '/';
     }
   };
 

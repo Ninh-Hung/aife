@@ -37,6 +37,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
 
 // ============================================
@@ -96,6 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const { mode, toggleTheme } = useTheme();
+  const { logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const isMenuOpen = Boolean(anchorEl);
 
@@ -127,10 +129,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     console.log('Navigate to user settings');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     handleMenuClose();
-    // TODO: Implement logout logic
-    console.log('Logout');
+    try {
+      // Call logout function from AuthContext
+      // This will: 1) call POST /auth/logout, 2) clear local state, 3) redirect to "/"
+      await logout();
+    } catch (error) {
+      // Error is already handled in AuthContext logout function
+      console.error('Logout handler error:', error);
+    }
   };
 
   return (

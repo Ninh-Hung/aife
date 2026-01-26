@@ -18,10 +18,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip,
   FormHelperText,
 } from '@mui/material';
-import { X, Save, Upload, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Save, Upload, FileText } from 'lucide-react';
 import { Knowledge, KnowledgeSourceType } from '../../types';
 import { createKnowledge } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
