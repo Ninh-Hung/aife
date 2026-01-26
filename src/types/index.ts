@@ -107,7 +107,7 @@ export interface CreateCharacteristicInput {
 // ============================================
 
 export type KnowledgeScope = 'system' | 'user' | 'project' | 'all';
-export type KnowledgeSourceType = 'text' | 'file' | 'url' | 'pdf' | 'repo';
+export type KnowledgeSourceType = 'text' | 'file' | 'url';
 
 export interface Knowledge {
   publicId: string;
