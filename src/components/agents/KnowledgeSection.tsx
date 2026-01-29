@@ -27,8 +27,8 @@ import { CreateKnowledgeModal } from './CreateKnowledgeModal';
 // ============================================
 
 interface KnowledgeSectionProps {
-  selectedKnowledgeIds: number[];
-  onKnowledgeToggle: (knowledgeId: number) => void;
+  selectedKnowledgeIds: string[];
+  onKnowledgeToggle: (knowledgeId: string) => void;
   onKnowledgeCreated: (knowledge: Knowledge) => void;
 }
 
@@ -114,7 +114,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
   };
 
   const isSelected = (knowledge: Knowledge): boolean => {
-    return selectedKnowledgeIds.includes(parseInt(knowledge.publicId));
+    return selectedKnowledgeIds.includes(knowledge.publicId);
   };
 
   const handleKnowledgeCreated = (knowledge: Knowledge) => {
@@ -129,7 +129,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
     return (
       <Box
         key={knowledge.publicId}
-        onClick={() => onKnowledgeToggle(parseInt(knowledge.publicId))}
+        onClick={() => onKnowledgeToggle(knowledge.publicId)}
         className={`cursor-pointer rounded-lg border p-4 transition-all duration-200 ${
           selected
             ? 'border-2 border-[#3B82F6] bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30'
@@ -139,6 +139,9 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
         <Box className="flex items-start gap-3">
           <Checkbox
             checked={selected}
+            disableRipple
+            tabIndex={-1}
+            inputProps={{ readOnly: true }}
             className={selected ? 'text-[#3B82F6]' : ''}
             sx={{ mt: -1 }}
           />

@@ -4,8 +4,9 @@
  * Refactored to support capability-driven, data-driven architecture
  */
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Agent, CreateAgentInput } from '../types';
+import * as agentApi from '../services/api';
 
 // ============================================
 // Context Interface
@@ -13,6 +14,9 @@ import { Agent, CreateAgentInput } from '../types';
 
 interface AgentsContextValue {
   agents: Agent[];
+  loading: boolean;
+  error: string | null;
+  fetchAgents: () => Promise<void>;
   createAgent: (input: CreateAgentInput) => Promise<Agent>;
   updateAgent: (id: string, input: Partial<CreateAgentInput>) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
@@ -40,52 +44,7 @@ export const useAgents = (): AgentsContextValue => {
 // Mock Default Agents (Updated Structure)
 // ============================================
 
-const defaultAgents: Agent[] = [
-  {
-    id: 'agent-001',
-    name: 'Professional Translator',
-    description: 'Expert translator with cultural awareness and context-sensitive translation capabilities',
-    capabilityIds: [1], // Assuming Translation capability has ID 1
-    characteristicIds: [1, 2], // Professional tone, accurate
-    knowledgeIds: [],
-    ownerType: 'USER',
-    userId: 'user-001',
-    isDefault: true,
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date(),
-    // Mock populated capabilities for display
-    capabilities: [
-      {
-        publicId: '1',
-        code: 'translation',
-        name: 'Translation',
-        description: 'Translate text between multiple languages',
-      },
-    ],
-  },
-  {
-    id: 'agent-002',
-    name: 'Creative Writer',
-    description: 'Creative content generation with artistic flair and engaging storytelling',
-    capabilityIds: [2], // Assuming Content Generation capability has ID 2
-    characteristicIds: [3], // Creative, engaging
-    knowledgeIds: [1], // Writing style guide
-    ownerType: 'USER',
-    userId: 'user-001',
-    isDefault: false,
-    createdAt: new Date('2024-02-01'),
-    updatedAt: new Date(),
-    // Mock populated capabilities for display
-    capabilities: [
-      {
-        publicId: '2',
-        code: 'content_generation',
-        name: 'Content Generation',
-        description: 'Generate creative and engaging content',
-      },
-    ],
-  },
-];
+const defaultAgents: Agent[] = [];
 
 // ============================================
 // Agents Provider Component
@@ -97,60 +56,88 @@ interface AgentsProviderProps {
 
 export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   const [agents, setAgents] = useState<Agent[]>(defaultAgents);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ============================================
+  // Fetch Agents
+  // ============================================
+
+  const fetchAgents = async (): Promise<void> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await agentApi.listAgents();
+
+      if (response.success && response.data) {
+        setAgents(response.data);
+      } else {
+        // Use message field for user-friendly error, fallback to error field
+        setError(response.message || response.error || 'Failed to load agents');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load agents');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================
+  // Fetch agents on mount
+  // ============================================
+
+  useEffect(() => {
+    fetchAgents();
+  }, []);
 
   // ============================================
   // Agent Operations
   // ============================================
 
   const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const response = await agentApi.createAgent(input);
 
-    const newAgent: Agent = {
-      id: `agent-${Date.now()}`,
-      name: input.name,
-      description: input.description,
-      capabilityIds: input.capabilityIds,
-      characteristicIds: input.characteristicIds,
-      knowledgeIds: input.knowledgeIds,
-      ownerType: input.ownerType,
-      ownerId: input.ownerId,
-      userId: 'user-001', // Should come from auth context in production
-      isDefault: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    if (!response.success || !response.data) {
+      // Use message field for user-friendly error, fallback to error field, then generic message
+      throw new Error(response.message || response.error || 'Failed to create agent');
+    }
 
+    const newAgent = response.data;
     setAgents((prev) => [...prev, newAgent]);
     return newAgent;
   };
 
   const updateAgent = async (id: string, input: Partial<CreateAgentInput>): Promise<void> => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const response = await agentApi.updateAgent(id, input);
 
+    if (!response.success || !response.data) {
+      // Use message field for user-friendly error, fallback to error field, then generic message
+      throw new Error(response.message || response.error || 'Failed to update agent');
+    }
+
+    const updatedAgent = response.data;
     setAgents((prev) =>
-      prev.map((agent) =>
-        agent.id === id
-          ? {
-              ...agent,
-              ...input,
-              updatedAt: new Date(),
-            }
-          : agent
-      )
+      prev.map((agent) => (agent.id === id ? updatedAgent : agent))
     );
   };
 
   const deleteAgent = async (id: string): Promise<void> => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const response = await agentApi.deleteAgent(id);
+
+    if (!response.success) {
+      // Use message field for user-friendly error, fallback to error field, then generic message
+      throw new Error(response.message || response.error || 'Failed to delete agent');
+    }
 
     setAgents((prev) => prev.filter((agent) => agent.id !== id));
   };
 
   const contextValue: AgentsContextValue = {
     agents,
+    loading,
+    error,
+    fetchAgents,
     createAgent,
     updateAgent,
     deleteAgent,

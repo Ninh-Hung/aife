@@ -107,7 +107,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       }));
     };
 
-  const handleCapabilityToggle = (capabilityId: number) => {
+  const handleCapabilityToggle = (capabilityId: string) => {
     setFormData((prev) => {
       const isSelected = prev.capabilityIds.includes(capabilityId);
       return {
@@ -121,7 +121,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     setErrors((prev) => ({ ...prev, capabilityIds: undefined }));
   };
 
-  const handleCharacteristicToggle = (characteristicId: number) => {
+  const handleCharacteristicToggle = (characteristicId: string) => {
     setFormData((prev) => {
       const isSelected = prev.characteristicIds.includes(characteristicId);
       return {
@@ -133,7 +133,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     });
   };
 
-  const handleKnowledgeToggle = (knowledgeId: number) => {
+  const handleKnowledgeToggle = (knowledgeId: string) => {
     setFormData((prev) => {
       const isSelected = prev.knowledgeIds.includes(knowledgeId);
       return {
@@ -147,22 +147,20 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
   const handleCharacteristicCreated = (characteristic: Characteristic) => {
     // Auto-select newly created characteristic
-    const charId = parseInt(characteristic.publicId);
-    if (!formData.characteristicIds.includes(charId)) {
+    if (!formData.characteristicIds.includes(characteristic.publicId)) {
       setFormData((prev) => ({
         ...prev,
-        characteristicIds: [...prev.characteristicIds, charId],
+        characteristicIds: [...prev.characteristicIds, characteristic.publicId],
       }));
     }
   };
 
   const handleKnowledgeCreated = (knowledge: Knowledge) => {
     // Auto-select newly created knowledge
-    const knowledgeId = parseInt(knowledge.publicId);
-    if (!formData.knowledgeIds.includes(knowledgeId)) {
+    if (!formData.knowledgeIds.includes(knowledge.publicId)) {
       setFormData((prev) => ({
         ...prev,
-        knowledgeIds: [...prev.knowledgeIds, knowledgeId],
+        knowledgeIds: [...prev.knowledgeIds, knowledge.publicId],
       }));
     }
   };

@@ -21,6 +21,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
+import { ChatScreen } from './pages/ChatScreen';
 import {
   Bot,
   LayoutDashboard,
@@ -123,6 +124,10 @@ const AppContent: React.FC = () => {
           />
         );
       default:
+        // Check if it's a chat route (starts with /chat/)
+        if (location.pathname.startsWith('/chat/')) {
+          return null; // ChatScreen has its own header
+        }
         return null;
     }
   };
@@ -165,6 +170,7 @@ const AppContent: React.FC = () => {
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
 
                   <Route path="/agents" element={<AgentManagement />} />
+                  <Route path="/chat/:agentId" element={<ChatScreen />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
                     path="/code"

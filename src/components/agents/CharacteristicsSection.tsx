@@ -25,8 +25,8 @@ import { CreateCharacteristicModal } from './CreateCharacteristicModal';
 // ============================================
 
 interface CharacteristicsSectionProps {
-  selectedCharacteristicIds: number[];
-  onCharacteristicToggle: (characteristicId: number) => void;
+  selectedCharacteristicIds: string[];
+  onCharacteristicToggle: (characteristicId: string) => void;
   onCharacteristicCreated: (characteristic: Characteristic) => void;
 }
 
@@ -80,7 +80,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
   };
 
   const isSelected = (characteristic: Characteristic): boolean => {
-    return selectedCharacteristicIds.includes(parseInt(characteristic.publicId));
+    return selectedCharacteristicIds.includes(characteristic.publicId);
   };
 
   const handleCharacteristicCreated = (characteristic: Characteristic) => {
@@ -95,7 +95,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
     return (
       <Box
         key={characteristic.publicId}
-        onClick={() => onCharacteristicToggle(parseInt(characteristic.publicId))}
+        onClick={() => onCharacteristicToggle(characteristic.publicId)}
         className={`cursor-pointer rounded-lg border p-4 transition-all duration-200 ${
           selected
             ? 'border-2 border-[#3B82F6] bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30'
@@ -105,6 +105,9 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
         <Box className="flex items-start gap-3">
           <Checkbox
             checked={selected}
+            disableRipple
+            tabIndex={-1}
+            inputProps={{ readOnly: true }}
             className={selected ? 'text-[#3B82F6]' : ''}
             sx={{ mt: -1 }}
           />

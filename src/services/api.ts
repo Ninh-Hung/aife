@@ -466,3 +466,247 @@ export const createKnowledge = async (
     };
   }
 };
+
+// ============================================
+// Chat & Messaging API
+// ============================================
+
+import type { ChatSession, ChatMessage, SendMessageRequest, SendMessageResponse } from '../types';
+
+/**
+ * Fetches all chat sessions for a specific agent
+ * @param agentId - The ID of the agent
+ * @returns Promise with array of chat sessions
+ */
+export const listChatSessions = async (agentId: string): Promise<ApiResponse<ChatSession[]>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/chat/sessions`, {
+      params: { agentId },
+    });
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List chat sessions error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load chat sessions',
+    };
+  }
+};
+
+/**
+ * Creates a new chat session
+ * @param agentId - The ID of the agent
+ * @param title - Optional custom title for the session
+ * @returns Promise with the created chat session
+ */
+export const createChatSession = async (
+  agentId: string,
+  title?: string
+): Promise<ApiResponse<ChatSession>> => {
+  try {
+    const response = await axiosInstance.post('/v1/chat/sessions', {
+      agentId,
+      title,
+    });
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Chat session created successfully',
+    };
+  } catch (error) {
+    console.error('Create chat session error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create chat session',
+    };
+  }
+};
+
+/**
+ * Fetches all messages for a specific chat session
+ * @param sessionId - The ID of the chat session
+ * @returns Promise with array of chat messages
+ */
+export const listChatMessages = async (sessionId: string): Promise<ApiResponse<ChatMessage[]>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/chat/sessions/${sessionId}/messages`);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List chat messages error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load chat messages',
+    };
+  }
+};
+
+/**
+ * Sends a message in a chat session and receives agent response
+ * @param request - Message content and session ID
+ * @returns Promise with user message and agent response
+ */
+export const sendChatMessage = async (
+  request: SendMessageRequest
+): Promise<ApiResponse<SendMessageResponse>> => {
+  try {
+    const response = await axiosInstance.post('/v1/chat/send', request);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('Send chat message error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to send message',
+    };
+  }
+};
+
+// ============================================
+// Agents API
+// ============================================
+
+import type { Agent, CreateAgentInput } from '../types';
+
+/**
+ * Fetches all agents for the current user
+ * @returns Promise with array of agents
+ */
+export const listAgents = async (): Promise<ApiResponse<Agent[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/agents');
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List agents error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load agents',
+    };
+  }
+};
+
+/**
+ * Creates a new agent
+ * @param input - Agent creation parameters
+ * @returns Promise with the created agent
+ */
+export const createAgent = async (
+  input: CreateAgentInput
+): Promise<ApiResponse<Agent>> => {
+  try {
+    const response = await axiosInstance.post('/v1/agents', input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Agent created successfully',
+    };
+  } catch (error) {
+    console.error('Create agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      message: axiosError.response?.data?.message || 'Failed to create agent',
+      error: axiosError.response?.data?.message || 'Failed to create agent',
+    };
+  }
+};
+
+/**
+ * Updates an existing agent
+ * @param id - The ID of the agent to update
+ * @param input - Agent update parameters
+ * @returns Promise with the updated agent
+ */
+export const updateAgent = async (
+  id: string,
+  input: Partial<CreateAgentInput>
+): Promise<ApiResponse<Agent>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/agents/${id}`, input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Agent updated successfully',
+    };
+  } catch (error) {
+    console.error('Update agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      message: axiosError.response?.data?.message || 'Failed to update agent',
+      error: axiosError.response?.data?.message || 'Failed to update agent',
+    };
+  }
+};
+
+/**
+ * Deletes an agent
+ * @param id - The ID of the agent to delete
+ * @returns Promise with deletion result
+ */
+export const deleteAgent = async (id: string): Promise<ApiResponse> => {
+  try {
+    const response = await axiosInstance.delete(`/v1/agents/${id}`);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: 'Agent deleted successfully',
+    };
+  } catch (error) {
+    console.error('Delete agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to delete agent',
+    };
+  }
+};

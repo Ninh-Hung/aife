@@ -22,8 +22,8 @@ import { listCapabilities } from '../../services/api';
 // ============================================
 
 interface CapabilitiesSectionProps {
-  selectedCapabilityIds: number[];
-  onCapabilityToggle: (capabilityId: number) => void;
+  selectedCapabilityIds: string[];
+  onCapabilityToggle: (capabilityId: string) => void;
   error?: string;
 }
 
@@ -61,7 +61,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
 
   const isSelected = (capability: Capability): boolean => {
     // Match by publicId since that's what we store
-    return selectedCapabilityIds.includes(parseInt(capability.publicId));
+    return selectedCapabilityIds.includes(capability.publicId);
   };
 
   if (loading) {
@@ -103,7 +103,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
           return (
             <Card
               key={capability.publicId}
-              onClick={() => onCapabilityToggle(parseInt(capability.publicId))}
+              onClick={() => onCapabilityToggle(capability.publicId)}
               className={`cursor-pointer transition-all duration-200 ${
                 selected
                   ? 'border-2 border-[#3B82F6] bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30'
@@ -114,6 +114,9 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
               <CardContent className="flex items-start gap-3 p-4">
                 <Checkbox
                   checked={selected}
+                  disableRipple
+                  tabIndex={-1}
+                  inputProps={{ readOnly: true }}
                   className={selected ? 'text-[#3B82F6]' : ''}
                   sx={{ mt: -1 }}
                 />

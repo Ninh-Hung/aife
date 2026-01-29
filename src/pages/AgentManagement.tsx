@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Bot } from 'lucide-react';
 import { Button } from '@mui/material';
 import { useAgents } from '../contexts/AgentsContext';
@@ -46,7 +47,8 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
 // ============================================
 
 export const AgentManagement: React.FC = () => {
-  const { agents, createAgent, updateAgent, deleteAgent } = useAgents();
+  const navigate = useNavigate();
+  const { agents, loading, error, createAgent, updateAgent, deleteAgent } = useAgents();
   const { success, error: showError } = useNotification();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -75,9 +77,7 @@ export const AgentManagement: React.FC = () => {
   };
 
   const handleChat = (agent: Agent) => {
-    // TODO: Navigate to chat page with selected agent
-    console.log('Start chat with agent:', agent);
-    success(`Starting chat with ${agent.name}...`);
+    navigate(`/chat/${agent.id}`);
   };
 
   const handleCloseDrawer = () => {
@@ -86,10 +86,14 @@ export const AgentManagement: React.FC = () => {
   };
 
   const handleSaveAgent = async (input: CreateAgentInput) => {
+    // AgentDrawer handles the error display and drawer closing
+    // Just pass through to createAgent
     await createAgent(input);
   };
 
   const handleUpdateAgent = async (id: string, input: Partial<CreateAgentInput>) => {
+    // AgentDrawer handles the error display and drawer closing
+    // Just pass through to updateAgent
     await updateAgent(id, input);
   };
 
@@ -124,10 +128,29 @@ export const AgentManagement: React.FC = () => {
           </Button>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex min-h-[400px] items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-indigo-600 dark:border-slate-700 dark:border-t-indigo-400"></div>
+              <p className="text-sm text-gray-600 dark:text-slate-400">Loading agents...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
+            <p className="text-sm text-red-800 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
         {/* Agent Grid or Empty State */}
-        {agents.length === 0 ? (
+        {!loading && !error && agents.length === 0 && (
           <EmptyState onCreateAgent={handleCreateNew} />
-        ) : (
+        )}
+
+        {!loading && !error && agents.length > 0 && (
           <>
             {/* Stats Summary */}
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

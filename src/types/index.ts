@@ -28,9 +28,9 @@ export interface Agent {
   id: string;
   name: string;
   description?: string;
-  capabilityIds: number[];
-  characteristicIds: number[];
-  knowledgeIds: number[];
+  capabilityIds: string[];
+  characteristicIds: string[];
+  knowledgeIds: string[];
   ownerType: 'USER' | 'PROJECT';
   ownerId?: number;
   userId: string;
@@ -46,9 +46,9 @@ export interface Agent {
 export interface CreateAgentInput {
   name: string;
   description?: string;
-  capabilityIds: number[];
-  characteristicIds: number[];
-  knowledgeIds: number[];
+  capabilityIds: string[];
+  characteristicIds: string[];
+  knowledgeIds: string[];
   ownerType: 'USER' | 'PROJECT';
   ownerId?: number;
 }
@@ -283,4 +283,37 @@ export interface BillingHistoryItem {
   paymentDate: string;
   invoiceUrl?: string;
   createdAt: string;
+}
+
+// ============================================
+// Chat & Messaging
+// ============================================
+
+export interface ChatSession {
+  id: string;
+  agentId: string;
+  title: string; // Auto-generated or custom title
+  lastMessage?: string; // Preview of last message
+  lastMessageAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'agent';
+  content: string;
+  timestamp: Date;
+  status?: 'sending' | 'sent' | 'failed';
+}
+
+export interface SendMessageRequest {
+  sessionId: string;
+  content: string;
+}
+
+export interface SendMessageResponse {
+  message: ChatMessage;
+  agentResponse?: ChatMessage;
 }
