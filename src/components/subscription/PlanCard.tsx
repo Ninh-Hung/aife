@@ -95,26 +95,46 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       <div className="mb-6">
         <div className="flex items-baseline gap-1">
           <span className="text-4xl font-bold text-gray-900 dark:text-slate-100">${pkg.price}</span>
-          <span className="text-gray-500 dark:text-slate-400">/{pkg.duration}</span>
+          <span className="text-gray-500 dark:text-slate-400">/{pkg.duration} days</span>
         </div>
       </div>
 
-      {/* Features */}
+      {/* Max Agents */}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+          <Sparkles size={16} className="text-blue-500" />
+          <span>
+            {pkg.maxAgents === -1 ? 'Unlimited Agents' : `Up to ${pkg.maxAgents} Agents`}
+          </span>
+        </div>
+      </div>
+
+      {/* Capabilities */}
       <ul className="mb-6 space-y-3">
-        {pkg.features.map((feature, index) => {
-          const FeatureIcon = iconMap[feature.icon] || CheckCircle2;
+        {pkg.capabilities.map((pkgCapability, index) => {
+          const formatQuota = (limit: number, unit: string, period: string) => {
+            const formattedLimit = limit.toLocaleString();
+            return `${formattedLimit} ${unit}/${period}`;
+          };
+
           return (
             <li key={index} className="flex items-start gap-3">
-              <FeatureIcon
+              <CheckCircle2
                 size={20}
                 className="mt-0.5 flex-shrink-0 text-green-500 dark:text-green-400"
               />
               <div className="flex-1">
                 <div className="font-semibold text-gray-900 dark:text-slate-100">
-                  {feature.quota}
+                  {pkgCapability.capability.name}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-slate-400">
-                  {feature.description}
+                  {formatQuota(
+                    pkgCapability.quotaLimit,
+                    pkgCapability.quotaUnit,
+                    pkgCapability.period
+                  )}
+                  {' • '}
+                  {pkgCapability.maxQualityTier} quality
                 </div>
               </div>
             </li>

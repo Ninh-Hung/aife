@@ -257,23 +257,23 @@ export const cancelSubscription = async (): Promise<ApiResponse> => {
 };
 
 /**
- * Upgrades to a new subscription package
- * @param packageId - The public ID of the package to upgrade to
- * @returns Promise with upgrade result
+ * Subscribe to a package (unified endpoint - handles create, upgrade, downgrade)
+ * @param packagePublicId - The public ID of the package to subscribe to
+ * @returns Promise with subscription result
  */
-export const upgradeSubscription = async (packageId: string): Promise<ApiResponse> => {
+export const subscribe = async (packagePublicId: string): Promise<ApiResponse> => {
   try {
-    const response = await axiosInstance.post('/v1/subscriptions/upgrade', {
-      packageId,
+    const response = await axiosInstance.post('/v1/subscriptions/subscribe', {
+      packagePublicId,
     });
 
     return {
       success: true,
       data: response.data.data,
-      message: 'Subscription upgraded successfully',
+      message: response.data.message || 'Subscription updated successfully',
     };
   } catch (error) {
-    console.error('Upgrade subscription error:', error);
+    console.error('Subscribe error:', error);
     const axiosError = error as AxiosError<{ message?: string; error?: string }>;
 
     return {
@@ -281,10 +281,14 @@ export const upgradeSubscription = async (packageId: string): Promise<ApiRespons
       error:
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
-        'Failed to upgrade subscription',
+        'Failed to process subscription',
+      message: axiosError.response?.data?.message,
     };
   }
 };
+
+// Alias for backward compatibility (to be deprecated)
+export const upgradeSubscription = subscribe;
 
 // ============================================
 // Capabilities API

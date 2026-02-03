@@ -21,7 +21,7 @@ import {
   getCurrentSubscription,
   getBillingHistory,
   cancelSubscription,
-  upgradeSubscription,
+  subscribe,
 } from '../services/api';
 import type { Package, CurrentSubscription, BillingHistoryItem } from '../types';
 import { useNotification } from '../hooks/useNotification';
@@ -98,22 +98,22 @@ export const SubscriptionPage: React.FC = () => {
     }
   };
 
-  // Handle upgrade subscription
-  const handleUpgradeSubscription = async (packageId: string) => {
+  // Handle subscribe (create/upgrade/downgrade)
+  const handleSubscribe = async (packageId: string) => {
     setActionLoading(true);
 
     try {
-      const result = await upgradeSubscription(packageId);
+      const result = await subscribe(packageId);
 
       if (result.success) {
-        success('Subscription upgraded successfully');
+        success('Subscription updated successfully');
         // Refresh data
         await fetchAllData();
       } else {
-        error(result.error || 'Failed to upgrade subscription');
+        error(result.error || 'Failed to update subscription');
       }
     } catch (err) {
-      error(err instanceof Error ? err.message : 'Failed to upgrade subscription');
+      error(err instanceof Error ? err.message : 'Failed to update subscription');
     } finally {
       setActionLoading(false);
     }
@@ -168,8 +168,8 @@ export const SubscriptionPage: React.FC = () => {
           <PlanCard
             key={pkg.publicId}
             package={pkg}
-            isCurrentPlan={currentSubscription?.packageId === pkg.publicId}
-            onUpgrade={handleUpgradeSubscription}
+            isCurrentPlan={currentSubscription?.package?.publicId === pkg.publicId}
+            onUpgrade={handleSubscribe}
             onCancel={showCancelDialog}
           />
         ))}
