@@ -117,21 +117,21 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
         <div className="flex-1">
           <p className="text-xs text-gray-500 dark:text-slate-500">Capabilities</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-            {agent.capabilityIds?.length || 0}
+            {agent.capabilityCount ?? agent.capabilityIds?.length ?? 0}
           </p>
         </div>
         <div className="h-8 w-px bg-gray-200 dark:bg-slate-700"></div>
         <div className="flex-1">
           <p className="text-xs text-gray-500 dark:text-slate-500">Behaviors</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-            {agent.characteristicIds?.length || 0}
+            {agent.characteristicCount ?? agent.characteristicIds?.length ?? 0}
           </p>
         </div>
         <div className="h-8 w-px bg-gray-200 dark:bg-slate-700"></div>
         <div className="flex-1">
           <p className="text-xs text-gray-500 dark:text-slate-500">Knowledge</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-            {agent.knowledgeIds?.length || 0}
+            {agent.knowledgeCount ?? agent.knowledgeIds?.length ?? 0}
           </p>
         </div>
       </div>

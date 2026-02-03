@@ -37,6 +37,10 @@ export interface Agent {
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Association totals returned by the list endpoint
+  capabilityCount?: number;
+  characteristicCount?: number;
+  knowledgeCount?: number;
   // Populated relations
   capabilities?: Capability[];
   characteristics?: Characteristic[];

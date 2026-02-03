@@ -610,10 +610,17 @@ import type { Agent, CreateAgentInput } from '../types';
 export const listAgents = async (): Promise<ApiResponse<Agent[]>> => {
   try {
     const response = await axiosInstance.get('/v1/agents');
+    const raw: Array<Record<string, unknown>> = response.data.data || response.data;
+
+    // Backend exposes publicId; frontend keyed on id throughout (navigate, find, delete URL …)
+    const agents: Agent[] = raw.map((item) => ({
+      ...item,
+      id: item.publicId as string,
+    })) as Agent[];
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: agents,
     };
   } catch (error) {
     console.error('List agents error:', error);

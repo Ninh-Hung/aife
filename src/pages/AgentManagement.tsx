@@ -175,7 +175,7 @@ export const AgentManagement: React.FC = () => {
                   Total Capabilities
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.reduce((sum, a) => sum + (a.capabilityIds?.length || 0), 0)}
+                  {agents.reduce((sum, a) => sum + (a.capabilityCount ?? a.capabilityIds?.length ?? 0), 0)}
                 </p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
@@ -183,7 +183,7 @@ export const AgentManagement: React.FC = () => {
                   Total Knowledge
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.reduce((sum, a) => sum + (a.knowledgeIds?.length || 0), 0)}
+                  {agents.reduce((sum, a) => sum + (a.knowledgeCount ?? a.knowledgeIds?.length ?? 0), 0)}
                 </p>
               </div>
             </div>
