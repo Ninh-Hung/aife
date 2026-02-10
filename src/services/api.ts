@@ -570,14 +570,19 @@ export const listChatMessages = async (sessionId: string): Promise<ApiResponse<C
 
 /**
  * Sends a message in a chat session and receives agent response
- * @param request - Message content and session ID
+ * @param sessionId - The session ID
+ * @param content - Message content
  * @returns Promise with user message and agent response
  */
 export const sendChatMessage = async (
-  request: SendMessageRequest
+  sessionId: string,
+  content: string
 ): Promise<ApiResponse<SendMessageResponse>> => {
   try {
-    const response = await axiosInstance.post('/v1/chat/send', request);
+    const response = await axiosInstance.post(`/v1/chat/sessions/${sessionId}/messages`, {
+      content,
+      role: 'user',
+    });
 
     return {
       success: true,

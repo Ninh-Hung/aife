@@ -1,31 +1,56 @@
 /**
  * ChatScreen Page
- * Main chat interface for conversing with an AI Agent
+ * Main chat interface for conversing with an AI Agent via WebSocket
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Agent, ChatSession, ChatMessage } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
+import { useChatAgentWebSocket } from '../hooks/useChatAgentWebSocket';
 import { ChatSessionsList } from '../components/chat/ChatSessionsList';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { CircularProgress } from '@mui/material';
+import {
+  listChatSessions,
+  createChatSession,
+  listChatMessages,
+} from '../services/api';
 
 export const ChatScreen: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
-  const { agents } = useAgents();
+  const { agents, loading: agentsLoading } = useAgents();
   const { error: showError } = useNotification();
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeSessionInternalId, setActiveSessionInternalId] = useState<number | null>(null);
   const [isInfoPanelVisible, setIsInfoPanelVisible] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
+
+  // WebSocket connection to ChatAgent Durable Object
+  // Uses raw WebSocket with custom protocol for setSession RPC and chat messages
+  const {
+    messages: wsMessages,
+    sendMessage: wsSendMessage,
+    status: wsStatus,
+    isConnected,
+    isConnecting,
+  } = useChatAgentWebSocket({
+    agentPublicId: agentId || '', // agentId from URL is the publicId
+    sessionId: activeSessionInternalId,
+    backendUrl: 'http://localhost:8787',
+    enabled: !!agentId && !!activeSessionInternalId,
+  });
+
+  // Combine initial messages with WebSocket messages
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+  const allMessages = initialMessagesLoaded ? [...initialMessages, ...wsMessages] : initialMessages;
 
   // ============================================
   // Initialize Agent & Sessions
@@ -39,8 +64,13 @@ export const ChatScreen: React.FC = () => {
         return;
       }
 
-      // Find the agent
-      const foundAgent = agents.find((a) => a.id === agentId);
+      // Wait for agents to finish loading
+      if (agentsLoading) {
+        return;
+      }
+
+      // Find the agent by publicId (agentId from URL is the publicId)
+      const foundAgent = agents.find((a) => a.publicId === agentId);
       if (!foundAgent) {
         showError('Agent not found');
         navigate('/agents');
@@ -49,30 +79,52 @@ export const ChatScreen: React.FC = () => {
 
       setAgent(foundAgent);
 
-      // TODO: Fetch existing chat sessions from API
-      // For now, we'll check if there are any existing sessions
-      const existingSessions: ChatSession[] = []; // await fetchChatSessions(agentId);
+      // Fetch existing chat sessions from API using publicId
+      const response = await listChatSessions(foundAgent.publicId);
 
-      if (existingSessions.length === 0) {
-        // Auto-create a new session if none exist
-        const newSession = createNewSession(foundAgent.id);
-        setSessions([newSession]);
-        setActiveSessionId(newSession.id);
+      if (response.success && response.data) {
+        // Map backend response to frontend format (publicId -> id)
+        const existingSessions = response.data.map((session: any) => ({
+          ...session,
+          id: session.publicId,
+          internalId: session.id, // Store internal ID for WebSocket
+        }));
+
+        if (existingSessions.length === 0) {
+          // Auto-create a new session if none exist
+          const createResponse = await createChatSession(foundAgent.publicId, `Chat with ${foundAgent.name}`);
+          if (createResponse.success && createResponse.data) {
+            const newSession = {
+              ...createResponse.data,
+              id: createResponse.data.publicId,
+              internalId: createResponse.data.id, // Store internal ID
+            };
+            setSessions([newSession]);
+            setActiveSessionId(newSession.id);
+            setActiveSessionInternalId(newSession.internalId);
+          } else {
+            showError(createResponse.error || 'Failed to create chat session');
+          }
+        } else {
+          setSessions(existingSessions);
+          setActiveSessionId(existingSessions[0].id);
+          setActiveSessionInternalId(existingSessions[0].internalId);
+        }
       } else {
-        setSessions(existingSessions);
-        setActiveSessionId(existingSessions[0].id);
+        showError(response.error || 'Failed to load chat sessions');
       }
 
       setIsInitializing(false);
     };
 
     initializeChatScreen();
-  }, [agentId, agents, navigate, showError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, agentsLoading, agents]);
 
-  // Load messages when active session changes
+  // Load initial messages when active session changes
   useEffect(() => {
     if (activeSessionId) {
-      loadMessages(activeSessionId);
+      loadInitialMessages(activeSessionId);
     }
   }, [activeSessionId]);
 
@@ -80,111 +132,91 @@ export const ChatScreen: React.FC = () => {
   // Helper Functions
   // ============================================
 
-  const createNewSession = (agentId: string): ChatSession => {
-    const now = new Date();
-    return {
-      id: `session-${Date.now()}`,
-      agentId,
-      title: `Chat #${sessions.length + 1}`,
-      lastMessageAt: now,
-      createdAt: now,
-      updatedAt: now,
-    };
-  };
+  const loadInitialMessages = async (sessionId: string) => {
+    setInitialMessagesLoaded(false);
+    const response = await listChatMessages(sessionId);
 
-  const loadMessages = async (_sessionId: string) => {
-    // TODO: Fetch messages from API
-    // For now, initialize with empty array
-    setMessages([]);
+    if (response.success && response.data) {
+      // Convert backend message format to UI format
+      const formattedMessages: ChatMessage[] = response.data.map((msg) => ({
+        id: msg.publicId,
+        sessionId: msg.sessionId || sessionId,
+        role: msg.role === 'user' ? 'user' : 'agent',
+        content: msg.content,
+        timestamp: new Date(msg.timestamp || msg.createdAt),
+        status: msg.status || 'sent',
+      }));
+      setInitialMessages(formattedMessages);
+      setInitialMessagesLoaded(true);
+    } else {
+      setInitialMessages([]);
+      setInitialMessagesLoaded(true);
+    }
   };
 
   // ============================================
   // Handlers
   // ============================================
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     if (!agent) return;
 
-    const newSession = createNewSession(agent.id);
-    setSessions((prev) => [newSession, ...prev]);
-    setActiveSessionId(newSession.id);
+    const response = await createChatSession(agent.publicId, `Chat with ${agent.name}`);
+
+    if (response.success && response.data) {
+      const newSession = {
+        ...response.data,
+        id: response.data.publicId,
+        internalId: response.data.id,
+      };
+      setSessions((prev) => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+      setActiveSessionInternalId(newSession.internalId);
+    } else {
+      showError(response.error || 'Failed to create chat session');
+    }
   };
 
   const handleSessionSelect = (sessionId: string) => {
-    setActiveSessionId(sessionId);
-  };
-
-  const handleSendMessage = async (content: string) => {
-    if (!activeSessionId || !agent) return;
-
-    // Create user message
-    const userMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      sessionId: activeSessionId,
-      role: 'user',
-      content,
-      timestamp: new Date(),
-      status: 'sent',
-    };
-
-    // Add user message to UI
-    setMessages((prev) => [...prev, userMessage]);
-
-    // Update session last message
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === activeSessionId
-          ? {
-              ...session,
-              lastMessage: content,
-              lastMessageAt: new Date(),
-              title: session.title === `Chat #${sessions.length}` && prev.indexOf(session) === 0
-                ? content.substring(0, 30) + (content.length > 30 ? '...' : '')
-                : session.title,
-            }
-          : session
-      )
-    );
-
-    // Show loading
-    setIsLoading(true);
-
-    try {
-      // TODO: Call API to send message and get agent response
-      // const response = await sendChatMessage(activeSessionId, content);
-
-      // Simulate agent response for now
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const agentMessage: ChatMessage = {
-        id: `msg-${Date.now()}-agent`,
-        sessionId: activeSessionId,
-        role: 'agent',
-        content: `Hello! I'm ${agent.name}. I received your message: "${content}". This is a simulated response. API integration is pending.`,
-        timestamp: new Date(),
-        status: 'sent',
-      };
-
-      setMessages((prev) => [...prev, agentMessage]);
-
-      // Update session last message with agent response
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === activeSessionId
-            ? {
-                ...session,
-                lastMessage: agentMessage.content,
-                lastMessageAt: new Date(),
-              }
-            : session
-        )
-      );
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to send message');
-    } finally {
-      setIsLoading(false);
+    const session = sessions.find((s) => s.id === sessionId);
+    if (session) {
+      setActiveSessionId(sessionId);
+      setActiveSessionInternalId((session as any).internalId);
     }
   };
+
+  const handleSendMessage = useCallback(
+    async (content: string) => {
+      if (!isConnected || !activeSessionId) {
+        showError('Not connected to agent. Please wait...');
+        return;
+      }
+
+      try {
+        // Send message via WebSocket - agent handles everything
+        await wsSendMessage(content);
+
+        // Update session metadata (last message, title)
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === activeSessionId
+              ? {
+                  ...session,
+                  lastMessage: content.substring(0, 50),
+                  lastMessageAt: new Date(),
+                  title: session.title.startsWith('Chat with')
+                    ? content.substring(0, 30) + (content.length > 30 ? '...' : '')
+                    : session.title,
+                }
+              : session
+          )
+        );
+      } catch (err) {
+        showError(err instanceof Error ? err.message : 'Failed to send message');
+      }
+    },
+    [isConnected, activeSessionId, wsSendMessage, showError]
+  );
 
   const handleToggleInfo = () => {
     setIsInfoPanelVisible((prev) => !prev);
@@ -194,12 +226,15 @@ export const ChatScreen: React.FC = () => {
   // Render
   // ============================================
 
-  if (isInitializing) {
+  // Show loading while agents are loading or chat is initializing
+  if (agentsLoading || isInitializing) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900">
         <div className="text-center">
           <CircularProgress size={40} className="mb-4" />
-          <p className="text-gray-600 dark:text-slate-400">Loading chat...</p>
+          <p className="text-gray-600 dark:text-slate-400">
+            {agentsLoading ? 'Loading agents...' : 'Loading chat...'}
+          </p>
         </div>
       </div>
     );
@@ -226,11 +261,18 @@ export const ChatScreen: React.FC = () => {
       {/* Center - Chat Conversation */}
       <ChatConversation
         agent={agent}
-        messages={messages}
-        isLoading={isLoading}
+        messages={allMessages}
+        isLoading={isConnecting}
         onSendMessage={handleSendMessage}
         onToggleInfo={handleToggleInfo}
       />
+
+      {/* WebSocket Status Indicator */}
+      {!isConnected && activeSessionId && (
+        <div className="fixed bottom-4 right-4 rounded-lg bg-yellow-100 px-4 py-2 text-sm text-yellow-800 shadow-lg dark:bg-yellow-900 dark:text-yellow-200">
+          {isConnecting ? 'Connecting to agent...' : 'Disconnected from agent'}
+        </div>
+      )}
 
       {/* Right Panel - Agent Info (collapsible) */}
       <AgentInfoPanel

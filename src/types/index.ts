@@ -26,6 +26,7 @@ export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 
 export interface Agent {
   id: string;
+  publicId: string; // Used for Durable Object instance identification
   name: string;
   description?: string;
   capabilityIds: string[];

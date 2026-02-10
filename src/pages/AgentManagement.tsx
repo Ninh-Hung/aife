@@ -77,7 +77,8 @@ export const AgentManagement: React.FC = () => {
   };
 
   const handleChat = (agent: Agent) => {
-    navigate(`/chat/${agent.id}`);
+    // Use publicId for Durable Object instance identification
+    navigate(`/chat/${agent.publicId}`);
   };
 
   const handleCloseDrawer = () => {
