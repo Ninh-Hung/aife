@@ -3,7 +3,7 @@
  * Refactored to support capability-driven, data-driven architecture
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Drawer,
   Box,
@@ -19,13 +19,30 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  CircularProgress,
+  Tooltip,
 } from '@mui/material';
-import { X, Sparkles, Save, ChevronDown } from 'lucide-react';
+import { X, Sparkles, Save, ChevronDown, Upload, Trash2, UserCircle } from 'lucide-react';
 import { Agent, CreateAgentInput, Characteristic, Knowledge } from '../../types';
 import { useNotification } from '../../hooks/useNotification';
+import { uploadAgentAvatar, getAgent } from '../../services/api';
 import { CapabilitiesSection } from './CapabilitiesSection';
 import { CharacteristicsSection } from './CharacteristicsSection';
 import { KnowledgeSection } from './KnowledgeSection';
+
+// ============================================
+// Constants
+// ============================================
+
+const ALLOWED_AVATAR_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/svg+xml',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+];
+const MAX_AVATAR_SIZE_MB = 5;
 
 // ============================================
 // Props Interface
@@ -46,6 +63,7 @@ interface AgentDrawerProps {
 const initialFormState: CreateAgentInput = {
   name: '',
   description: '',
+  avatarUrl: null,
   capabilityIds: [],
   characteristicIds: [],
   knowledgeIds: [],
@@ -68,29 +86,119 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   const [errors, setErrors] = useState<Partial<Record<keyof CreateAgentInput, string>>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Avatar upload state
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Loading state when fetching full agent details for editing
+  const [isLoadingAgent, setIsLoadingAgent] = useState(false);
+
   const isEditMode = !!agent;
 
-  // Pre-fill form when editing
+  // Pre-fill form when editing — fetch full agent details (including association IDs)
   useEffect(() => {
     if (agent && open) {
-      setFormData({
-        name: agent.name,
-        description: agent.description || '',
-        capabilityIds: agent.capabilityIds || [],
-        characteristicIds: agent.characteristicIds || [],
-        knowledgeIds: agent.knowledgeIds || [],
-        ownerType: agent.ownerType || 'USER',
-        ownerId: agent.ownerId,
-      });
+      setIsLoadingAgent(true);
+      getAgent(agent.publicId)
+        .then((result) => {
+          const full = result.success && result.data ? result.data : agent;
+          setFormData({
+            name: full.name,
+            description: full.description || '',
+            avatarUrl: (full.avatarUrl as string | null | undefined) ?? null,
+            capabilityIds: (full as Agent).capabilityIds || [],
+            characteristicIds: (full as Agent).characteristicIds || [],
+            knowledgeIds: (full as Agent).knowledgeIds || [],
+            ownerType: (full as Agent).ownerType || 'USER',
+            ownerId: (full as Agent).ownerId,
+          });
+          setAvatarPreview((full.avatarUrl as string | null | undefined) ?? null);
+        })
+        .catch(() => {
+          // Fallback to list-level data (no IDs, but better than nothing)
+          setFormData({
+            name: agent.name,
+            description: agent.description || '',
+            avatarUrl: agent.avatarUrl ?? null,
+            capabilityIds: agent.capabilityIds || [],
+            characteristicIds: agent.characteristicIds || [],
+            knowledgeIds: agent.knowledgeIds || [],
+            ownerType: agent.ownerType || 'USER',
+            ownerId: agent.ownerId,
+          });
+          setAvatarPreview(agent.avatarUrl ?? null);
+        })
+        .finally(() => setIsLoadingAgent(false));
     } else if (!open) {
       // Reset form when drawer closes
       setFormData(initialFormState);
       setErrors({});
+      setAvatarPreview(null);
+      setIsLoadingAgent(false);
     }
   }, [agent, open]);
 
   // ============================================
-  // Handlers
+  // Avatar Upload Handlers
+  // ============================================
+
+  const handleAvatarClick = () => {
+    if (!isSaving && !isUploadingAvatar && !isLoadingAgent) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!e.target.files) return;
+    // Reset input so selecting the same file again triggers onChange
+    e.target.value = '';
+
+    if (!file) return;
+
+    // Client-side validation — mirror backend rules
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      error(`Unsupported file type. Please upload JPG, PNG, SVG, GIF, or WebP.`);
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE_MB * 1024 * 1024) {
+      error(`File is too large. Maximum size is ${MAX_AVATAR_SIZE_MB} MB.`);
+      return;
+    }
+
+    // Optimistic local preview
+    const localPreview = URL.createObjectURL(file);
+    setAvatarPreview(localPreview);
+    setIsUploadingAvatar(true);
+
+    try {
+      const result = await uploadAgentAvatar(file);
+      if (!result.success || !result.data?.url) {
+        throw new Error(result.error || 'Upload failed');
+      }
+      // Replace optimistic preview with the real R2 URL
+      URL.revokeObjectURL(localPreview);
+      setAvatarPreview(result.data.url);
+      setFormData((prev) => ({ ...prev, avatarUrl: result.data!.url }));
+      success('Avatar uploaded successfully');
+    } catch (err) {
+      URL.revokeObjectURL(localPreview);
+      setAvatarPreview(formData.avatarUrl ?? null);
+      error(err instanceof Error ? err.message : 'Failed to upload avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarPreview(null);
+    setFormData((prev) => ({ ...prev, avatarUrl: null }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // ============================================
+  // Form Handlers
   // ============================================
 
   const handleChange =
@@ -197,6 +305,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       }
       // Reset form and close drawer on success
       setFormData(initialFormState);
+      setAvatarPreview(null);
       onClose();
     } catch (err) {
       error(err instanceof Error ? err.message : 'Failed to save agent');
@@ -206,9 +315,10 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   };
 
   const handleClose = () => {
-    if (!isSaving) {
+    if (!isSaving && !isUploadingAvatar && !isLoadingAgent) {
       setFormData(initialFormState);
       setErrors({});
+      setAvatarPreview(null);
       onClose();
     }
   };
@@ -240,7 +350,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
           </Box>
           <IconButton
             onClick={handleClose}
-            disabled={isSaving}
+            disabled={isSaving || isUploadingAvatar}
             className="text-gray-600 dark:text-slate-400"
             size="small"
           >
@@ -250,6 +360,19 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
         {/* Form Content */}
         <Box className="flex-1 overflow-y-auto px-6 py-6">
+          {/* Loading overlay while fetching full agent details */}
+          {isLoadingAgent && (
+            <Box className="flex min-h-[300px] items-center justify-center">
+              <Box className="flex flex-col items-center gap-3">
+                <CircularProgress size={36} className="text-indigo-500" />
+                <Typography variant="body2" className="text-gray-500 dark:text-slate-400">
+                  Loading agent details...
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {!isLoadingAgent && (
           <Box className="space-y-6">
             {/* 1. Basic Information */}
             <Box>
@@ -261,6 +384,82 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
               </Typography>
 
               <Box className="space-y-4">
+                {/* Avatar Upload */}
+                <Box className="flex items-start gap-4">
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ALLOWED_AVATAR_TYPES.join(',')}
+                    className="hidden"
+                    onChange={handleAvatarFileChange}
+                    disabled={isSaving || isUploadingAvatar}
+                  />
+
+                  {/* Avatar preview / placeholder */}
+                  <Box className="relative shrink-0">
+                    <Box
+                      onClick={handleAvatarClick}
+                      className={[
+                        'flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2',
+                        'border-dashed transition-colors',
+                        avatarPreview
+                          ? 'border-transparent'
+                          : 'border-gray-300 hover:border-indigo-400 dark:border-slate-600 dark:hover:border-indigo-500',
+                        isSaving || isUploadingAvatar ? 'cursor-not-allowed opacity-60' : '',
+                      ].join(' ')}
+                    >
+                      {isUploadingAvatar ? (
+                        <CircularProgress size={28} className="text-indigo-500" />
+                      ) : avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="Agent avatar"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <UserCircle
+                          size={36}
+                          className="text-gray-400 dark:text-slate-500"
+                        />
+                      )}
+                    </Box>
+
+                    {/* Remove button */}
+                    {avatarPreview && !isUploadingAvatar && (
+                      <Tooltip title="Remove avatar">
+                        <IconButton
+                          size="small"
+                          onClick={handleRemoveAvatar}
+                          disabled={isSaving}
+                          className="absolute -right-2 -top-2 bg-white shadow-md dark:bg-slate-700"
+                          sx={{ padding: '2px' }}
+                        >
+                          <Trash2 size={12} className="text-red-500" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+
+                  {/* Upload instructions */}
+                  <Box className="flex flex-col justify-center gap-1 pt-1">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Upload size={14} />}
+                      onClick={handleAvatarClick}
+                      disabled={isSaving || isUploadingAvatar}
+                      className="w-fit border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
+                    >
+                      {avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+                    </Button>
+                    <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
+                      JPG, PNG, SVG, GIF, WebP — max {MAX_AVATAR_SIZE_MB} MB
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Agent Name */}
                 <FormControl fullWidth error={!!errors.name}>
                   <InputLabel htmlFor="agent-name">Agent Name *</InputLabel>
                   <OutlinedInput
@@ -274,6 +473,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
                   {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
                 </FormControl>
 
+                {/* Description */}
                 <FormControl fullWidth>
                   <TextField
                     label="Description"
@@ -366,6 +566,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
               </AccordionDetails>
             </Accordion>
           </Box>
+          )}
         </Box>
 
         {/* Footer Actions */}
@@ -374,7 +575,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             variant="outlined"
             fullWidth
             onClick={handleClose}
-            disabled={isSaving}
+            disabled={isSaving || isUploadingAvatar || isLoadingAgent}
             className="border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
           >
             Cancel
@@ -383,7 +584,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             variant="contained"
             fullWidth
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isUploadingAvatar || isLoadingAgent}
             startIcon={<Save size={18} />}
             className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-slate-700"
           >

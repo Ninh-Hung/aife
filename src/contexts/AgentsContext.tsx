@@ -111,14 +111,17 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   const updateAgent = async (id: string, input: Partial<CreateAgentInput>): Promise<void> => {
     const response = await agentApi.updateAgent(id, input);
 
-    if (!response.success || !response.data) {
+    if (!response.success) {
       // Use message field for user-friendly error, fallback to error field, then generic message
       throw new Error(response.message || response.error || 'Failed to update agent');
     }
 
-    const updatedAgent = response.data;
+    // Merge the submitted fields into the existing agent entry.
+    // The backend update response only returns a slim { publicId, name, targetLangs } object,
+    // not the full Agent shape. Merging preserves fields like avatarUrl that are not part of
+    // the response payload so the card reflects changes immediately without a full refetch.
     setAgents((prev) =>
-      prev.map((agent) => (agent.id === id ? updatedAgent : agent))
+      prev.map((agent) => (agent.id === id ? { ...agent, ...input } : agent))
     );
   };
 

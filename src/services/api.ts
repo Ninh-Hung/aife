@@ -642,6 +642,66 @@ export const listAgents = async (): Promise<ApiResponse<Agent[]>> => {
 };
 
 /**
+ * Uploads an agent avatar image to Cloudflare R2 via the backend
+ * @param file - Image file (jpg, png, svg, gif, webp) max 5 MB
+ * @returns Promise with the public URL of the stored image
+ */
+export const uploadAgentAvatar = async (file: File): Promise<ApiResponse<{ url: string }>> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await axiosInstance.post('/v1/agents/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Avatar uploaded successfully',
+    };
+  } catch (error) {
+    console.error('Upload agent avatar error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to upload avatar',
+    };
+  }
+};
+
+/**
+ * Fetches a single agent with full association IDs (for edit mode)
+ * @param publicId - The agent's public ID
+ * @returns Promise with the full agent including capabilityIds, characteristicIds, knowledgeIds
+ */
+export const getAgent = async (publicId: string): Promise<ApiResponse<Agent>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/agents/${publicId}`);
+
+    return {
+      success: true,
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error('Get agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load agent',
+    };
+  }
+};
+
+/**
  * Creates a new agent
  * @param input - Agent creation parameters
  * @returns Promise with the created agent
@@ -671,7 +731,7 @@ export const createAgent = async (
 
 /**
  * Updates an existing agent
- * @param id - The ID of the agent to update
+ * @param id - The public ID of the agent to update
  * @param input - Agent update parameters
  * @returns Promise with the updated agent
  */
@@ -680,7 +740,8 @@ export const updateAgent = async (
   input: Partial<CreateAgentInput>
 ): Promise<ApiResponse<Agent>> => {
   try {
-    const response = await axiosInstance.patch(`/v1/agents/${id}`, input);
+    // Backend expects PUT /v1/agents with publicId in the JSON body
+    const response = await axiosInstance.put('/v1/agents', { publicId: id, ...input });
 
     return {
       success: true,

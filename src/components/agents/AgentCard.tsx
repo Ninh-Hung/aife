@@ -72,8 +72,16 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
       )}
 
       {/* Icon/Avatar */}
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50">
-        {getAgentIcon(agent.description)}
+      <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50">
+        {agent.avatarUrl ? (
+          <img
+            src={agent.avatarUrl}
+            alt={`${agent.name} avatar`}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          getAgentIcon(agent.description)
+        )}
       </div>
 
       {/* Agent Info */}

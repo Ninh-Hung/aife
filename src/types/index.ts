@@ -29,6 +29,7 @@ export interface Agent {
   publicId: string; // Used for Durable Object instance identification
   name: string;
   description?: string;
+  avatarUrl?: string | null;
   capabilityIds: string[];
   characteristicIds: string[];
   knowledgeIds: string[];
@@ -51,6 +52,7 @@ export interface Agent {
 export interface CreateAgentInput {
   name: string;
   description?: string;
+  avatarUrl?: string | null;
   capabilityIds: string[];
   characteristicIds: string[];
   knowledgeIds: string[];
