@@ -21,6 +21,22 @@ interface AgentCardProps {
 }
 
 // ============================================
+// Avatar type detection
+// ============================================
+
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.ogg', '.ogv'];
+
+const isVideoUrl = (url: string): boolean => {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return VIDEO_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+  } catch {
+    // Fallback for relative URLs
+    return VIDEO_EXTENSIONS.some((ext) => url.toLowerCase().split('?')[0].endsWith(ext));
+  }
+};
+
+// ============================================
 // Icon Map
 // ============================================
 
@@ -74,11 +90,28 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
       {/* Icon/Avatar */}
       <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50">
         {agent.avatarUrl ? (
-          <img
-            src={agent.avatarUrl}
-            alt={`${agent.name} avatar`}
-            className="h-full w-full object-cover"
-          />
+          isVideoUrl(agent.avatarUrl) ? (
+            <video
+              src={agent.avatarUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <img
+              src={agent.avatarUrl}
+              alt={`${agent.name} avatar`}
+              className="h-full w-full object-cover"
+            />
+          )
         ) : (
           getAgentIcon(agent.description)
         )}

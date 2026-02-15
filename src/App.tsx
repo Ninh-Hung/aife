@@ -22,6 +22,8 @@ import { ApiKeyManagement } from './pages/ApiKeyManagement';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
 import { ChatScreen } from './pages/ChatScreen';
+import NewChatPage from './pages/NewChatPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import {
   Bot,
   LayoutDashboard,
@@ -163,6 +165,9 @@ const AppContent: React.FC = () => {
                     }
                   />
 
+                  {/* New Chat */}
+                  <Route path="/new-chat" element={<NewChatPage />} />
+
                   {/* Dashboard Page */}
                   <Route path="/dashboard" element={<Dashboard />} />
 
@@ -190,14 +195,7 @@ const AppContent: React.FC = () => {
                   />
 
                   {/* 404 Not Found */}
-                  <Route
-                    path="*"
-                    element={
-                      <div className="p-8 text-gray-900 dark:text-slate-100">
-                        404 - Page Not Found
-                      </div>
-                    }
-                  />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
 
                 {/* Agent Drawer - Global component */}

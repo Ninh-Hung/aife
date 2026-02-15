@@ -35,6 +35,7 @@ import {
   Settings,
   LogOut,
   KeyRound,
+  SquarePen,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -175,6 +176,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </IconButton>
           </Tooltip>
         )}
+      </Box>
+
+      {/* New Chat Button */}
+      <Box className={`px-3 pt-3 ${isCollapsed && !isMobileDrawer ? 'flex justify-center' : ''}`}>
+        <Tooltip title={isCollapsed && !isMobileDrawer ? 'New Chat' : ''} placement="right" arrow>
+          <ListItemButton
+            component={Link}
+            to="/new-chat"
+            onClick={handleNavigation}
+            className={`rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-600 transition-all hover:border-blue-500/70 hover:bg-blue-500/20 dark:border-blue-400/30 dark:text-blue-400 dark:hover:border-blue-400/60 dark:hover:bg-blue-500/20 ${
+              isCollapsed && !isMobileDrawer ? 'justify-center' : 'gap-2'
+            }`}
+            sx={{
+              py: 1,
+              px: isCollapsed && !isMobileDrawer ? 1 : 2,
+              minHeight: 40,
+            }}
+          >
+            <SquarePen size={17} className="shrink-0" />
+            {(!isCollapsed || isMobileDrawer) && (
+              <Typography variant="body2" className="font-semibold">
+                New Chat
+              </Typography>
+            )}
+          </ListItemButton>
+        </Tooltip>
       </Box>
 
       {/* Main Navigation */}

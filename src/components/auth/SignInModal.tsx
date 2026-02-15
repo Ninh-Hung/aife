@@ -207,9 +207,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
       setIsLoading(true);
       try {
         await login(email, password);
-        // Login successful - close modal and redirect to Dashboard
+        // Login successful - close modal and redirect to New Chat
         handleClose();
-        navigate('/dashboard');
+        navigate('/new-chat');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
       } finally {
