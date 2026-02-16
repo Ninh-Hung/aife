@@ -30,7 +30,7 @@ const NewChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full items-center justify-center bg-[#0A1628] px-4">
+    <div className="flex h-full min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-[#0A1628]">
       <ChatInputScreen
         heading="What can I help you with?"
         placeholder="Ask me anything..."

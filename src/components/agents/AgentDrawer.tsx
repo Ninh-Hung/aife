@@ -3,7 +3,7 @@
  * Refactored to support capability-driven, data-driven architecture
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Drawer,
   Box,
@@ -21,11 +21,16 @@ import {
   AccordionDetails,
   CircularProgress,
   Tooltip,
+  Popover,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
-import { X, Sparkles, Save, ChevronDown, Upload, Trash2, UserCircle } from 'lucide-react';
+import { X, Sparkles, Save, ChevronDown, Upload, Trash2, UserCircle, Settings } from 'lucide-react';
 import { Agent, CreateAgentInput, Characteristic, Knowledge } from '../../types';
 import { useNotification } from '../../hooks/useNotification';
-import { uploadAgentAvatar, getAgent } from '../../services/api';
+import { uploadAgentAvatar, getAgent, listDefaultAvatars, DefaultAvatar } from '../../services/api';
 import { CapabilitiesSection } from './CapabilitiesSection';
 import { CharacteristicsSection } from './CharacteristicsSection';
 import { KnowledgeSection } from './KnowledgeSection';
@@ -71,6 +76,144 @@ const initialFormState: CreateAgentInput = {
 };
 
 // ============================================
+// AvatarSetupMenu Component
+// ============================================
+
+interface AvatarSetupMenuProps {
+  anchorEl: HTMLElement | null;
+  open: boolean;
+  onClose: () => void;
+  onUploadClick: () => void;
+  onSelectDefault: (avatar: DefaultAvatar) => void;
+  disabled: boolean;
+}
+
+const AvatarSetupMenu: React.FC<AvatarSetupMenuProps> = ({
+  anchorEl,
+  open,
+  onClose,
+  onUploadClick,
+  onSelectDefault,
+  disabled,
+}) => {
+  const [defaultAvatars, setDefaultAvatars] = useState<DefaultAvatar[]>([]);
+  const [isLoadingAvatars, setIsLoadingAvatars] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setIsLoadingAvatars(true);
+      listDefaultAvatars()
+        .then((result) => {
+          if (result.success && result.data) {
+            setDefaultAvatars(result.data);
+          }
+        })
+        .catch(() => {/* ignore — list is simply empty */})
+        .finally(() => setIsLoadingAvatars(false));
+    }
+  }, [open]);
+
+  return (
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      PaperProps={{
+        className: 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700',
+        sx: { width: 280, mt: 0.5 },
+      }}
+    >
+      {/* Upload row */}
+      <List disablePadding>
+        <ListItemButton
+          onClick={() => {
+            onClose();
+            onUploadClick();
+          }}
+          disabled={disabled}
+          className="hover:bg-gray-50 dark:hover:bg-slate-700/50"
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <Upload size={16} className="text-indigo-500" />
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              <Typography variant="body2" className="font-medium text-gray-800 dark:text-slate-200">
+                Upload avatar
+              </Typography>
+            }
+            secondary={
+              <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
+                JPG, PNG, SVG, GIF, WebP — max {MAX_AVATAR_SIZE_MB} MB
+              </Typography>
+            }
+          />
+        </ListItemButton>
+      </List>
+
+      {/* Default avatars section */}
+      <Divider className="border-gray-200 dark:border-slate-700" />
+
+      <Box className="px-3 pb-2 pt-2">
+        <Typography variant="caption" className="font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+          Default Avatars
+        </Typography>
+      </Box>
+
+      {isLoadingAvatars ? (
+        <Box className="flex items-center justify-center py-6">
+          <CircularProgress size={20} className="text-indigo-500" />
+        </Box>
+      ) : defaultAvatars.length === 0 ? (
+        <Box className="px-3 pb-3">
+          <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
+            No default avatars available.
+          </Typography>
+        </Box>
+      ) : (
+        <Box className="grid grid-cols-4 gap-2 px-3 pb-3">
+          {defaultAvatars.map((avatar) => (
+            <Tooltip key={avatar.publicId} title={avatar.name} placement="top">
+              <Box
+                onClick={() => {
+                  onSelectDefault(avatar);
+                  onClose();
+                }}
+                className={[
+                  'relative flex h-14 w-14 cursor-pointer items-center justify-center',
+                  'overflow-hidden rounded-lg border-2 border-transparent',
+                  'transition-all hover:border-indigo-400 hover:shadow-md',
+                  disabled ? 'pointer-events-none opacity-50' : '',
+                ].join(' ')}
+              >
+                {avatar.type === 'video' ? (
+                  <video
+                    src={avatar.previewUrl ?? undefined}
+                    muted
+                    autoPlay
+                    loop
+                    playsInline
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={avatar.previewUrl ?? undefined}
+                    alt={avatar.name}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </Box>
+            </Tooltip>
+          ))}
+        </Box>
+      )}
+    </Popover>
+  );
+};
+
+// ============================================
 // AgentDrawer Component
 // ============================================
 
@@ -90,6 +233,10 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Avatar setup menu state
+  const [avatarMenuAnchor, setAvatarMenuAnchor] = useState<HTMLElement | null>(null);
+  const avatarMenuOpen = Boolean(avatarMenuAnchor);
 
   // Loading state when fetching full agent details for editing
   const [isLoadingAgent, setIsLoadingAgent] = useState(false);
@@ -140,14 +287,28 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   }, [agent, open]);
 
   // ============================================
+  // Avatar Setup Menu Handlers
+  // ============================================
+
+  const handleSetupAvatarClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (!isSaving && !isUploadingAvatar && !isLoadingAgent) {
+      setAvatarMenuAnchor(e.currentTarget);
+    }
+  };
+
+  const handleAvatarMenuClose = () => {
+    setAvatarMenuAnchor(null);
+  };
+
+  // ============================================
   // Avatar Upload Handlers
   // ============================================
 
-  const handleAvatarClick = () => {
+  const handleFileInputClick = useCallback(() => {
     if (!isSaving && !isUploadingAvatar && !isLoadingAgent) {
       fileInputRef.current?.click();
     }
-  };
+  }, [isSaving, isUploadingAvatar, isLoadingAgent]);
 
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,6 +350,12 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     } finally {
       setIsUploadingAvatar(false);
     }
+  };
+
+  const handleSelectDefaultAvatar = (avatar: DefaultAvatar) => {
+    const url = avatar.previewUrl;
+    setAvatarPreview(url);
+    setFormData((prev) => ({ ...prev, avatarUrl: url }));
   };
 
   const handleRemoveAvatar = () => {
@@ -399,7 +566,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
                   {/* Avatar preview / placeholder */}
                   <Box className="relative shrink-0">
                     <Box
-                      onClick={handleAvatarClick}
+                      onClick={handleSetupAvatarClick}
                       className={[
                         'flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2',
                         'border-dashed transition-colors',
@@ -441,23 +608,33 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
                     )}
                   </Box>
 
-                  {/* Upload instructions */}
+                  {/* Setup avatar button */}
                   <Box className="flex flex-col justify-center gap-1 pt-1">
                     <Button
                       size="small"
                       variant="outlined"
-                      startIcon={<Upload size={14} />}
-                      onClick={handleAvatarClick}
+                      startIcon={<Settings size={14} />}
+                      onClick={handleSetupAvatarClick}
                       disabled={isSaving || isUploadingAvatar}
                       className="w-fit border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
                     >
-                      {avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+                      Setup avatar
                     </Button>
                     <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
-                      JPG, PNG, SVG, GIF, WebP — max {MAX_AVATAR_SIZE_MB} MB
+                      Upload or choose a default
                     </Typography>
                   </Box>
                 </Box>
+
+                {/* Avatar Setup Menu */}
+                <AvatarSetupMenu
+                  anchorEl={avatarMenuAnchor}
+                  open={avatarMenuOpen}
+                  onClose={handleAvatarMenuClose}
+                  onUploadClick={handleFileInputClick}
+                  onSelectDefault={handleSelectDefaultAvatar}
+                  disabled={isSaving || isUploadingAvatar}
+                />
 
                 {/* Agent Name */}
                 <FormControl fullWidth error={!!errors.name}>

@@ -25,7 +25,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <>
+    <div className="p-4 md:p-6 lg:p-8">
       {/* Page Header */}
       <Box className="mb-6 md:mb-8">
         <Typography
@@ -237,6 +237,6 @@ export const Dashboard: React.FC = () => {
           </Box>
         </Card>
       </Box>
-    </>
+    </div>
   );
 };

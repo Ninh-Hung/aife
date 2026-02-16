@@ -13,6 +13,7 @@ export interface User {
   email: string;
   role: string; // ADMIN, USER, etc.
   avatar?: string;
+  avatarType?: 'image' | 'video';
   subscription?: SubscriptionTier; // Optional from backend
   createdAt?: Date;
   updatedAt?: Date;
@@ -30,6 +31,7 @@ export interface Agent {
   name: string;
   description?: string;
   avatarUrl?: string | null;
+  avatarType?: 'image' | 'video';
   capabilityIds: string[];
   characteristicIds: string[];
   knowledgeIds: string[];

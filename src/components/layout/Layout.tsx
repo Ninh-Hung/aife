@@ -98,7 +98,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
         {!isMobile && header}
 
         {/* Page Content */}
-        <Box className="flex-1 p-4 md:p-6 lg:p-8">{children}</Box>
+        <Box className="flex-1">{children}</Box>
       </Box>
     </Box>
   );

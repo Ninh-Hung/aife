@@ -674,6 +674,39 @@ export const uploadAgentAvatar = async (file: File): Promise<ApiResponse<{ url: 
   }
 };
 
+export interface DefaultAvatar {
+  publicId: string;
+  name: string;
+  type: 'image' | 'video';
+  previewUrl: string | null;
+  category: string | null;
+}
+
+/**
+ * Fetches all active default avatars from the admin catalog for the avatar picker
+ */
+export const listDefaultAvatars = async (): Promise<ApiResponse<DefaultAvatar[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/agents/default-avatars');
+
+    return {
+      success: true,
+      data: response.data.data,
+    };
+  } catch (error) {
+    console.error('List default avatars error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load default avatars',
+    };
+  }
+};
+
 /**
  * Fetches a single agent with full association IDs (for edit mode)
  * @param publicId - The agent's public ID

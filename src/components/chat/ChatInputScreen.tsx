@@ -151,25 +151,27 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   return (
     <div className="flex w-full flex-col items-center px-4">
       {/* Heading */}
-      <h1 className="mb-8 text-center text-3xl font-semibold text-white sm:text-4xl">{heading}</h1>
+      <h1 className="mb-8 text-center text-3xl font-semibold text-gray-900 dark:text-white sm:text-4xl">{heading}</h1>
 
       {/* Input box */}
       <div className="w-full max-w-2xl">
         <div
-          className={`relative rounded-2xl border bg-[#0F1F38] shadow-lg transition-colors ${
-            canSend ? 'border-slate-500' : 'border-slate-700'
-          } focus-within:border-slate-500`}
+          className={`relative rounded-2xl border bg-white shadow-lg transition-colors dark:bg-[#0F1F38] ${
+            canSend
+              ? 'border-blue-400 dark:border-slate-500'
+              : 'border-gray-200 dark:border-slate-700'
+          } focus-within:border-blue-400 dark:focus-within:border-slate-500`}
         >
           {/* Image preview pill */}
           {selectedImage && (
             <div className="flex items-center gap-1.5 px-4 pt-3">
-              <span className="max-w-[200px] truncate rounded-md border border-slate-600 bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+              <span className="max-w-[200px] truncate rounded-md border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
                 {selectedImage.name}
               </span>
               <button
                 type="button"
                 onClick={handleRemoveImage}
-                className="text-slate-400 transition-colors hover:text-white"
+                className="text-gray-400 transition-colors hover:text-gray-900 dark:text-slate-400 dark:hover:text-white"
                 title="Remove image"
               >
                 <X className="h-3.5 w-3.5" />
@@ -192,7 +194,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             rows={1}
-            className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-white placeholder-slate-500 focus:outline-none"
+            className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none dark:text-white dark:placeholder-slate-500"
             style={{ minHeight: '56px', maxHeight: '200px' }}
           />
 
@@ -206,8 +208,8 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                 onClick={() => setMenuOpen((prev) => !prev)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                   menuOpen
-                    ? 'bg-slate-700/70 text-white'
-                    : 'text-slate-400 hover:bg-slate-700/70 hover:text-white'
+                    ? 'bg-gray-200 text-gray-900 dark:bg-slate-700/70 dark:text-white'
+                    : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white'
                 }`}
                 title="Attach"
               >
@@ -218,12 +220,12 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute bottom-full left-0 mb-2 w-52 overflow-hidden rounded-xl border border-slate-700 bg-[#0F1F38] shadow-xl"
+                  className="absolute bottom-full left-0 mb-2 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-[#0F1F38]"
                 >
                   <button
                     type="button"
                     onClick={handleImageUploadClick}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white"
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
                   >
                     {isLoggedIn ? (
                       <>
@@ -249,7 +251,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
               className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                 canSend
                   ? 'bg-teal-500 text-white hover:bg-teal-600'
-                  : 'cursor-not-allowed bg-slate-700 text-slate-500'
+                  : 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-slate-700 dark:text-slate-500'
               }`}
               title="Send message"
             >
@@ -268,7 +270,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
         />
 
         {/* Hint */}
-        <p className="mt-2.5 text-center text-xs text-slate-600">
+        <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-slate-600">
           Press Enter to send &nbsp;·&nbsp; Shift+Enter for new line
         </p>
       </div>
@@ -281,7 +283,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
               key={s}
               type="button"
               onClick={() => handleSuggestionClick(s)}
-              className="rounded-full border border-slate-700 bg-slate-800/60 px-4 py-2 text-sm text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
+              className="rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
             >
               {s}
             </button>

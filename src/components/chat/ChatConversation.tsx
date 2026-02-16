@@ -9,6 +9,7 @@ import { IconButton, CircularProgress } from '@mui/material';
 import { Agent, ChatMessage } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
+import { AvatarMedia } from './AvatarMedia';
 
 interface ChatConversationProps {
   agent: Agent;
@@ -16,6 +17,10 @@ interface ChatConversationProps {
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onToggleInfo: () => void;
+  /** Current user's avatar URL */
+  userAvatar?: string;
+  /** Current user's avatar type */
+  userAvatarType?: 'image' | 'video';
 }
 
 export const ChatConversation: React.FC<ChatConversationProps> = ({
@@ -24,6 +29,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   isLoading,
   onSendMessage,
   onToggleInfo,
+  userAvatar,
+  userAvatarType,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -38,8 +45,13 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
       <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center gap-3">
           {/* Agent Avatar */}
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
-            <Bot size={20} className="text-white" />
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
+            <AvatarMedia
+              src={agent.avatarUrl}
+              type={agent.avatarType}
+              alt={agent.name}
+              fallback={<Bot size={20} className="text-white" />}
+            />
           </div>
 
           {/* Agent Info */}
@@ -91,14 +103,23 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
                 key={message.id}
                 message={message}
                 agentName={agent.name}
+                agentAvatar={agent.avatarUrl ?? undefined}
+                agentAvatarType={agent.avatarType}
+                userAvatar={userAvatar}
+                userAvatarType={userAvatarType}
               />
             ))}
 
             {/* Loading Indicator */}
             {isLoading && (
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
-                  <Bot size={16} className="text-white" />
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
+                  <AvatarMedia
+                    src={agent.avatarUrl}
+                    type={agent.avatarType}
+                    alt={agent.name}
+                    fallback={<Bot size={16} className="text-white" />}
+                  />
                 </div>
                 <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
                   <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />

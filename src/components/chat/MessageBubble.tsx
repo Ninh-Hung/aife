@@ -4,16 +4,26 @@
  */
 
 import React from 'react';
-import { Bot, User } from 'lucide-react';
+import { Bot, User as UserIcon } from 'lucide-react';
 import { ChatMessage } from '../../types';
+import { AvatarMedia } from './AvatarMedia';
 
 interface MessageBubbleProps {
   message: ChatMessage;
   agentName?: string;
   agentAvatar?: string;
+  agentAvatarType?: 'image' | 'video';
+  userAvatar?: string;
+  userAvatarType?: 'image' | 'video';
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
+  agentAvatar,
+  agentAvatarType,
+  userAvatar,
+  userAvatarType,
+}) => {
   const isUser = message.role === 'user';
 
   // Format timestamp
@@ -45,16 +55,26 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       >
         {/* Avatar */}
         <div
-          className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
+          className={`flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full ${
             isUser
               ? 'bg-blue-500 dark:bg-blue-600'
               : 'bg-gradient-to-br from-indigo-500 to-purple-600'
           }`}
         >
           {isUser ? (
-            <User size={16} className="text-white" />
+            <AvatarMedia
+              src={userAvatar}
+              type={userAvatarType}
+              alt="You"
+              fallback={<UserIcon size={16} className="text-white" />}
+            />
           ) : (
-            <Bot size={16} className="text-white" />
+            <AvatarMedia
+              src={agentAvatar}
+              type={agentAvatarType}
+              alt="Agent"
+              fallback={<Bot size={16} className="text-white" />}
+            />
           )}
         </div>
 

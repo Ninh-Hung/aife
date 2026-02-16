@@ -91,14 +91,14 @@ export const ApiKeyManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center p-4 md:p-6 lg:p-8">
         <CircularProgress />
       </div>
     );
   }
 
   return (
-    <>
+    <div className="p-4 md:p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div>
@@ -294,7 +294,7 @@ export const ApiKeyManagement: React.FC = () => {
           setRevokeDialog({ open: false, apiKey: null });
         }}
       />
-    </>
+    </div>
   );
 };
 

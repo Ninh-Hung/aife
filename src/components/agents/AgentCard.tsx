@@ -101,7 +101,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
               style={{
                 width: 64,
                 height: 64,
-                borderRadius: '50%',
                 objectFit: 'cover',
               }}
             />
