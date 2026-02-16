@@ -37,10 +37,10 @@ export function useChatAgentWebSocket({
 
   // Build WebSocket URL
   // Note: agents package expects class name in kebab-case, not binding name
-  // ChatAgent class -> "chat-agent" in URL
+  // AgentDO class -> "agent-do" in URL
   const getWebSocketUrl = useCallback(() => {
     const wsUrl = backendUrl.replace(/^http/, 'ws');
-    return `${wsUrl}/agents/chat-agent/${agentPublicId}`;
+    return `${wsUrl}/agents/agent-do/${agentPublicId}`;
   }, [backendUrl, agentPublicId]);
 
   // Send message to agent

@@ -1,6 +1,6 @@
 /**
  * useChatAgent Hook
- * WebSocket connection to ChatAgent Durable Object using Cloudflare Agents SDK
+ * WebSocket connection to AgentDO Durable Object using Cloudflare Agents SDK
  * Provides real-time bidirectional communication for chat
  */
 
@@ -38,7 +38,7 @@ export function useChatAgent({
   // Create agent instance pointing to the Durable Object
   // The 'name' parameter is the agent's publicId (used as DO name)
   const agent = useAgent<any>({
-    agent: "CHAT_AGENT",
+    agent: "AgentDO", // Unified AgentDO class
     host: backendUrl,
     name: agentPublicId,
   });

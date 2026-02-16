@@ -773,8 +773,8 @@ export const updateAgent = async (
   input: Partial<CreateAgentInput>
 ): Promise<ApiResponse<Agent>> => {
   try {
-    // Backend expects PUT /v1/agents with publicId in the JSON body
-    const response = await axiosInstance.put('/v1/agents', { publicId: id, ...input });
+    // Backend expects PATCH /v1/agents with publicId in the JSON body
+    const response = await axiosInstance.patch('/v1/agents', { publicId: id, ...input });
 
     return {
       success: true,

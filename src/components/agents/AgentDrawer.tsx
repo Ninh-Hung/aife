@@ -231,8 +231,16 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
   // Avatar upload state
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarType, setAvatarType] = useState<'image' | 'video' | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const detectAvatarType = (url: string | null): 'image' | 'video' => {
+    if (!url) return 'image';
+    const lower = url.toLowerCase().split('?')[0];
+    if (/\.(mp4|webm|mov|ogg|ogv)$/.test(lower)) return 'video';
+    return 'image';
+  };
 
   // Avatar setup menu state
   const [avatarMenuAnchor, setAvatarMenuAnchor] = useState<HTMLElement | null>(null);
@@ -260,7 +268,9 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             ownerType: (full as Agent).ownerType || 'USER',
             ownerId: (full as Agent).ownerId,
           });
-          setAvatarPreview((full.avatarUrl as string | null | undefined) ?? null);
+          const loadedUrl = (full.avatarUrl as string | null | undefined) ?? null;
+          setAvatarPreview(loadedUrl);
+          setAvatarType(detectAvatarType(loadedUrl));
         })
         .catch(() => {
           // Fallback to list-level data (no IDs, but better than nothing)
@@ -275,6 +285,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             ownerId: agent.ownerId,
           });
           setAvatarPreview(agent.avatarUrl ?? null);
+          setAvatarType(detectAvatarType(agent.avatarUrl ?? null));
         })
         .finally(() => setIsLoadingAgent(false));
     } else if (!open) {
@@ -282,6 +293,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       setFormData(initialFormState);
       setErrors({});
       setAvatarPreview(null);
+      setAvatarType(null);
       setIsLoadingAgent(false);
     }
   }, [agent, open]);
@@ -331,6 +343,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     // Optimistic local preview
     const localPreview = URL.createObjectURL(file);
     setAvatarPreview(localPreview);
+    setAvatarType('image');
     setIsUploadingAvatar(true);
 
     try {
@@ -355,11 +368,13 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   const handleSelectDefaultAvatar = (avatar: DefaultAvatar) => {
     const url = avatar.previewUrl;
     setAvatarPreview(url);
+    setAvatarType(avatar.type);
     setFormData((prev) => ({ ...prev, avatarUrl: url }));
   };
 
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
+    setAvatarType(null);
     setFormData((prev) => ({ ...prev, avatarUrl: null }));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -473,6 +488,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       // Reset form and close drawer on success
       setFormData(initialFormState);
       setAvatarPreview(null);
+      setAvatarType(null);
       onClose();
     } catch (err) {
       error(err instanceof Error ? err.message : 'Failed to save agent');
@@ -486,6 +502,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       setFormData(initialFormState);
       setErrors({});
       setAvatarPreview(null);
+      setAvatarType(null);
       onClose();
     }
   };
@@ -578,6 +595,15 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
                     >
                       {isUploadingAvatar ? (
                         <CircularProgress size={28} className="text-indigo-500" />
+                      ) : avatarPreview && avatarType === 'video' ? (
+                        <video
+                          src={avatarPreview}
+                          muted
+                          autoPlay
+                          loop
+                          playsInline
+                          className="h-full w-full object-cover"
+                        />
                       ) : avatarPreview ? (
                         <img
                           src={avatarPreview}

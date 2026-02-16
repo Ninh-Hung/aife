@@ -17,6 +17,7 @@ import {
   listChatSessions,
   createChatSession,
   listChatMessages,
+  getAgent,
 } from '../services/api';
 
 export const ChatScreen: React.FC = () => {
@@ -77,7 +78,9 @@ export const ChatScreen: React.FC = () => {
         return;
       }
 
-      setAgent(foundAgent);
+      // Fetch full agent details (with populated capabilities, characteristics, knowledges)
+      const fullAgentResponse = await getAgent(agentId);
+      setAgent(fullAgentResponse.success && fullAgentResponse.data ? fullAgentResponse.data : foundAgent);
 
       // Fetch existing chat sessions from API using publicId
       const response = await listChatSessions(foundAgent.publicId);

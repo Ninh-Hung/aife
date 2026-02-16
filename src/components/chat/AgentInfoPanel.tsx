@@ -7,6 +7,7 @@ import React from 'react';
 import { X, Bot, Zap, Brain, Database } from 'lucide-react';
 import { IconButton } from '@mui/material';
 import { Agent } from '../../types';
+import { AvatarMedia } from './AvatarMedia';
 
 interface AgentInfoPanelProps {
   agent: Agent;
@@ -41,8 +42,13 @@ export const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
       <div className="flex-1 overflow-y-auto p-4">
         {/* Agent Avatar & Name */}
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
-            <Bot size={40} className="text-white" />
+          <div className="mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
+            <AvatarMedia
+              src={agent.avatarUrl}
+              type={agent.avatarType}
+              alt={agent.name}
+              fallback={<Bot size={40} className="text-white" />}
+            />
           </div>
           <h3 className="mb-1 text-xl font-bold text-gray-900 dark:text-slate-100">
             {agent.name}
@@ -123,7 +129,7 @@ export const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
           </div>
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center dark:border-slate-600 dark:bg-slate-700/50">
             <div className="mb-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-              {agent.knowledges?.length || 0}
+              {agent.knowledges?.length ?? agent.knowledgeCount ?? 0}
             </div>
             <div className="text-sm text-gray-600 dark:text-slate-400">
               Knowledge sources

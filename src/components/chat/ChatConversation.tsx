@@ -15,7 +15,7 @@ interface ChatConversationProps {
   agent: Agent;
   messages: ChatMessage[];
   isLoading: boolean;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, files?: File[]) => void;
   onToggleInfo: () => void;
   /** Current user's avatar URL */
   userAvatar?: string;

@@ -3,8 +3,8 @@
  * Displays a single chat message with markdown support
  */
 
-import React from 'react';
-import { Bot, User as UserIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bot, User as UserIcon, Copy, Check } from 'lucide-react';
 import { ChatMessage } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
 
@@ -25,6 +25,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   userAvatarType,
 }) => {
   const isUser = message.role === 'user';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   // Format timestamp
   const formatTime = (date: Date) => {
@@ -94,15 +102,28 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           </div>
 
-          {/* Timestamp */}
-          <div className="mt-1 px-1 text-xs text-gray-500 dark:text-slate-500">
-            {formatTime(message.timestamp)}
-            {message.status === 'sending' && (
-              <span className="ml-1 italic"> • Sending...</span>
-            )}
-            {message.status === 'failed' && (
-              <span className="ml-1 text-red-500"> • Failed</span>
-            )}
+          {/* Timestamp + Copy */}
+          <div className={`mt-1 flex items-center gap-1.5 px-1 text-xs text-gray-500 dark:text-slate-500 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+            <span>
+              {formatTime(message.timestamp)}
+              {message.status === 'sending' && (
+                <span className="ml-1 italic"> • Sending...</span>
+              )}
+              {message.status === 'failed' && (
+                <span className="ml-1 text-red-500"> • Failed</span>
+              )}
+            </span>
+            <button
+              onClick={handleCopy}
+              title="Copy message"
+              className="rounded p-0.5 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+            >
+              {copied ? (
+                <Check size={12} className="text-green-500" />
+              ) : (
+                <Copy size={12} />
+              )}
+            </button>
           </div>
         </div>
       </div>
