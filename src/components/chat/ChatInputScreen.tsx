@@ -5,8 +5,11 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, ArrowUp, X, ImageIcon, FileUp } from 'lucide-react';
+import { Plus, ArrowUp, X, ImageIcon, FileUp, ChevronDown, Bot } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAgents } from '../../contexts/AgentsContext';
+import { AvatarMedia } from './AvatarMedia';
+import type { Agent } from '../../types';
 
 // ============================================
 // Props Interface
@@ -50,15 +53,26 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
 }) => {
   const { user } = useAuth();
   const isLoggedIn = !!user;
+  const { agents } = useAgents();
 
   const [inputValue, setInputValue] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
+  const agentSelectorRef = useRef<HTMLDivElement>(null);
+
+  // Initialise selectedAgent to the default (or first) agent once list loads
+  useEffect(() => {
+    if (agents.length > 0 && !selectedAgent) {
+      setSelectedAgent(agents.find((a) => a.isDefault) ?? agents[0]);
+    }
+  }, [agents, selectedAgent]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -76,6 +90,18 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
+
+  // Close agent dropdown when clicking outside
+  useEffect(() => {
+    if (!agentDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (agentSelectorRef.current && !agentSelectorRef.current.contains(e.target as Node)) {
+        setAgentDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [agentDropdownOpen]);
 
   // Auto-resize textarea whenever content changes
   useEffect(() => {
@@ -183,6 +209,86 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
           {uploadError && (
             <div className="flex items-center gap-1.5 px-4 pt-3">
               <span className="text-xs text-red-400">{uploadError}</span>
+            </div>
+          )}
+
+          {/* Agent Selector — only shown when logged in and at least one agent exists */}
+          {isLoggedIn && agents.length > 0 && (
+            <div ref={agentSelectorRef} className="relative px-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setAgentDropdownOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700/60"
+              >
+                {/* Avatar */}
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+                  {selectedAgent ? (
+                    <AvatarMedia
+                      src={selectedAgent.avatarUrl}
+                      type={selectedAgent.avatarType}
+                      alt={selectedAgent.name}
+                      mediaClassName="h-full w-full rounded-full object-cover"
+                      fallback={
+                        <Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />
+                      }
+                    />
+                  ) : (
+                    <Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />
+                  )}
+                </div>
+
+                {/* Agent name */}
+                <span className="font-medium">{selectedAgent?.name ?? 'Select Agent'}</span>
+
+                {/* Chevron */}
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-gray-400 transition-transform dark:text-slate-500 ${
+                    agentDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown list */}
+              {agentDropdownOpen && (
+                <div className="absolute left-3 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-[#0F1F38]">
+                  {agents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAgent(agent);
+                        setAgentDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${
+                        selectedAgent?.id === agent.id
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white'
+                      }`}
+                    >
+                      {/* Agent avatar */}
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+                        <AvatarMedia
+                          src={agent.avatarUrl}
+                          type={agent.avatarType}
+                          alt={agent.name}
+                          mediaClassName="h-full w-full rounded-full object-cover"
+                          fallback={
+                            <Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />
+                          }
+                        />
+                      </div>
+
+                      <span className="truncate font-medium">{agent.name}</span>
+
+                      {agent.isDefault && (
+                        <span className="ml-auto shrink-0 text-[10px] text-gray-400 dark:text-slate-500">
+                          Default
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

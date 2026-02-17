@@ -220,22 +220,39 @@ export interface ServiceNavItem extends NavItem {
 // API Key Management
 // ============================================
 
+/** Actions a scope can grant for one capability */
+export interface ApiKeyScopeInput {
+  capabilityCode: string;
+  canExecute: boolean;
+  canCreate: boolean;
+  canDelete: boolean;
+}
+
+/** Capability scope as returned on an API key */
+export interface ApiKeyScopeResponse {
+  capabilityCode: string;
+  capabilityName: string;
+  canExecute: boolean;
+  canCreate: boolean;
+  canDelete: boolean;
+}
+
 export interface ApiKey {
   publicId: string;
-  name: string;
-  prefix: string;
   status: 'ACTIVE' | 'REVOKED';
   metadata?: {
     appName?: string;
     environment?: string;
     description?: string;
   };
+  capabilities: ApiKeyScopeResponse[];
   createdAt: string;
-  lastUsedAt?: string;
+  revokedAt?: string | null;
+  lastUsed?: string | null;
 }
 
 export interface CreateApiKeyInput {
-  name: string;
+  capabilities: ApiKeyScopeInput[];
   metadata?: {
     appName?: string;
     environment?: string;
@@ -243,7 +260,8 @@ export interface CreateApiKeyInput {
   };
 }
 
-export interface CreateApiKeyResponse {
+export interface CreateApiKeyResponse extends ApiKey {
+  /** Raw secret — shown ONLY ONCE at creation time */
   apiKey: string;
 }
 

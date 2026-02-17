@@ -56,12 +56,16 @@ export const verifyEmail = async (token: string): Promise<ApiResponse> => {
 // API Key Management
 // ============================================
 
-import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '../types';
+import type {
+  ApiKey,
+  CreateApiKeyInput,
+  CreateApiKeyResponse,
+} from '../types';
 
 /**
- * Fetches all API keys for the current user
- * SECURITY: Raw API keys are NEVER returned by this endpoint
- * @returns Promise with array of API keys (with masked previews only)
+ * Fetches all API keys for the current user.
+ * SECURITY: Raw API keys are NEVER returned by this endpoint.
+ * Each key includes its capability scopes.
  */
 export const listApiKeys = async (): Promise<ApiResponse<ApiKey[]>> => {
   try {
@@ -86,11 +90,10 @@ export const listApiKeys = async (): Promise<ApiResponse<ApiKey[]>> => {
 };
 
 /**
- * Creates a new API key
- * SECURITY: The raw API key is returned ONLY ONCE in this response
- * The client MUST display it immediately and MUST NOT persist it
- * @param input - API key creation parameters
- * @returns Promise with the raw API key (SHOWN ONLY ONCE)
+ * Creates a new API key with the selected capabilities.
+ * SECURITY: The raw API key is returned ONLY ONCE in this response.
+ * The client MUST display it immediately and MUST NOT persist it.
+ * @param input - capabilities (required, min 1) + optional metadata
  */
 export const createApiKey = async (
   input: CreateApiKeyInput
@@ -118,9 +121,8 @@ export const createApiKey = async (
 };
 
 /**
- * Revokes an API key (irreversible)
+ * Revokes an API key (irreversible).
  * @param publicId - The public ID of the API key to revoke
- * @returns Promise with revocation result
  */
 export const revokeApiKey = async (publicId: string): Promise<ApiResponse> => {
   try {
