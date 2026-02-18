@@ -7,10 +7,10 @@
 cd /Users/mac/Desktop/PERSONAL_PROJECT/ai/aife
 
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server
-npm run dev
+pnpm dev
 ```
 
 The app will open at `http://localhost:3000` and automatically navigate to the Translation workspace.
@@ -55,7 +55,7 @@ aife/
 ### 1. Sidebar Navigation (`src/components/layout/Sidebar.tsx`)
 
 - Fixed sidebar with logo "appaihelp.com"
-- Main navigation: Dashboard, My Agents, Subscription
+- Main navigation: Dashboard, My Agents, Subscription....
 - Service navigation: Translation, Code Gen, Image Gen
 - Dark/Light mode toggle
 - User profile widget with avatar, name, email, and subscription badge
@@ -154,21 +154,6 @@ interface Agent {
 ```
 
 ## 🎯 Usage Examples
-
-### Creating a New Agent
-
-1. Click "New Agent" button in TranslationPage header
-2. Fill out the form in the AgentDrawer
-3. Click "Save Agent"
-4. Agent appears in the selector dropdown
-
-### Translating Text
-
-1. Select an agent from the dropdown
-2. Enter source text in the left panel
-3. Click "Translate" button
-4. View results in the right panel grid
-5. Click copy icon to copy any translation
 
 ### Switching Theme
 
@@ -286,7 +271,7 @@ Ensure:
 
 Run:
 ```bash
-npm run build
+pnpm run build
 ```
 This will show all type errors. Fix them for type safety.
 
@@ -294,10 +279,10 @@ This will show all type errors. Fix them for type safety.
 
 ```bash
 # Build for production
-npm run build
+pnpm run build
 
 # Preview production build
-npm run preview
+pnpm run preview
 ```
 
 Build output goes to `dist/` directory.

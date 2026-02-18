@@ -33,6 +33,7 @@ export const ChatScreen: React.FC = () => {
   const [isInfoPanelVisible, setIsInfoPanelVisible] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
+  const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
 
   // WebSocket connection to ChatAgent Durable Object
   // Uses raw WebSocket with custom protocol for setSession RPC and chat messages
@@ -52,6 +53,18 @@ export const ChatScreen: React.FC = () => {
   // Combine initial messages with WebSocket messages
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const allMessages = initialMessagesLoaded ? [...initialMessages, ...wsMessages] : initialMessages;
+
+  // Clear thinking indicator when the agent replies
+  useEffect(() => {
+    if (wsMessages.length > 0 && wsMessages[wsMessages.length - 1].role === 'assistant') {
+      setIsAwaitingResponse(false);
+    }
+  }, [wsMessages]);
+
+  // Reset thinking indicator when switching sessions
+  useEffect(() => {
+    setIsAwaitingResponse(false);
+  }, [activeSessionId]);
 
   // ============================================
   // Initialize Agent & Sessions
@@ -198,6 +211,7 @@ export const ChatScreen: React.FC = () => {
       try {
         // Send message via WebSocket - agent handles everything
         await wsSendMessage(content);
+        setIsAwaitingResponse(true);
 
         // Update session metadata (last message, title)
         setSessions((prev) =>
@@ -265,7 +279,7 @@ export const ChatScreen: React.FC = () => {
       <ChatConversation
         agent={agent}
         messages={allMessages}
-        isLoading={isConnecting}
+        isLoading={isConnecting || isAwaitingResponse}
         onSendMessage={handleSendMessage}
         onToggleInfo={handleToggleInfo}
       />

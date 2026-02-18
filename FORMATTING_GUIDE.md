@@ -20,7 +20,7 @@ This project uses **Prettier** and **ESLint** to ensure consistent code style an
 All dependencies are already in `package.json`. Just run:
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Installed Packages
@@ -41,16 +41,16 @@ npm install
 
 ```bash
 # Format all files
-npm run format
+pnpm run format
 
 # Check formatting without changing files
-npm run format:check
+pnpm run format:check
 
 # Fix ESLint errors automatically
-npm run lint:fix
+pnpm run lint:fix
 
 # Check for ESLint errors
-npm run lint
+pnpm run lint
 ```
 
 ### VS Code (Recommended)

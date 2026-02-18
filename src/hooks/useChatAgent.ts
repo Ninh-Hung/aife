@@ -6,7 +6,7 @@
 
 import { useAgent } from 'agents/react';
 import { useAgentChat } from 'agents/ai-react';
-import type { UIMessage } from 'ai';
+import type { UIMessage } from '@ai-sdk/react';
 import { useEffect, useRef, useState } from 'react';
 
 interface UseChatAgentOptions {

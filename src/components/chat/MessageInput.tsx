@@ -69,7 +69,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter to send, Shift+Enter for new line
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Guard against IME composition (e.g. predictive text confirming a candidate)
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
@@ -203,10 +204,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </IconButton>
       </div>
 
-      {/* Helper Text */}
-      <div className="mt-2 text-xs text-gray-500 dark:text-slate-500">
-        Press Enter to send, Shift+Enter for new line
-      </div>
     </div>
   );
 };
