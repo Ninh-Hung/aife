@@ -4,9 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AgentsProvider, useAgents } from './contexts/AgentsContext';
 import { NotificationProvider } from './components/notifications/NotificationProvider';
 import { Layout } from './components/layout/Layout';
@@ -34,6 +34,31 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
+
+// ============================================
+// Root Route: redirects authenticated users to /new-chat
+// ============================================
+
+const RootRoute: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-teal-500 border-r-transparent"></div>
+          <p className="text-gray-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/new-chat" replace />;
+  }
+
+  return <LandingPage />;
+};
 
 // ============================================
 // Main App Component (with contexts)
@@ -137,8 +162,8 @@ const AppContent: React.FC = () => {
   return (
     <>
       <Routes>
-        {/* Landing Page (no layout) */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Root: redirects authenticated users to /new-chat, shows landing page otherwise */}
+        <Route path="/" element={<RootRoute />} />
 
         {/* Email Verification Pending - shown after registration (no layout, not protected) */}
         <Route path="/email-sent" element={<EmailVerificationPending />} />

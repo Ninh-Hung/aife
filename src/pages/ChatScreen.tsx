@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
 import { Agent, ChatSession, ChatMessage } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
@@ -17,6 +18,7 @@ import {
   listChatSessions,
   createChatSession,
   listChatMessages,
+  updateChatSession,
   getAgent,
 } from '../services/api';
 
@@ -43,6 +45,7 @@ export const ChatScreen: React.FC = () => {
     status: wsStatus,
     isConnected,
     isConnecting,
+    autoCreatedSessionPublicId,
   } = useChatAgentWebSocket({
     agentPublicId: agentId || '', // agentId from URL is the publicId
     sessionId: activeSessionInternalId,
@@ -107,20 +110,8 @@ export const ChatScreen: React.FC = () => {
         }));
 
         if (existingSessions.length === 0) {
-          // Auto-create a new session if none exist
-          const createResponse = await createChatSession(foundAgent.publicId, `Chat with ${foundAgent.name}`);
-          if (createResponse.success && createResponse.data) {
-            const newSession = {
-              ...createResponse.data,
-              id: createResponse.data.publicId,
-              internalId: createResponse.data.id, // Store internal ID
-            };
-            setSessions([newSession]);
-            setActiveSessionId(newSession.id);
-            setActiveSessionInternalId(newSession.internalId);
-          } else {
-            showError(createResponse.error || 'Failed to create chat session');
-          }
+          // No sessions exist — wait for user to click "New Chat"
+          setSessions([]);
         } else {
           setSessions(existingSessions);
           setActiveSessionId(existingSessions[0].id);
@@ -143,6 +134,18 @@ export const ChatScreen: React.FC = () => {
       loadInitialMessages(activeSessionId);
     }
   }, [activeSessionId]);
+
+  // When the Durable Object auto-creates a new session (e.g. its in-memory
+  // sessionMap was cleared after hibernation), refresh the sidebar so the
+  // new session becomes visible immediately without requiring a page reload.
+  useEffect(() => {
+    if (autoCreatedSessionPublicId) {
+      refreshSessions();
+    }
+    // refreshSessions is not wrapped in useCallback so it changes every render;
+    // we only want this effect to fire when autoCreatedSessionPublicId changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCreatedSessionPublicId]);
 
   // ============================================
   // Helper Functions
@@ -213,7 +216,21 @@ export const ChatScreen: React.FC = () => {
         await wsSendMessage(content);
         setIsAwaitingResponse(true);
 
-        // Update session metadata (last message, title)
+        // Compute new title before updating state so we can persist it
+        const currentSession = sessions.find((s) => s.id === activeSessionId);
+        const needsTitleUpdate = currentSession?.title.startsWith('Chat with') ?? false;
+        const newTitle = needsTitleUpdate
+          ? content.substring(0, 30) + (content.length > 30 ? '...' : '')
+          : (currentSession?.title ?? '');
+
+        // Persist title change to backend so it survives page reload
+        if (needsTitleUpdate && newTitle) {
+          updateChatSession(activeSessionId, { title: newTitle }).catch(() => {
+            // Title update failure is non-critical; session and messages are unaffected
+          });
+        }
+
+        // Update session metadata (last message, title) in local state
         setSessions((prev) =>
           prev.map((session) =>
             session.id === activeSessionId
@@ -221,9 +238,7 @@ export const ChatScreen: React.FC = () => {
                   ...session,
                   lastMessage: content.substring(0, 50),
                   lastMessageAt: new Date(),
-                  title: session.title.startsWith('Chat with')
-                    ? content.substring(0, 30) + (content.length > 30 ? '...' : '')
-                    : session.title,
+                  title: session.title.startsWith('Chat with') ? newTitle : session.title,
                 }
               : session
           )
@@ -232,11 +247,44 @@ export const ChatScreen: React.FC = () => {
         showError(err instanceof Error ? err.message : 'Failed to send message');
       }
     },
-    [isConnected, activeSessionId, wsSendMessage, showError]
+    [isConnected, activeSessionId, wsSendMessage, showError, sessions]
   );
 
   const handleToggleInfo = () => {
     setIsInfoPanelVisible((prev) => !prev);
+  };
+
+  const refreshSessions = async () => {
+    if (!agent) return;
+    const response = await listChatSessions(agent.publicId);
+    if (response.success && response.data) {
+      const activeSessions = response.data
+        .filter((s: any) => !s.status || s.status === 'ACTIVE' || s.status === 'active')
+        .map((session: any) => ({
+          ...session,
+          id: session.publicId,
+          internalId: session.id,
+        }));
+      setSessions(activeSessions);
+
+      // If the deleted session was active, switch to the first remaining one
+      if (activeSessions.length > 0 && !activeSessions.find((s: any) => s.id === activeSessionId)) {
+        setActiveSessionId(activeSessions[0].id);
+        setActiveSessionInternalId(activeSessions[0].internalId);
+      } else if (activeSessions.length === 0) {
+        setActiveSessionId(null);
+        setActiveSessionInternalId(null);
+      }
+    }
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    const response = await updateChatSession(sessionId, { status: 'DELETED' });
+    if (response.success) {
+      await refreshSessions();
+    } else {
+      showError(response.error || 'Failed to delete chat session');
+    }
   };
 
   // ============================================
@@ -273,16 +321,33 @@ export const ChatScreen: React.FC = () => {
         activeSessionId={activeSessionId || undefined}
         onSessionSelect={handleSessionSelect}
         onNewChat={handleNewChat}
+        onDelete={handleDelete}
       />
 
-      {/* Center - Chat Conversation */}
-      <ChatConversation
-        agent={agent}
-        messages={allMessages}
-        isLoading={isConnecting || isAwaitingResponse}
-        onSendMessage={handleSendMessage}
-        onToggleInfo={handleToggleInfo}
-      />
+      {/* Center - Chat Conversation or Empty State */}
+      {activeSessionId ? (
+        <ChatConversation
+          agent={agent}
+          messages={allMessages}
+          isLoading={isConnecting || isAwaitingResponse}
+          onSendMessage={handleSendMessage}
+          onToggleInfo={handleToggleInfo}
+        />
+      ) : (
+        <div className="flex h-full flex-1 flex-col items-center justify-center bg-gray-50 dark:bg-slate-900">
+          <div className="text-center">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-slate-800">
+              <MessageSquare size={32} className="text-gray-400 dark:text-slate-500" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
+              No conversations yet
+            </h3>
+            <p className="max-w-md text-sm text-gray-600 dark:text-slate-400">
+              Click <span className="font-medium text-blue-500">New Chat</span> to start a conversation with {agent.name}.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* WebSocket Status Indicator */}
       {!isConnected && activeSessionId && (

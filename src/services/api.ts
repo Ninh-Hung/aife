@@ -571,6 +571,38 @@ export const listChatMessages = async (sessionId: string): Promise<ApiResponse<C
 };
 
 /**
+ * Updates a chat session (e.g. status, title)
+ * @param sessionId - The public ID of the chat session
+ * @param data - Fields to update (title, status)
+ * @returns Promise with the updated chat session
+ */
+export const updateChatSession = async (
+  sessionId: string,
+  data: { title?: string; status?: 'ACTIVE' | 'ARCHIVED' | 'DELETED' }
+): Promise<ApiResponse<ChatSession>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/chat/sessions/${sessionId}`, data);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Chat session updated successfully',
+    };
+  } catch (error) {
+    console.error('Update chat session error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update chat session',
+    };
+  }
+};
+
+/**
  * Sends a message in a chat session and receives agent response
  * @param sessionId - The session ID
  * @param content - Message content

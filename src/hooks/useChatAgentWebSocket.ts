@@ -30,6 +30,13 @@ export function useChatAgentWebSocket({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [isSessionSet, setIsSessionSet] = useState(false);
+  /**
+   * When the DO auto-creates a new session (ensureSession path), the publicId is
+   * stored here. ChatScreen watches this value with a useEffect and refreshes the
+   * session list so the new session becomes visible immediately.
+   */
+  const [autoCreatedSessionPublicId, setAutoCreatedSessionPublicId] = useState<string | null>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const sessionSetRef = useRef(false);
@@ -165,6 +172,17 @@ export function useChatAgentWebSocket({
               return;
             }
 
+            // Handle DO auto-created session (sessionMap was reset, e.g. after DO hibernation)
+            // The DO sends this when ensureSession creates a brand-new session for the connection.
+            if (data.type === 'session_created') {
+              console.warn(
+                `[WebSocket#${connId}] DO auto-created session: ${data.sessionPublicId}. ` +
+                  'Exposing via autoCreatedSessionPublicId so the UI can refresh.',
+              );
+              setAutoCreatedSessionPublicId(data.sessionPublicId as string);
+              return;
+            }
+
             // Handle chat message response
             if (data.type === 'chat') {
               // Structured response
@@ -242,5 +260,7 @@ export function useChatAgentWebSocket({
     isConnected: status === 'connected' && isSessionSet,
     isConnecting: status === 'connecting' || (status === 'connected' && !isSessionSet),
     error: status === 'error' ? 'WebSocket connection error' : undefined,
+    /** publicId of a session auto-created by the DO (null when no auto-creation has occurred). */
+    autoCreatedSessionPublicId,
   };
 }
