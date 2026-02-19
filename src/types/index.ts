@@ -344,6 +344,7 @@ export interface ChatSession {
   lastMessageAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  status?: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
 }
 
 export interface ChatMessage {

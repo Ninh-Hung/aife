@@ -207,7 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Main Navigation */}
       <Box className="flex-1 overflow-y-auto py-4">
         <List className="px-3">
-          {(!isCollapsed || !isMobileDrawer) && (
+          {!isCollapsed && (
             <Typography
               variant="caption"
               className="px-4 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
@@ -262,7 +262,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Services Navigation */}
         <List className="px-3">
-          {(!isCollapsed || !isMobileDrawer) && (
+          {!isCollapsed && (
             <Typography
               variant="caption"
               className="px-4 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"

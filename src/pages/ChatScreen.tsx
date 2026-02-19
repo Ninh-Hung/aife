@@ -278,12 +278,34 @@ export const ChatScreen: React.FC = () => {
     }
   };
 
+  const handleArchive = async (sessionId: string) => {
+    const response = await updateChatSession(sessionId, { status: 'ARCHIVED' });
+    if (response.success) {
+      await refreshSessions();
+    } else {
+      showError(response.error || 'Failed to archive chat session');
+    }
+  };
+
   const handleDelete = async (sessionId: string) => {
     const response = await updateChatSession(sessionId, { status: 'DELETED' });
     if (response.success) {
       await refreshSessions();
     } else {
       showError(response.error || 'Failed to delete chat session');
+    }
+  };
+
+  const handleRename = async (sessionId: string, newTitle: string) => {
+    const response = await updateChatSession(sessionId, { title: newTitle });
+    if (response.success) {
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId ? { ...session, title: newTitle } : session
+        )
+      );
+    } else {
+      showError(response.error || 'Failed to rename chat session');
     }
   };
 
@@ -321,6 +343,8 @@ export const ChatScreen: React.FC = () => {
         activeSessionId={activeSessionId || undefined}
         onSessionSelect={handleSessionSelect}
         onNewChat={handleNewChat}
+        onRename={handleRename}
+        onArchive={handleArchive}
         onDelete={handleDelete}
       />
 
