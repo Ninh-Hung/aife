@@ -48,7 +48,7 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
 
 export const AgentManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { agents, loading, error, createAgent, updateAgent, deleteAgent } = useAgents();
+  const { agents, loading, error, createAgent, updateAgent, deleteAgent, setDefaultAgent } = useAgents();
   const { success, error: showError } = useNotification();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -96,6 +96,15 @@ export const AgentManagement: React.FC = () => {
     // AgentDrawer handles the error display and drawer closing
     // Just pass through to updateAgent
     await updateAgent(id, input);
+  };
+
+  const handleSetDefault = async (publicId: string) => {
+    try {
+      await setDefaultAgent(publicId);
+      success('Default agent updated successfully');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to set default agent');
+    }
   };
 
   // ============================================
@@ -198,6 +207,7 @@ export const AgentManagement: React.FC = () => {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onChat={handleChat}
+                  onSetDefault={handleSetDefault}
                 />
               ))}
             </div>

@@ -7,7 +7,7 @@
 import React from 'react';
 import { Bot, Sparkles, Brain, Settings, MessageCircle, Trash2, Zap } from 'lucide-react';
 import { Agent } from '../../types';
-import { IconButton, Chip } from '@mui/material';
+import { IconButton, Chip, Switch, FormControlLabel } from '@mui/material';
 
 // ============================================
 // Props Interface
@@ -18,6 +18,7 @@ interface AgentCardProps {
   onEdit: (agent: Agent) => void;
   onDelete: (agentId: string) => void;
   onChat?: (agent: Agent) => void;
+  onSetDefault?: (publicId: string) => void;
 }
 
 // ============================================
@@ -57,7 +58,7 @@ const getAgentIcon = (description?: string) => {
 // AgentCard Component
 // ============================================
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, onChat }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, onChat, onSetDefault }) => {
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     onEdit(agent);
@@ -76,14 +77,48 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
     }
   };
 
+  const handleDefaultToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (onSetDefault && e.target.checked) {
+      onSetDefault(agent.publicId);
+    }
+  };
+
   return (
     <div className="group relative flex flex-col rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
-      {/* Default Badge */}
-      {agent.isDefault && (
+      {/* Default Switch */}
+      {onSetDefault && (
         <div className="absolute right-4 top-4">
-          <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-            Default
-          </span>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={agent.isDefault}
+                onChange={handleDefaultToggle}
+                size="small"
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#3B82F6',
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#3B82F6',
+                  },
+                }}
+              />
+            }
+            label={
+              <span className="text-xs font-medium text-gray-700 dark:text-slate-300">
+                Default
+              </span>
+            }
+            labelPlacement="start"
+            sx={{
+              margin: 0,
+              gap: 0.5,
+              '& .MuiFormControlLabel-label': {
+                fontSize: '0.75rem',
+              },
+            }}
+          />
         </div>
       )}
 

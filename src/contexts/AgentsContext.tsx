@@ -20,6 +20,7 @@ interface AgentsContextValue {
   createAgent: (input: CreateAgentInput) => Promise<Agent>;
   updateAgent: (id: string, input: Partial<CreateAgentInput>) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
+  setDefaultAgent: (publicId: string) => Promise<void>;
 }
 
 // ============================================
@@ -136,6 +137,23 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     setAgents((prev) => prev.filter((agent) => agent.id !== id));
   };
 
+  const setDefaultAgent = async (publicId: string): Promise<void> => {
+    const response = await agentApi.setDefaultAgent(publicId);
+
+    if (!response.success) {
+      throw new Error(response.message || response.error || 'Failed to set default agent');
+    }
+
+    // Update the agents list to reflect the new default agent
+    // Set all agents to isDefault: false, then set the specified agent to isDefault: true
+    setAgents((prev) =>
+      prev.map((agent) => ({
+        ...agent,
+        isDefault: agent.publicId === publicId,
+      }))
+    );
+  };
+
   const contextValue: AgentsContextValue = {
     agents,
     loading,
@@ -144,6 +162,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     createAgent,
     updateAgent,
     deleteAgent,
+    setDefaultAgent,
   };
 
   return <AgentsContext.Provider value={contextValue}>{children}</AgentsContext.Provider>;

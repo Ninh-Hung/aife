@@ -854,3 +854,31 @@ export const deleteAgent = async (id: string): Promise<ApiResponse> => {
     };
   }
 };
+
+/**
+ * Sets an agent as the default agent for the user
+ * @param publicId - The public ID of the agent to set as default
+ * @returns Promise with the operation result
+ */
+export const setDefaultAgent = async (publicId: string): Promise<ApiResponse<{ publicId: string; isDefault: boolean }>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/agents/${publicId}/default`);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Default agent set successfully',
+    };
+  } catch (error) {
+    console.error('Set default agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to set default agent',
+    };
+  }
+};
