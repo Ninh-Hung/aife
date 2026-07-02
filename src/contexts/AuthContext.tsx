@@ -4,9 +4,10 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { User } from '../types';
+import { User, UserQuota, SubscriptionInfo } from '../types';
 import axiosInstance, { setAccessToken, clearAccessToken } from '../lib/axios';
 import { AxiosError } from 'axios';
+import { getQuota, getSubscription } from '../services/quota.service';
 
 // ============================================
 // Context Interface
@@ -16,6 +17,10 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  quota: UserQuota | null;
+  subscription: SubscriptionInfo | null;
+  refreshQuota: () => Promise<void>;
+  refreshSubscription: () => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -49,6 +54,8 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // In-memory state only - NO localStorage
   const [user, setUser] = useState<User | null>(null);
+  const [quota, setQuota] = useState<UserQuota | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial auth check
   const initializingRef = useRef(false); // Prevent multiple simultaneous initializations
 
@@ -92,10 +99,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               email: userData.email,
               role: userData.role,
               avatar: userData.avatarUrl, // Map avatarUrl -> avatar
-              subscription: userResponse.data.data.package?.tier || 'free', // Map package tier to subscription
+              quota: userData.quota,
+              subscription: userData.subscription,
             };
 
             setUser(mappedUser);
+
+            // Set quota and subscription from user data if available
+            if (userData.quota) {
+              setQuota(userData.quota);
+            }
+            if (userData.subscription) {
+              setSubscription(userData.subscription);
+            }
+
             console.log('[AuthContext] User set successfully:', mappedUser);
           } else {
             console.warn('[AuthContext] User response invalid format:', userResponse.data);
@@ -134,6 +151,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // ============================================
+  // Auto-refresh quota every 30 seconds (when authenticated)
+  // ============================================
+
+  useEffect(() => {
+    if (!user) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const quotaData = await getQuota();
+        setQuota(quotaData);
+        setUser(prev => prev ? { ...prev, quota: quotaData } : null);
+      } catch (error) {
+        // Silent fail - quota will be refreshed on next interval
+        console.debug('[AuthContext] Background quota refresh failed:', error);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [user]);
+
+  // ============================================
   // Login Function
   // ============================================
 
@@ -162,11 +200,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: userData.email,
           role: userData.role,
           avatar: userData.avatarUrl, // Map avatarUrl -> avatar
-          subscription: userPackage?.tier || 'free', // Map package tier to subscription
+          quota: userData.quota,
+          subscription: userData.subscription,
         };
 
         // Store user in state
         setUser(mappedUser);
+
+        // Set quota and subscription from user data if available
+        if (userData.quota) {
+          setQuota(userData.quota);
+        }
+        if (userData.subscription) {
+          setSubscription(userData.subscription);
+        }
+
         console.log('[AuthContext] User stored:', mappedUser);
       } else {
         throw new Error(response.data.message || 'Login failed');
@@ -177,6 +225,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error(
         axiosError.response?.data?.message || 'Login failed. Please check your credentials.'
       );
+    }
+  };
+
+  // ============================================
+  // Refresh Quota Function
+  // ============================================
+
+  const refreshQuota = async () => {
+    if (!user) return;
+
+    try {
+      const quotaData = await getQuota();
+      setQuota(quotaData);
+
+      // Update user object with latest quota
+      setUser(prev => prev ? { ...prev, quota: quotaData } : null);
+
+      console.log('[AuthContext] Quota refreshed:', quotaData);
+    } catch (error) {
+      console.error('[AuthContext] Failed to refresh quota:', error);
+    }
+  };
+
+  // ============================================
+  // Refresh Subscription Function
+  // ============================================
+
+  const refreshSubscription = async () => {
+    if (!user) return;
+
+    try {
+      const subscriptionData = await getSubscription();
+
+      // Map to SubscriptionInfo format
+      const mappedSubscription: SubscriptionInfo = {
+        status: subscriptionData.status,
+        packageName: subscriptionData.package.name,
+        packageCode: subscriptionData.package.code,
+        isTrialing: subscriptionData.isTrialSubscription,
+        trialDaysRemaining: subscriptionData.trialEndsAt
+          ? Math.ceil((new Date(subscriptionData.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null,
+        expiresAt: subscriptionData.endAt,
+      };
+
+      setSubscription(mappedSubscription);
+
+      // Update user object with latest subscription
+      setUser(prev => prev ? { ...prev, subscription: mappedSubscription } : null);
+
+      console.log('[AuthContext] Subscription refreshed:', mappedSubscription);
+    } catch (error) {
+      console.error('[AuthContext] Failed to refresh subscription:', error);
     }
   };
 
@@ -199,6 +300,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Clear user-related state (user profile, permissions, cached auth data)
       setUser(null);
+      setQuota(null);
+      setSubscription(null);
 
       console.log('[AuthContext] Local auth state cleared');
 
@@ -215,6 +318,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated: !!user,
     isLoading,
+    quota,
+    subscription,
+    refreshQuota,
+    refreshSubscription,
     login,
     logout,
   };

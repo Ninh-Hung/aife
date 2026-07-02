@@ -9,6 +9,7 @@ import { Box, Drawer, useMediaQuery, useTheme } from '@mui/material';
 import { Sidebar } from './Sidebar';
 import { MobileHeader } from './MobileHeader';
 import { useAuth } from '../../contexts/AuthContext';
+import TrialBanner from '../subscription/TrialBanner';
 
 // ============================================
 // Props Interface
@@ -96,6 +97,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
       >
         {/* Header - Sticky at top of content area (desktop only, mobile has MobileHeader) */}
         {!isMobile && header}
+
+        {/* Trial Banner - Shows when trial is expiring soon */}
+        <Box className="p-4">
+          <TrialBanner />
+        </Box>
 
         {/* Page Content */}
         <Box className="flex-1">{children}</Box>

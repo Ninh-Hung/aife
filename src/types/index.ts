@@ -7,6 +7,23 @@
 // User & Authentication
 // ============================================
 
+// ✨ NEW: User Quota Info
+export interface UserQuota {
+  remainingTokens: number;
+  quotaLimit: number;
+  percentageUsed: number;
+}
+
+// ✨ NEW: Subscription Info (Enhanced)
+export interface SubscriptionInfo {
+  status: 'trialing' | 'active' | 'expired' | 'canceled';
+  packageName: string;
+  packageCode: 'TRIAL' | 'FREE' | 'PRO' | 'ENTERPRISE';
+  isTrialing: boolean;
+  trialDaysRemaining: number | null;
+  expiresAt: string;
+}
+
 export interface User {
   publicId: string; // Backend uses publicId instead of id
   userName: string; // Backend uses userName instead of name
@@ -14,7 +31,11 @@ export interface User {
   role: string; // ADMIN, USER, etc.
   avatar?: string;
   avatarType?: 'image' | 'video';
-  subscription?: SubscriptionTier; // Optional from backend
+
+  // ✨ NEW: Enhanced quota & subscription
+  quota?: UserQuota;
+  subscription?: SubscriptionInfo;
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -364,4 +385,92 @@ export interface SendMessageRequest {
 export interface SendMessageResponse {
   message: ChatMessage;
   agentResponse?: ChatMessage;
+}
+
+// ============================================
+// Anonymous User (NEW)
+// ============================================
+
+export interface AnonymousUserStats {
+  sessionsUsed: number;
+  maxSessions: number;
+  totalMessages: number;
+  totalTokens: number;
+  createdAt: string;
+  sessions: {
+    id: number;
+    publicId: string;
+    messageCount: number;
+    tokenCount: number;
+    createdAt: string;
+  }[];
+}
+
+// ============================================
+// Enhanced Package (Token-based)
+// ============================================
+
+export interface EnhancedPackage {
+  publicId: string;
+  code: 'TRIAL' | 'FREE' | 'PRO' | 'ENTERPRISE';
+  name: string;
+  price: number;
+  duration: number; // days
+
+  // Token-based quota
+  tokensPerMonth: number; // -1 = unlimited
+  maxAgents: number; // -1 = unlimited
+
+  // Trial-specific
+  isTrial: boolean;
+  trialDurationDays?: number;
+
+  isActive: boolean;
+  createdAt?: string;
+}
+
+// ============================================
+// Enhanced Subscription (NEW)
+// ============================================
+
+export interface CurrentSubscriptionDetails {
+  publicId: string;
+  userId: number;
+  packageId: number;
+  startAt: string;
+  endAt: string;
+  status: 'trialing' | 'active' | 'expired' | 'canceled';
+
+  // Trial info
+  isTrialSubscription: boolean;
+  trialEndsAt: string | null;
+  willDowngradeTo: number | null;
+
+  package: EnhancedPackage;
+}
+
+// ============================================
+// API Error Responses (NEW)
+// ============================================
+
+export interface QuotaExceededError {
+  error: 'Quota exceeded';
+  message: string;
+  remainingTokens: number;
+  quotaLimit: number;
+  upgradeUrl: string;
+}
+
+export interface RateLimitError {
+  error: 'Rate limit exceeded';
+  message: string;
+  retryAfter: number; // seconds
+}
+
+export interface AnonymousLimitError {
+  error: 'Anonymous session limit exceeded' | 'Anonymous message limit exceeded';
+  message: string;
+  sessionsUsed?: number;
+  maxSessions?: number;
+  upgradeUrl: string;
 }

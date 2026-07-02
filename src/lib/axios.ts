@@ -78,6 +78,37 @@ axiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Handle quota/limit errors (429) - dispatch custom event
+    if (error.response?.status === 429) {
+      const responseData = error.response.data as any;
+
+      // Dispatch custom event based on error type
+      if (responseData?.error === 'Quota exceeded') {
+        window.dispatchEvent(
+          new CustomEvent('quota:exceeded', {
+            detail: responseData,
+          })
+        );
+      } else if (responseData?.error === 'Rate limit exceeded') {
+        window.dispatchEvent(
+          new CustomEvent('quota:rate-limit', {
+            detail: responseData,
+          })
+        );
+      } else if (
+        responseData?.error === 'Anonymous session limit exceeded' ||
+        responseData?.error === 'Anonymous message limit exceeded'
+      ) {
+        window.dispatchEvent(
+          new CustomEvent('quota:anonymous-limit', {
+            detail: responseData,
+          })
+        );
+      }
+
+      return Promise.reject(error);
+    }
+
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

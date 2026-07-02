@@ -34,6 +34,8 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
+import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
+import { UpgradeModal } from './components/subscription';
 
 // ============================================
 // Root Route: redirects authenticated users to /new-chat
@@ -71,6 +73,7 @@ const AppContent: React.FC = () => {
     agents.find((a) => a.isDefault)?.id || agents[0]?.id || ''
   );
   const location = useLocation();
+  const { errorState, closeModal } = useQuotaErrorHandler();
 
   const handleCreateAgent = () => {
     setIsAgentDrawerOpen(true);
@@ -234,6 +237,18 @@ const AppContent: React.FC = () => {
           }
         />
       </Routes>
+
+      {/* Global Upgrade Modal - Triggered by quota errors */}
+      <UpgradeModal
+        open={errorState.isOpen}
+        onClose={closeModal}
+        title={errorState.title}
+        message={errorState.message}
+        upgradeUrl={errorState.upgradeUrl}
+        remainingTokens={errorState.remainingTokens}
+        quotaLimit={errorState.quotaLimit}
+        isAnonymousLimit={errorState.isAnonymousLimit}
+      />
     </>
   );
 };

@@ -2,12 +2,16 @@
  * Landing Page - AppAIHelp.com
  * Minimal chat-centric layout for unauthenticated users.
  * Mirrors the clean aesthetic of ChatGPT / Claude home screens.
+ * Supports anonymous chat - users can start chatting without signing in.
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
+import { createChatSession, sendChatMessage } from '../services/api';
+import { useAgents } from '../contexts/AgentsContext';
 
 // ============================================
 // Suggestion chips shown below the input
@@ -26,11 +30,52 @@ const SUGGESTIONS = [
 
 const LandingPage: React.FC = () => {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const { agents } = useAgents();
 
-  // Any interaction with the chat input opens the sign-in modal
-  // (user must authenticate before sending messages)
-  const handleSend = (_message: string, _image?: File) => {
-    setIsSignInModalOpen(true);
+  // Handle anonymous chat - create session and send first message
+  const handleSend = async (message: string, _image?: File) => {
+    if (!message.trim()) return;
+
+    try {
+
+      // Get default agent or first available agent
+      const defaultAgent = agents.find((a) => a.isDefault) ?? agents[0];
+
+      if (!defaultAgent) {
+        console.error('No agents available');
+        // Fallback to login if no agents available
+        setIsSignInModalOpen(true);
+        return;
+      }
+
+      // Create anonymous chat session
+      const sessionResponse = await createChatSession(defaultAgent.id, 'New Chat');
+
+      if (!sessionResponse.success || !sessionResponse.data) {
+        console.error('Failed to create session:', sessionResponse.error);
+        setIsSignInModalOpen(true);
+        return;
+      }
+
+      const session = sessionResponse.data;
+      // Backend returns publicId, frontend uses id
+      const sessionId = (session as unknown as { publicId: string }).publicId || session.id;
+
+      // Send the first message
+      const messageResponse = await sendChatMessage(sessionId, message);
+
+      if (!messageResponse.success) {
+        console.error('Failed to send message:', messageResponse.error);
+        return;
+      }
+
+      // Navigate to chat screen with the session
+      navigate(`/chat/${defaultAgent.id}?session=${sessionId}`);
+    } catch (error) {
+      console.error('Error starting anonymous chat:', error);
+      setIsSignInModalOpen(true);
+    }
   };
 
   return (

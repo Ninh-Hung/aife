@@ -51,9 +51,7 @@ export function useChatAgent({
     clearHistory,
     status: chatStatus,
     stop,
-  } = useAgentChat<unknown, UIMessage<{ createdAt: string }>>({
-    agent: shouldConnect ? agent : undefined,
-  });
+  } = useAgentChat<unknown, UIMessage<{ createdAt: string }>>({agent});
 
   // Set session when agent is connected
   useEffect(() => {

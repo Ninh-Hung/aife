@@ -50,3 +50,4 @@ This document defines the coding standards, project structure, and patterns for 
 - always apply responsive when generate screen
 - always apply dark/night mode
 - break to small components, find components to re-use before create new
+- never hardcode, If anything is unclear or potentially confusing, please confirm with me.

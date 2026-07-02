@@ -392,14 +392,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Typography
                     variant="caption"
                     className={`inline-block rounded-full px-2 py-0.5 font-semibold ${
-                      user.subscription === 'enterprise'
+                      user.subscription.packageCode === 'ENTERPRISE'
                         ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                        : user.subscription === 'pro'
+                        : user.subscription.packageCode === 'PRO'
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
+                          : user.subscription.isTrialing
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    {user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1)} Plan
+                    {user.subscription.packageName}
+                    {user.subscription.isTrialing && ' (Trial)'}
                   </Typography>
                 </Box>
               )}
