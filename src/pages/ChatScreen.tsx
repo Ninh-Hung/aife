@@ -9,7 +9,7 @@ import { MessageSquare } from 'lucide-react';
 import { Agent, ChatSession, ChatMessage } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
-import { useChatAgentWebSocket } from '../hooks/useChatAgentWebSocket';
+import { useChatAgent } from '../hooks/useChatAgent';
 import { ChatSessionsList } from '../components/chat/ChatSessionsList';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
@@ -36,33 +36,29 @@ export const ChatScreen: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const [executionMode] = useState<'cheap' | 'normal' | 'premium'>('normal');
 
-  // WebSocket connection to ChatAgent Durable Object
-  // Uses raw WebSocket with custom protocol for setSession RPC and chat messages
   const {
-    messages: wsMessages,
-    sendMessage: wsSendMessage,
-    status: wsStatus,
+    messages: agentMessages,
+    sendMessage: agentSendMessage,
     isConnected,
     isConnecting,
-    autoCreatedSessionPublicId,
-  } = useChatAgentWebSocket({
-    agentPublicId: agentId || '', // agentId from URL is the publicId
+  } = useChatAgent({
+    agentPublicId: agentId || '',
     sessionId: activeSessionInternalId,
     backendUrl: 'http://localhost:8787',
+    mode: executionMode,
     enabled: !!agentId && !!activeSessionInternalId,
   });
 
-  // Combine initial messages with WebSocket messages
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
-  const allMessages = initialMessagesLoaded ? [...initialMessages, ...wsMessages] : initialMessages;
+  const allMessages = initialMessagesLoaded ? [...initialMessages, ...agentMessages] : initialMessages;
 
-  // Clear thinking indicator when the agent replies
   useEffect(() => {
-    if (wsMessages.length > 0 && wsMessages[wsMessages.length - 1].role === 'assistant') {
+    if (agentMessages.length > 0 && agentMessages[agentMessages.length - 1].role === 'agent') {
       setIsAwaitingResponse(false);
     }
-  }, [wsMessages]);
+  }, [agentMessages]);
 
   // Reset thinking indicator when switching sessions
   useEffect(() => {
@@ -135,18 +131,6 @@ export const ChatScreen: React.FC = () => {
     }
   }, [activeSessionId]);
 
-  // When the Durable Object auto-creates a new session (e.g. its in-memory
-  // sessionMap was cleared after hibernation), refresh the sidebar so the
-  // new session becomes visible immediately without requiring a page reload.
-  useEffect(() => {
-    if (autoCreatedSessionPublicId) {
-      refreshSessions();
-    }
-    // refreshSessions is not wrapped in useCallback so it changes every render;
-    // we only want this effect to fire when autoCreatedSessionPublicId changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoCreatedSessionPublicId]);
-
   // ============================================
   // Helper Functions
   // ============================================
@@ -157,14 +141,27 @@ export const ChatScreen: React.FC = () => {
 
     if (response.success && response.data) {
       // Convert backend message format to UI format
-      const formattedMessages: ChatMessage[] = response.data.map((msg) => ({
-        id: msg.publicId,
-        sessionId: msg.sessionId || sessionId,
-        role: msg.role === 'user' ? 'user' : 'agent',
-        content: msg.content,
-        timestamp: new Date(msg.timestamp || msg.createdAt),
-        status: msg.status || 'sent',
-      }));
+      const formattedMessages: ChatMessage[] = response.data.map((message) => {
+        const msg = message as unknown as {
+          publicId?: string;
+          id?: string;
+          sessionId?: string;
+          role: string;
+          content: string;
+          timestamp?: string | Date;
+          createdAt?: string | Date;
+          status?: ChatMessage['status'];
+        };
+
+        return {
+          id: msg.publicId || msg.id || `${msg.role}-${Date.now()}`,
+          sessionId: msg.sessionId || sessionId,
+          role: msg.role === 'user' ? 'user' : 'agent',
+          content: msg.content,
+          timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
+          status: msg.status || 'sent',
+        };
+      });
       setInitialMessages(formattedMessages);
       setInitialMessagesLoaded(true);
     } else {
@@ -183,14 +180,18 @@ export const ChatScreen: React.FC = () => {
     const response = await createChatSession(agent.publicId, `Chat with ${agent.name}`);
 
     if (response.success && response.data) {
+      const responseSession = response.data as unknown as {
+        id: number;
+        publicId: string;
+      } & ChatSession;
       const newSession = {
         ...response.data,
-        id: response.data.publicId,
-        internalId: response.data.id,
+        id: responseSession.publicId,
+        internalId: responseSession.id,
       };
       setSessions((prev) => [newSession, ...prev]);
       setActiveSessionId(newSession.id);
-      setActiveSessionInternalId(newSession.internalId);
+      setActiveSessionInternalId(responseSession.id);
     } else {
       showError(response.error || 'Failed to create chat session');
     }
@@ -213,7 +214,7 @@ export const ChatScreen: React.FC = () => {
 
       try {
         // Send message via WebSocket - agent handles everything
-        await wsSendMessage(content);
+        await agentSendMessage(content);
         setIsAwaitingResponse(true);
 
         // Compute new title before updating state so we can persist it
@@ -247,7 +248,7 @@ export const ChatScreen: React.FC = () => {
         showError(err instanceof Error ? err.message : 'Failed to send message');
       }
     },
-    [isConnected, activeSessionId, wsSendMessage, showError, sessions]
+    [isConnected, activeSessionId, agentSendMessage, showError, sessions]
   );
 
   const handleToggleInfo = () => {

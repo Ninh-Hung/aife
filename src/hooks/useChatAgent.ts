@@ -1,116 +1,122 @@
-/**
- * useChatAgent Hook
- * WebSocket connection to AgentDO Durable Object using Cloudflare Agents SDK
- * Provides real-time bidirectional communication for chat
- */
-
 import { useAgent } from 'agents/react';
-import { useAgentChat } from 'agents/ai-react';
-import type { UIMessage } from '@ai-sdk/react';
-import { useEffect, useRef, useState } from 'react';
+import { useAgentChat } from '@cloudflare/ai-chat/react';
+import type { UIMessage } from 'ai';
+import { useCallback, useMemo, useState } from 'react';
 
 interface UseChatAgentOptions {
   agentPublicId: string;
   sessionId: number | null;
   backendUrl?: string;
+  mode?: 'cheap' | 'normal' | 'premium' | 'fast' | 'smart' | 'expensive';
   enabled?: boolean;
 }
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  sessionId: string;
+  role: 'user' | 'agent';
   content: string;
   timestamp: Date;
+  status?: 'sending' | 'sent' | 'failed';
 }
 
 export function useChatAgent({
   agentPublicId,
   sessionId,
   backendUrl = 'http://localhost:8787',
+  mode = 'normal',
   enabled = true,
 }: UseChatAgentOptions) {
-  const [isSessionSet, setIsSessionSet] = useState(false);
-  const sessionSetRef = useRef(false);
+  const [isSocketOpen, setIsSocketOpen] = useState(false);
+  const shouldConnect = enabled && Boolean(agentPublicId) && Boolean(sessionId);
 
-  // Only connect if we have a valid agent ID
-  const shouldConnect = enabled && !!agentPublicId;
-
-  // Create agent instance pointing to the Durable Object
-  // The 'name' parameter is the agent's publicId (used as DO name)
-  const agent = useAgent<any>({
-    agent: "AgentDO", // Unified AgentDO class
+  const agent = useAgent({
+    agent: 'AgentDO',
     host: backendUrl,
     name: agentPublicId,
+    onOpen: () => setIsSocketOpen(true),
+    onClose: () => setIsSocketOpen(false),
+    onError: () => setIsSocketOpen(false),
   });
 
-  // Use Cloudflare's useAgentChat for chat functionality
   const {
     messages: agentMessages,
     sendMessage: agentSendMessage,
-    addToolResult,
+    addToolOutput,
     clearHistory,
     status: chatStatus,
     stop,
-  } = useAgentChat<unknown, UIMessage<{ createdAt: string }>>({agent});
+  } = useAgentChat<unknown, UIMessage>({
+    agent,
+    getInitialMessages: async () => [],
+  });
 
-  // Set session when agent is connected
-  useEffect(() => {
-    const setSession = async () => {
-      if (
-        agent.status === 'connected' &&
-        sessionId &&
-        !sessionSetRef.current &&
-        shouldConnect
-      ) {
-        try {
-          console.log('[useChatAgent] Setting session:', sessionId);
-          // Call setSession RPC to tell agent which session to use
-          await (agent as any).setSession(sessionId);
-          sessionSetRef.current = true;
-          setIsSessionSet(true);
-          console.log('[useChatAgent] Session set successfully');
-        } catch (error) {
-          console.error('[useChatAgent] Error setting session:', error);
-        }
-      }
+  const extractText = useCallback((message: UIMessage): string => {
+    const raw = message as unknown as {
+      content?: unknown;
+      parts?: Array<{ type: string; text?: string; url?: string }>;
     };
 
-    setSession();
-  }, [agent.status, sessionId, shouldConnect, agent]);
-
-  // Reset session flag when sessionId changes
-  useEffect(() => {
-    sessionSetRef.current = false;
-    setIsSessionSet(false);
-  }, [sessionId]);
-
-  // Convert UIMessages to our ChatMessage format
-  const messages: ChatMessage[] = shouldConnect
-    ? (agentMessages || []).map((msg: any) => ({
-        id: msg.id || `${msg.role}-${Date.now()}`,
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '',
-        timestamp: msg.createdAt ? new Date(msg.createdAt) : new Date(),
-      }))
-    : [];
-
-  // Wrap sendMessage to handle our use case
-  const sendMessage = async (content: string) => {
-    if (!isSessionSet || !shouldConnect) {
-      throw new Error('Session not set or agent not enabled');
+    if (typeof raw.content === 'string') {
+      return raw.content;
     }
-    await agentSendMessage({ role: 'user', content });
-  };
+
+    if (Array.isArray(raw.parts)) {
+      return raw.parts
+        .map((part) => {
+          if (part.type === 'text') return part.text ?? '';
+          if (part.type === 'file') return part.url ? '[Attachment]' : '';
+          return '';
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+
+    return '';
+  }, []);
+
+  const messages: ChatMessage[] = useMemo(() => {
+    if (!shouldConnect) return [];
+
+    return (agentMessages || [])
+      .map((msg) => ({
+        id: msg.id || `${msg.role}-${Date.now()}`,
+        sessionId: String(sessionId ?? ''),
+        role: msg.role === 'user' ? 'user' as const : 'agent' as const,
+        content: extractText(msg),
+        timestamp: new Date(),
+        status: chatStatus === 'submitted' && msg.role === 'user' ? 'sending' as const : 'sent' as const,
+      }))
+      .filter((msg) => msg.content.trim().length > 0);
+  }, [agentMessages, chatStatus, extractText, sessionId, shouldConnect]);
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!shouldConnect || !isSocketOpen) {
+        throw new Error('Agent connection is not ready');
+      }
+
+      await agentSendMessage({
+        role: 'user',
+        metadata: {
+          agentPublicId,
+          sessionId,
+          mode,
+        },
+        parts: [{ type: 'text', text: content }],
+      });
+    },
+    [agentPublicId, agentSendMessage, isSocketOpen, mode, sessionId, shouldConnect]
+  );
 
   return {
     messages,
     sendMessage: shouldConnect ? sendMessage : async () => {},
-    status: shouldConnect ? agent.status : 'disconnected',
-    isConnected: shouldConnect && agent.status === 'connected' && isSessionSet,
-    isConnecting: shouldConnect && (agent.status === 'connecting' || (agent.status === 'connected' && !isSessionSet)),
-    error: shouldConnect ? agent.error : undefined,
-    // Additional utilities from useAgentChat
-    addToolResult,
+    status: shouldConnect && isSocketOpen ? 'connected' : 'disconnected',
+    isConnected: shouldConnect && isSocketOpen,
+    isConnecting: shouldConnect && !isSocketOpen,
+    error: undefined,
+    addToolResult: addToolOutput,
     clearHistory,
     stop,
     chatStatus,

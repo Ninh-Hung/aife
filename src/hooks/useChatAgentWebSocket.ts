@@ -38,7 +38,7 @@ export function useChatAgentWebSocket({
   const [autoCreatedSessionPublicId, setAutoCreatedSessionPublicId] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const sessionSetRef = useRef(false);
   const connectionIdRef = useRef(0); // Track connection instances
 
