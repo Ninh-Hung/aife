@@ -477,7 +477,7 @@ export const createKnowledge = async (
 // Chat & Messaging API
 // ============================================
 
-import type { ChatSession, ChatMessage, SendMessageRequest, SendMessageResponse } from '../types';
+import type { ChatSession, ChatMessage } from '../types';
 
 /**
  * Fetches all chat sessions for a specific agent
@@ -598,40 +598,6 @@ export const updateChatSession = async (
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to update chat session',
-    };
-  }
-};
-
-/**
- * Sends a message in a chat session and receives agent response
- * @param sessionId - The session ID
- * @param content - Message content
- * @returns Promise with user message and agent response
- */
-export const sendChatMessage = async (
-  sessionId: string,
-  content: string
-): Promise<ApiResponse<SendMessageResponse>> => {
-  try {
-    const response = await axiosInstance.post(`/v1/chat/sessions/${sessionId}/messages`, {
-      content,
-      role: 'user',
-    });
-
-    return {
-      success: true,
-      data: response.data.data || response.data,
-    };
-  } catch (error) {
-    console.error('Send chat message error:', error);
-    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
-
-    return {
-      success: false,
-      error:
-        axiosError.response?.data?.error ||
-        axiosError.response?.data?.message ||
-        'Failed to send message',
     };
   }
 };

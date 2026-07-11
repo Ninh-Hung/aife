@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
-import { createChatSession, sendChatMessage } from '../services/api';
+import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
 
 // ============================================
@@ -50,7 +50,7 @@ const LandingPage: React.FC = () => {
       }
 
       // Create anonymous chat session
-      const sessionResponse = await createChatSession(defaultAgent.id, 'New Chat');
+      const sessionResponse = await createChatSession(defaultAgent.publicId || defaultAgent.id, 'New Chat');
 
       if (!sessionResponse.success || !sessionResponse.data) {
         console.error('Failed to create session:', sessionResponse.error);
@@ -62,16 +62,10 @@ const LandingPage: React.FC = () => {
       // Backend returns publicId, frontend uses id
       const sessionId = (session as unknown as { publicId: string }).publicId || session.id;
 
-      // Send the first message
-      const messageResponse = await sendChatMessage(sessionId, message);
-
-      if (!messageResponse.success) {
-        console.error('Failed to send message:', messageResponse.error);
-        return;
-      }
-
-      // Navigate to chat screen with the session
-      navigate(`/chat/${defaultAgent.id}?session=${sessionId}`);
+      // Navigate to chat screen. ChatScreen sends the first message through AgentDO.
+      navigate(`/chat/${defaultAgent.publicId || defaultAgent.id}?session=${sessionId}`, {
+        state: { initialMessage: message },
+      });
     } catch (error) {
       console.error('Error starting anonymous chat:', error);
       setIsSignInModalOpen(true);

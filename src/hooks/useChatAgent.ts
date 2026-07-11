@@ -6,7 +6,6 @@ import { useCallback, useMemo, useState } from 'react';
 interface UseChatAgentOptions {
   agentPublicId: string;
   sessionId: number | null;
-  backendUrl?: string;
   mode?: 'cheap' | 'normal' | 'premium' | 'fast' | 'smart' | 'expensive';
   enabled?: boolean;
 }
@@ -23,20 +22,20 @@ interface ChatMessage {
 export function useChatAgent({
   agentPublicId,
   sessionId,
-  backendUrl = 'http://localhost:8787',
   mode = 'normal',
   enabled = true,
 }: UseChatAgentOptions) {
   const [isSocketOpen, setIsSocketOpen] = useState(false);
   const shouldConnect = enabled && Boolean(agentPublicId) && Boolean(sessionId);
+  const serverUrl = import.meta.env.VITE_SERVER_URL || '';
 
   const agent = useAgent({
     agent: 'AgentDO',
-    host: backendUrl,
     name: agentPublicId,
     onOpen: () => setIsSocketOpen(true),
     onClose: () => setIsSocketOpen(false),
     onError: () => setIsSocketOpen(false),
+    ...(serverUrl ? { host: serverUrl } : {}),
   });
 
   const {

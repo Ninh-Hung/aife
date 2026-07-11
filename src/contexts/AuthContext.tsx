@@ -3,7 +3,7 @@
  * Access Token + Refresh Token architecture with token rotation
  */
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { User, UserQuota, SubscriptionInfo } from '../types';
 import axiosInstance, { setAccessToken, clearAccessToken } from '../lib/axios';
 import { AxiosError } from 'axios';
@@ -51,6 +51,16 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+type AuthUserData = {
+  publicId: string;
+  userName: string;
+  email: string;
+  role: string;
+  avatarUrl?: string | null;
+  quota?: UserQuota;
+  subscription?: SubscriptionInfo;
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // In-memory state only - NO localStorage
   const [user, setUser] = useState<User | null>(null);
@@ -58,6 +68,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial auth check
   const initializingRef = useRef(false); // Prevent multiple simultaneous initializations
+
+  const applyUserData = useCallback((userData: AuthUserData) => {
+    const mappedUser: User = {
+      publicId: userData.publicId,
+      userName: userData.userName,
+      email: userData.email,
+      role: userData.role,
+      avatar: userData.avatarUrl,
+      quota: userData.quota,
+      subscription: userData.subscription,
+    };
+
+    setUser(mappedUser);
+
+    if (userData.quota) {
+      setQuota(userData.quota);
+    } else {
+      setQuota(null);
+    }
+
+    if (userData.subscription) {
+      setSubscription(userData.subscription);
+    } else {
+      setSubscription(null);
+    }
+
+    console.log('[AuthContext] User set successfully:', mappedUser);
+  }, []);
+
+  const fetchAndApplyCurrentUser = useCallback(async () => {
+    const userResponse = await axiosInstance.get('/auth/me');
+    console.log('[AuthContext] User response:', userResponse.data);
+
+    if (userResponse.data.success && userResponse.data.data?.user) {
+      applyUserData(userResponse.data.data.user);
+      return;
+    }
+
+    throw new Error('User response invalid format');
+  }, [applyUserData]);
 
   // ============================================
   // Initialize Authentication on App Mount
@@ -76,49 +126,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         console.log('[AuthContext] Starting auth initialization...');
 
-        // Attempt to refresh access token using HttpOnly refresh token
-        const response = await axiosInstance.post('/auth/refresh');
-        console.log('[AuthContext] Refresh response:', response.data);
+        try {
+          // Attempt to refresh access token using HttpOnly refresh token
+          const response = await axiosInstance.post('/auth/refresh');
+          console.log('[AuthContext] Refresh response:', response.data);
 
-        if (response.data.success && response.data.data?.accessToken) {
+          if (!response.data.success || !response.data.data?.accessToken) {
+            throw new Error('Refresh response invalid format');
+          }
+
           setAccessToken(response.data.data.accessToken);
           console.log('[AuthContext] Access token set successfully');
+          await fetchAndApplyCurrentUser();
+        } catch (refreshError) {
+          console.log(
+            '[AuthContext] No valid session, creating anonymous session...',
+            refreshError
+          );
 
-          // Fetch user data with the new access token
-          const userResponse = await axiosInstance.get('/auth/me');
-          console.log('[AuthContext] User response:', userResponse.data);
+          const anonymousResponse = await axiosInstance.post('/auth/anonymous');
+          console.log('[AuthContext] Anonymous auth response:', anonymousResponse.data);
 
-          if (userResponse.data.success && userResponse.data.data?.user) {
-            // Extract user object from response (server returns {user: {...}, package: {...}})
-            const userData = userResponse.data.data.user;
-
-            // Map server field names to frontend field names
-            const mappedUser: User = {
-              publicId: userData.publicId,
-              userName: userData.userName,
-              email: userData.email,
-              role: userData.role,
-              avatar: userData.avatarUrl, // Map avatarUrl -> avatar
-              quota: userData.quota,
-              subscription: userData.subscription,
-            };
-
-            setUser(mappedUser);
-
-            // Set quota and subscription from user data if available
-            if (userData.quota) {
-              setQuota(userData.quota);
-            }
-            if (userData.subscription) {
-              setSubscription(userData.subscription);
-            }
-
-            console.log('[AuthContext] User set successfully:', mappedUser);
-          } else {
-            console.warn('[AuthContext] User response invalid format:', userResponse.data);
+          if (!anonymousResponse.data.success || !anonymousResponse.data.data?.accessToken) {
+            throw new Error('Anonymous auth response invalid format');
           }
-        } else {
-          console.warn('[AuthContext] Refresh response invalid format:', response.data);
+
+          setAccessToken(anonymousResponse.data.data.accessToken);
+
+          if (anonymousResponse.data.data.user) {
+            applyUserData(anonymousResponse.data.data.user);
+          } else {
+            await fetchAndApplyCurrentUser();
+          }
         }
       } catch (error) {
         // Silent fail - user is not authenticated
@@ -132,7 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initAuth();
-  }, []);
+  }, [applyUserData, fetchAndApplyCurrentUser]);
 
   // ============================================
   // Listen for auth:logout events from axios interceptor
@@ -161,7 +200,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const quotaData = await getQuota();
         setQuota(quotaData);
-        setUser(prev => prev ? { ...prev, quota: quotaData } : null);
+        setUser((prev) => (prev ? { ...prev, quota: quotaData } : null));
       } catch (error) {
         // Silent fail - quota will be refreshed on next interval
         console.debug('[AuthContext] Background quota refresh failed:', error);
@@ -187,7 +226,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('[AuthContext] Login response:', response.data);
 
       if (response.data.success && response.data.data) {
-        const { accessToken, user: userData, package: userPackage } = response.data.data;
+        const { accessToken, user: userData } = response.data.data;
 
         // Store access token in memory
         setAccessToken(accessToken);
@@ -240,7 +279,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setQuota(quotaData);
 
       // Update user object with latest quota
-      setUser(prev => prev ? { ...prev, quota: quotaData } : null);
+      setUser((prev) => (prev ? { ...prev, quota: quotaData } : null));
 
       console.log('[AuthContext] Quota refreshed:', quotaData);
     } catch (error) {
@@ -265,7 +304,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         packageCode: subscriptionData.package.code,
         isTrialing: subscriptionData.isTrialSubscription,
         trialDaysRemaining: subscriptionData.trialEndsAt
-          ? Math.ceil((new Date(subscriptionData.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          ? Math.ceil(
+              (new Date(subscriptionData.trialEndsAt).getTime() - Date.now()) /
+                (1000 * 60 * 60 * 24)
+            )
           : null,
         expiresAt: subscriptionData.endAt,
       };
@@ -273,7 +315,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSubscription(mappedSubscription);
 
       // Update user object with latest subscription
-      setUser(prev => prev ? { ...prev, subscription: mappedSubscription } : null);
+      setUser((prev) => (prev ? { ...prev, subscription: mappedSubscription } : null));
 
       console.log('[AuthContext] Subscription refreshed:', mappedSubscription);
     } catch (error) {

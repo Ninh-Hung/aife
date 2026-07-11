@@ -62,13 +62,13 @@ axiosInstance.interceptors.request.use(
 // ============================================
 
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+let refreshSubscribers: Array<(token: string | null) => void> = [];
 
-const subscribeTokenRefresh = (cb: (token: string) => void) => {
+const subscribeTokenRefresh = (cb: (token: string | null) => void) => {
   refreshSubscribers.push(cb);
 };
 
-const onRefreshed = (token: string) => {
+const onRefreshFinished = (token: string | null) => {
   refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
 };
@@ -80,7 +80,7 @@ axiosInstance.interceptors.response.use(
 
     // Handle quota/limit errors (429) - dispatch custom event
     if (error.response?.status === 429) {
-      const responseData = error.response.data as any;
+      const responseData = error.response.data as { error?: string; [key: string]: unknown };
 
       // Dispatch custom event based on error type
       if (responseData?.error === 'Quota exceeded') {
@@ -111,10 +111,22 @@ axiosInstance.interceptors.response.use(
 
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const requestUrl = originalRequest.url || '';
+
+      // Auth bootstrap calls must resolve/reject directly. Retrying refresh from a
+      // failed refresh request can leave app initialization waiting forever.
+      if (requestUrl.includes('/auth/refresh') || requestUrl.includes('/auth/anonymous')) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         // If already refreshing, queue this request
-        return new Promise((resolve) => {
-          subscribeTokenRefresh((token: string) => {
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh((token: string | null) => {
+            if (!token) {
+              reject(error);
+              return;
+            }
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
@@ -149,7 +161,7 @@ axiosInstance.interceptors.response.use(
         console.log('[Axios] New access token set, retrying queued requests');
 
         // Retry all queued requests with new token
-        onRefreshed(newAccessToken);
+        onRefreshFinished(newAccessToken);
 
         // Retry the original request
         if (originalRequest.headers) {
@@ -160,6 +172,7 @@ axiosInstance.interceptors.response.use(
         // Refresh failed - user needs to log in again
         console.error('[Axios] Token refresh failed:', refreshError);
         clearAccessToken();
+        onRefreshFinished(null);
         // Dispatch a custom event to notify AuthContext
         window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);

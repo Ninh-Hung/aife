@@ -3,8 +3,8 @@
  * Main chat interface for conversing with an AI Agent via WebSocket
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { Agent, ChatSession, ChatMessage } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
@@ -25,8 +25,11 @@ import {
 export const ChatScreen: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { agents, loading: agentsLoading } = useAgents();
   const { error: showError } = useNotification();
+  const initialSendRef = useRef(false);
+  const initialMessage = (location.state as { initialMessage?: string } | null)?.initialMessage;
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -46,7 +49,6 @@ export const ChatScreen: React.FC = () => {
   } = useChatAgent({
     agentPublicId: agentId || '',
     sessionId: activeSessionInternalId,
-    backendUrl: 'http://localhost:8787',
     mode: executionMode,
     enabled: !!agentId && !!activeSessionInternalId,
   });
@@ -109,9 +111,13 @@ export const ChatScreen: React.FC = () => {
           // No sessions exist — wait for user to click "New Chat"
           setSessions([]);
         } else {
+          const requestedSessionId = new URLSearchParams(location.search).get('session');
+          const selectedSession =
+            existingSessions.find((session: ChatSession) => session.id === requestedSessionId) ??
+            existingSessions[0];
           setSessions(existingSessions);
-          setActiveSessionId(existingSessions[0].id);
-          setActiveSessionInternalId(existingSessions[0].internalId);
+          setActiveSessionId(selectedSession.id);
+          setActiveSessionInternalId(selectedSession.internalId);
         }
       } else {
         showError(response.error || 'Failed to load chat sessions');
@@ -122,7 +128,7 @@ export const ChatScreen: React.FC = () => {
 
     initializeChatScreen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, agentsLoading, agents]);
+  }, [agentId, agentsLoading, agents, location.search]);
 
   // Load initial messages when active session changes
   useEffect(() => {
@@ -250,6 +256,31 @@ export const ChatScreen: React.FC = () => {
     },
     [isConnected, activeSessionId, agentSendMessage, showError, sessions]
   );
+
+  useEffect(() => {
+    if (
+      !initialMessage ||
+      initialSendRef.current ||
+      !isConnected ||
+      !activeSessionId ||
+      !initialMessagesLoaded
+    ) {
+      return;
+    }
+
+    initialSendRef.current = true;
+    void handleSendMessage(initialMessage);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [
+    activeSessionId,
+    handleSendMessage,
+    initialMessage,
+    initialMessagesLoaded,
+    isConnected,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   const handleToggleInfo = () => {
     setIsInfoPanelVisible((prev) => !prev);

@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Agent, CreateAgentInput } from '../types';
 import * as agentApi from '../services/api';
+import { useAuth } from './AuthContext';
 
 // ============================================
 // Context Interface
@@ -59,6 +60,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   const [agents, setAgents] = useState<Agent[]>(defaultAgents);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // ============================================
   // Fetch Agents
@@ -89,8 +91,17 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   // ============================================
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      setAgents(defaultAgents);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     fetchAgents();
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   // ============================================
   // Agent Operations
@@ -121,9 +132,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     // The backend update response only returns a slim { publicId, name, targetLangs } object,
     // not the full Agent shape. Merging preserves fields like avatarUrl that are not part of
     // the response payload so the card reflects changes immediately without a full refetch.
-    setAgents((prev) =>
-      prev.map((agent) => (agent.id === id ? { ...agent, ...input } : agent))
-    );
+    setAgents((prev) => prev.map((agent) => (agent.id === id ? { ...agent, ...input } : agent)));
   };
 
   const deleteAgent = async (id: string): Promise<void> => {
