@@ -29,6 +29,7 @@ export interface User {
   userName: string; // Backend uses userName instead of name
   email: string;
   role: string; // ADMIN, USER, etc.
+  authProvider?: string;
   avatar?: string;
   avatarType?: 'image' | 'video';
 
@@ -48,7 +49,7 @@ export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
 
 export interface Agent {
   id: string;
-  publicId: string; // Used for Durable Object instance identification
+  publicId: string; // Backend agent configuration identifier
   name: string;
   description?: string;
   avatarUrl?: string | null;
@@ -359,7 +360,12 @@ export interface BillingHistoryItem {
 
 export interface ChatSession {
   id: string;
-  agentId: string;
+  publicId?: string;
+  internalId?: number;
+  agentId: string | number | null;
+  agentPublicId?: string | null;
+  agentName?: string | null;
+  agentKey?: string;
   title: string; // Auto-generated or custom title
   lastMessage?: string; // Preview of last message
   lastMessageAt: Date;

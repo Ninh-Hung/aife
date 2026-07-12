@@ -21,7 +21,9 @@ export interface ChatInputScreenProps {
   /** Textarea placeholder text */
   placeholder?: string;
   /** Called when the user submits a message */
-  onSend: (message: string, image?: File) => void;
+  onSend: (message: string, image?: File, agent?: Agent | null) => void | Promise<void>;
+  /** Disable input while the parent is preparing the chat */
+  isSubmitting?: boolean;
   /** Optional suggestion chips shown below the input */
   suggestions?: string[];
 }
@@ -49,6 +51,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   heading = 'What can I help you with?',
   placeholder = 'Ask me anything...',
   onSend,
+  isSubmitting = false,
   suggestions,
 }) => {
   const { user } = useAuth();
@@ -118,21 +121,22 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    onSend(trimmed, selectedImage ?? undefined);
+    if (!trimmed || isSubmitting) return;
+
+    await onSend(trimmed, selectedImage ?? undefined, selectedAgent);
     setInputValue('');
     setSelectedImage(null);
     setUploadError(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [inputValue, selectedImage, onSend]);
+  }, [inputValue, isSubmitting, selectedAgent, selectedImage, onSend]);
 
   const handleImageUploadClick = () => {
     setMenuOpen(false);
@@ -153,7 +157,9 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
         return;
       }
       if (file.size > MAX_ANON_FILE_SIZE) {
-        setUploadError(`Image must be smaller than 5 MB (selected: ${(file.size / 1024 / 1024).toFixed(1)} MB).`);
+        setUploadError(
+          `Image must be smaller than 5 MB (selected: ${(file.size / 1024 / 1024).toFixed(1)} MB).`
+        );
         return;
       }
     }
@@ -172,12 +178,14 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     textareaRef.current?.focus();
   };
 
-  const canSend = inputValue.trim().length > 0;
+  const canSend = inputValue.trim().length > 0 && !isSubmitting;
 
   return (
     <div className="flex w-full flex-col items-center px-4">
       {/* Heading */}
-      <h1 className="mb-8 text-center text-3xl font-semibold text-gray-900 dark:text-white sm:text-4xl">{heading}</h1>
+      <h1 className="mb-8 text-center text-3xl font-semibold text-gray-900 dark:text-white sm:text-4xl">
+        {heading}
+      </h1>
 
       {/* Input box */}
       <div className="w-full max-w-2xl">
@@ -228,9 +236,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                       type={selectedAgent.avatarType}
                       alt={selectedAgent.name}
                       mediaClassName="h-full w-full rounded-full object-cover"
-                      fallback={
-                        <Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />
-                      }
+                      fallback={<Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />}
                     />
                   ) : (
                     <Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />
@@ -299,8 +305,9 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
+            disabled={isSubmitting}
             rows={1}
-            className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none dark:text-white dark:placeholder-slate-500"
+            className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none disabled:cursor-wait dark:text-white dark:placeholder-slate-500"
             style={{ minHeight: '56px', maxHeight: '200px' }}
           />
 
@@ -352,7 +359,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             {/* Send button */}
             <button
               type="button"
-              onClick={handleSend}
+              onClick={() => void handleSend()}
               disabled={!canSend}
               className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                 canSend

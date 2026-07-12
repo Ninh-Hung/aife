@@ -12,6 +12,7 @@ import { AgentCard } from '../components/agents/AgentCard';
 import { AgentDrawer } from '../components/agents/AgentDrawer';
 import { Agent, CreateAgentInput } from '../types';
 import { useNotification } from '../hooks/useNotification';
+import { createChatSession } from '../services/api';
 
 // ============================================
 // Empty State Component
@@ -48,7 +49,8 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
 
 export const AgentManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { agents, loading, error, createAgent, updateAgent, deleteAgent, setDefaultAgent } = useAgents();
+  const { agents, loading, error, createAgent, updateAgent, deleteAgent, setDefaultAgent } =
+    useAgents();
   const { success, error: showError } = useNotification();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -76,9 +78,13 @@ export const AgentManagement: React.FC = () => {
     }
   };
 
-  const handleChat = (agent: Agent) => {
-    // Use publicId for Durable Object instance identification
-    navigate(`/chat/${agent.publicId}`);
+  const handleChat = async (agent: Agent) => {
+    const response = await createChatSession(agent.publicId, `Chat with ${agent.name}`);
+    if (response.success && response.data) {
+      navigate(`/chat/${response.data.id}`);
+    } else {
+      showError(response.error || 'Failed to create chat session');
+    }
   };
 
   const handleCloseDrawer = () => {
@@ -185,7 +191,10 @@ export const AgentManagement: React.FC = () => {
                   Total Capabilities
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.reduce((sum, a) => sum + (a.capabilityCount ?? a.capabilityIds?.length ?? 0), 0)}
+                  {agents.reduce(
+                    (sum, a) => sum + (a.capabilityCount ?? a.capabilityIds?.length ?? 0),
+                    0
+                  )}
                 </p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
@@ -193,7 +202,10 @@ export const AgentManagement: React.FC = () => {
                   Total Knowledge
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.reduce((sum, a) => sum + (a.knowledgeCount ?? a.knowledgeIds?.length ?? 0), 0)}
+                  {agents.reduce(
+                    (sum, a) => sum + (a.knowledgeCount ?? a.knowledgeIds?.length ?? 0),
+                    0
+                  )}
                 </p>
               </div>
             </div>

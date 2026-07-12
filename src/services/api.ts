@@ -56,11 +56,7 @@ export const verifyEmail = async (token: string): Promise<ApiResponse> => {
 // API Key Management
 // ============================================
 
-import type {
-  ApiKey,
-  CreateApiKeyInput,
-  CreateApiKeyResponse,
-} from '../types';
+import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '../types';
 
 /**
  * Fetches all API keys for the current user.
@@ -401,7 +397,12 @@ export const createCharacteristic = async (
 // Knowledge API
 // ============================================
 
-import type { Knowledge, KnowledgeScope, KnowledgeSourceType, CreateKnowledgeInput } from '../types';
+import type {
+  Knowledge,
+  KnowledgeScope,
+  KnowledgeSourceType,
+  CreateKnowledgeInput,
+} from '../types';
 
 /**
  * Fetches knowledge filtered by scope and optional type/search
@@ -479,20 +480,47 @@ export const createKnowledge = async (
 
 import type { ChatSession, ChatMessage } from '../types';
 
+type BackendChatSession = Omit<
+  ChatSession,
+  'id' | 'title' | 'lastMessageAt' | 'createdAt' | 'updatedAt'
+> & {
+  id: number | string;
+  publicId?: string;
+  title?: string | null;
+  lastMessageAt?: string | Date | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
+
+const normalizeChatSession = (session: BackendChatSession): ChatSession => {
+  const publicId = session.publicId || String(session.id);
+  return {
+    ...session,
+    id: publicId,
+    publicId,
+    internalId: typeof session.id === 'number' ? session.id : session.internalId,
+    title: session.title || 'New Chat',
+    agentId: session.agentId ?? session.agentPublicId ?? null,
+    lastMessageAt: new Date(session.lastMessageAt || session.updatedAt || Date.now()),
+    createdAt: new Date(session.createdAt || Date.now()),
+    updatedAt: new Date(session.updatedAt || Date.now()),
+  };
+};
+
 /**
  * Fetches all chat sessions for a specific agent
  * @param agentId - The ID of the agent
  * @returns Promise with array of chat sessions
  */
-export const listChatSessions = async (agentId: string): Promise<ApiResponse<ChatSession[]>> => {
+export const listChatSessions = async (agentId?: string): Promise<ApiResponse<ChatSession[]>> => {
   try {
     const response = await axiosInstance.get(`/v1/chat/sessions`, {
-      params: { agentId },
+      params: agentId ? { agentId } : undefined,
     });
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: (response.data.data || response.data).map(normalizeChatSession),
     };
   } catch (error) {
     console.error('List chat sessions error:', error);
@@ -515,18 +543,20 @@ export const listChatSessions = async (agentId: string): Promise<ApiResponse<Cha
  * @returns Promise with the created chat session
  */
 export const createChatSession = async (
-  agentId: string,
-  title?: string
+  agentId?: string | null,
+  title?: string,
+  options?: { temporary?: boolean }
 ): Promise<ApiResponse<ChatSession>> => {
   try {
     const response = await axiosInstance.post('/v1/chat/sessions', {
-      agentId,
+      ...(agentId ? { agentId } : {}),
       title,
+      ...(options?.temporary ? { temporary: true } : {}),
     });
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: normalizeChatSession(response.data.data || response.data),
       message: 'Chat session created successfully',
     };
   } catch (error) {
@@ -539,6 +569,28 @@ export const createChatSession = async (
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to create chat session',
+    };
+  }
+};
+
+export const getChatSession = async (sessionId: string): Promise<ApiResponse<ChatSession>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/chat/sessions/${sessionId}`);
+
+    return {
+      success: true,
+      data: normalizeChatSession(response.data.data || response.data),
+    };
+  } catch (error) {
+    console.error('Get chat session error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load chat session',
     };
   }
 };
@@ -739,9 +791,7 @@ export const getAgent = async (publicId: string): Promise<ApiResponse<Agent>> =>
  * @param input - Agent creation parameters
  * @returns Promise with the created agent
  */
-export const createAgent = async (
-  input: CreateAgentInput
-): Promise<ApiResponse<Agent>> => {
+export const createAgent = async (input: CreateAgentInput): Promise<ApiResponse<Agent>> => {
   try {
     const response = await axiosInstance.post('/v1/agents', input);
 
@@ -826,7 +876,9 @@ export const deleteAgent = async (id: string): Promise<ApiResponse> => {
  * @param publicId - The public ID of the agent to set as default
  * @returns Promise with the operation result
  */
-export const setDefaultAgent = async (publicId: string): Promise<ApiResponse<{ publicId: string; isDefault: boolean }>> => {
+export const setDefaultAgent = async (
+  publicId: string
+): Promise<ApiResponse<{ publicId: string; isDefault: boolean }>> => {
   try {
     const response = await axiosInstance.patch(`/v1/agents/${publicId}/default`);
 

@@ -42,7 +42,7 @@ import { UpgradeModal } from './components/subscription';
 // ============================================
 
 const RootRoute: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isAnonymous, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -55,7 +55,7 @@ const RootRoute: React.FC = () => {
     );
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !isAnonymous) {
     return <Navigate to="/new-chat" replace />;
   }
 
@@ -203,7 +203,7 @@ const AppContent: React.FC = () => {
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
 
                   <Route path="/agents" element={<AgentManagement />} />
-                  <Route path="/chat/:agentId" element={<ChatScreen />} />
+                  <Route path="/chat/:sessionId" element={<ChatScreen />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
                     path="/code"

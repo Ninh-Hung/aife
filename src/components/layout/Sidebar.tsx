@@ -4,14 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
-  List,
-  ListItem,
   ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Avatar,
   Divider,
   Typography,
@@ -25,13 +21,10 @@ import {
   Users,
   CreditCard,
   Languages,
-  Code,
-  Image as ImageIcon,
   Sun,
   Moon,
   ChevronLeft,
   ChevronRight,
-  UserCircle,
   Settings,
   LogOut,
   KeyRound,
@@ -57,31 +50,16 @@ interface SidebarProps {
 // Navigation Configuration
 // ============================================
 
-const mainNavItems = [
+const profileMenuItems = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard },
   { id: 'agents', label: 'My Agents', path: '/agents', Icon: Users },
   { id: 'api-keys', label: 'API Keys', path: '/api-keys', Icon: KeyRound },
   { id: 'subscription', label: 'Subscription', path: '/subscription', Icon: CreditCard },
-];
-
-const serviceNavItems = [
   {
     id: 'translate',
-    label: 'Multi-language Translate',
+    label: 'Multilanguage',
     path: '/translate',
     Icon: Languages,
-  },
-  {
-    id: 'code',
-    label: 'Generate Code',
-    path: '/code',
-    Icon: Code,
-  },
-  {
-    id: 'image',
-    label: 'Generate Picture',
-    path: '/image',
-    Icon: ImageIcon,
   },
 ];
 
@@ -97,6 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { mode, toggleTheme } = useTheme();
   const { logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -118,14 +97,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setAnchorEl(null);
   };
 
-  const handlePersonalDetail = () => {
+  const handleMenuNavigation = () => {
     handleMenuClose();
-    // TODO: Navigate to personal detail page or open modal
-    console.log('Navigate to personal detail');
+    handleNavigation();
   };
 
   const handleUserSettings = () => {
     handleMenuClose();
+    handleNavigation();
     // TODO: Navigate to settings page or open modal
     console.log('Navigate to user settings');
   };
@@ -134,8 +113,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     handleMenuClose();
     try {
       // Call logout function from AuthContext
-      // This will: 1) call POST /auth/logout, 2) clear local state, 3) redirect to "/"
+      // This will call POST /auth/logout and clear local state.
       await logout();
+      navigate('/', { replace: true });
     } catch (error) {
       // Error is already handled in AuthContext logout function
       console.error('Logout handler error:', error);
@@ -204,114 +184,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </Tooltip>
       </Box>
 
-      {/* Main Navigation */}
+      {/* Conversations */}
       <Box className="flex-1 overflow-y-auto py-4">
-        <List className="px-3">
-          {!isCollapsed && (
+        {(!isCollapsed || isMobileDrawer) && (
+          <>
+            <Divider className="mx-3 mb-4" />
             <Typography
               variant="caption"
-              className="px-4 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
+              className="px-7 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
             >
-              Main
+              Conversations
             </Typography>
-          )}
-          {mainNavItems.map(({ id, label, path, Icon }) => (
-            <ListItem key={id} disablePadding className="mb-1">
-              <Tooltip title={isCollapsed && !isMobileDrawer ? label : ''} placement="right" arrow>
-                <ListItemButton
-                  component={Link}
-                  to={path}
-                  onClick={handleNavigation}
-                  className={`rounded-lg transition-all ${
-                    isActive(path)
-                      ? 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'
-                  } ${isCollapsed && !isMobileDrawer ? 'justify-center' : ''}`}
-                  sx={{
-                    py: 1.5,
-                    px: isCollapsed && !isMobileDrawer ? 1 : 2,
-                    minHeight: 44, // Touch target optimization
-                  }}
-                >
-                  <ListItemIcon
-                    className={
-                      isActive(path)
-                        ? 'text-blue-500 dark:text-blue-400'
-                        : 'text-gray-500 dark:text-slate-400'
-                    }
-                    sx={{ minWidth: isCollapsed && !isMobileDrawer ? 'auto' : 40 }}
-                  >
-                    <Icon size={20} />
-                  </ListItemIcon>
-                  {(!isCollapsed || isMobileDrawer) && (
-                    <ListItemText
-                      primary={label}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: isActive(path) ? 600 : 500,
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          ))}
-        </List>
-
-        <Divider className="mx-3 my-4" />
-
-        {/* Services Navigation */}
-        <List className="px-3">
-          {!isCollapsed && (
-            <Typography
-              variant="caption"
-              className="px-4 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
-            >
-              Services
-            </Typography>
-          )}
-          {serviceNavItems.map(({ id, label, path, Icon }) => (
-            <ListItem key={id} disablePadding className="mb-1">
-              <Tooltip title={isCollapsed && !isMobileDrawer ? label : ''} placement="right" arrow>
-                <ListItemButton
-                  component={Link}
-                  to={path}
-                  onClick={handleNavigation}
-                  className={`rounded-lg transition-all ${
-                    isActive(path)
-                      ? 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700'
-                  } ${isCollapsed && !isMobileDrawer ? 'justify-center' : ''}`}
-                  sx={{
-                    py: 1.5,
-                    px: isCollapsed && !isMobileDrawer ? 1 : 2,
-                    minHeight: 44, // Touch target optimization
-                  }}
-                >
-                  <ListItemIcon
-                    className={
-                      isActive(path)
-                        ? 'text-blue-500 dark:text-blue-400'
-                        : 'text-gray-500 dark:text-slate-400'
-                    }
-                    sx={{ minWidth: isCollapsed && !isMobileDrawer ? 'auto' : 40 }}
-                  >
-                    <Icon size={20} />
-                  </ListItemIcon>
-                  {(!isCollapsed || isMobileDrawer) && (
-                    <ListItemText
-                      primary={label}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: isActive(path) ? 600 : 500,
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          ))}
-        </List>
+          </>
+        )}
       </Box>
 
       {/* Bottom Section: Dark Mode Toggle + User Profile */}
@@ -429,19 +314,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             },
           }}
         >
-          <MenuItem
-            onClick={handlePersonalDetail}
-            className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            <UserCircle size={18} className="text-gray-500 dark:text-slate-400" />
-            <Typography variant="body2">Personal Detail</Typography>
-          </MenuItem>
+          {profileMenuItems.map(({ id, label, path, Icon }) => (
+            <MenuItem
+              key={id}
+              component={Link}
+              to={path}
+              onClick={handleMenuNavigation}
+              selected={isActive(path)}
+              className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <Icon size={18} className="text-gray-500 dark:text-slate-400" />
+              <Typography variant="body2">{label}</Typography>
+            </MenuItem>
+          ))}
           <MenuItem
             onClick={handleUserSettings}
             className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Settings size={18} className="text-gray-500 dark:text-slate-400" />
-            <Typography variant="body2">User Settings</Typography>
+            <Typography variant="body2">Settings</Typography>
           </MenuItem>
           <Divider className="my-1" />
           <MenuItem

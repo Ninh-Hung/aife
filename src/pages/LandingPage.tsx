@@ -38,19 +38,13 @@ const LandingPage: React.FC = () => {
     if (!message.trim()) return;
 
     try {
-
       // Get default agent or first available agent
       const defaultAgent = agents.find((a) => a.isDefault) ?? agents[0];
 
-      if (!defaultAgent) {
-        console.error('No agents available');
-        // Fallback to login if no agents available
-        setIsSignInModalOpen(true);
-        return;
-      }
-
       // Create anonymous chat session
-      const sessionResponse = await createChatSession(defaultAgent.publicId || defaultAgent.id, 'New Chat');
+      const sessionResponse = defaultAgent
+        ? await createChatSession(defaultAgent.publicId || defaultAgent.id, 'New Chat')
+        : await createChatSession(null, 'New Chat', { temporary: true });
 
       if (!sessionResponse.success || !sessionResponse.data) {
         console.error('Failed to create session:', sessionResponse.error);
@@ -58,12 +52,8 @@ const LandingPage: React.FC = () => {
         return;
       }
 
-      const session = sessionResponse.data;
-      // Backend returns publicId, frontend uses id
-      const sessionId = (session as unknown as { publicId: string }).publicId || session.id;
-
       // Navigate to chat screen. ChatScreen sends the first message through AgentDO.
-      navigate(`/chat/${defaultAgent.publicId || defaultAgent.id}?session=${sessionId}`, {
+      navigate(`/chat/${sessionResponse.data.id}`, {
         state: { initialMessage: message },
       });
     } catch (error) {

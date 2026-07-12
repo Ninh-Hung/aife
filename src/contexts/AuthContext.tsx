@@ -16,6 +16,7 @@ import { getQuota, getSubscription } from '../services/quota.service';
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
+  isAnonymous: boolean;
   isLoading: boolean;
   quota: UserQuota | null;
   subscription: SubscriptionInfo | null;
@@ -56,9 +57,24 @@ type AuthUserData = {
   userName: string;
   email: string;
   role: string;
+  authProvider?: string;
   avatarUrl?: string | null;
   quota?: UserQuota;
   subscription?: SubscriptionInfo;
+};
+
+const ANONYMOUS_AUTH_PROVIDER = 'ANONYMOUS';
+
+const isAnonymousUser = (user: User | null): boolean => {
+  if (!user) {
+    return false;
+  }
+
+  return (
+    user.authProvider === ANONYMOUS_AUTH_PROVIDER ||
+    user.email.endsWith('@anonymous.appaihelp.local') ||
+    user.userName.startsWith('anon_')
+  );
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
@@ -75,7 +91,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       userName: userData.userName,
       email: userData.email,
       role: userData.role,
-      avatar: userData.avatarUrl,
+      authProvider: userData.authProvider,
+      avatar: userData.avatarUrl ?? undefined,
       quota: userData.quota,
       subscription: userData.subscription,
     };
@@ -108,6 +125,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     throw new Error('User response invalid format');
   }, [applyUserData]);
+
+  const createAnonymousSession = useCallback(async () => {
+    const anonymousResponse = await axiosInstance.post('/auth/anonymous');
+    console.log('[AuthContext] Anonymous auth response:', anonymousResponse.data);
+
+    if (!anonymousResponse.data.success || !anonymousResponse.data.data?.accessToken) {
+      throw new Error('Anonymous auth response invalid format');
+    }
+
+    setAccessToken(anonymousResponse.data.data.accessToken);
+
+    if (anonymousResponse.data.data.user) {
+      applyUserData(anonymousResponse.data.data.user);
+    } else {
+      await fetchAndApplyCurrentUser();
+    }
+  }, [applyUserData, fetchAndApplyCurrentUser]);
 
   // ============================================
   // Initialize Authentication on App Mount
@@ -144,20 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             refreshError
           );
 
-          const anonymousResponse = await axiosInstance.post('/auth/anonymous');
-          console.log('[AuthContext] Anonymous auth response:', anonymousResponse.data);
-
-          if (!anonymousResponse.data.success || !anonymousResponse.data.data?.accessToken) {
-            throw new Error('Anonymous auth response invalid format');
-          }
-
-          setAccessToken(anonymousResponse.data.data.accessToken);
-
-          if (anonymousResponse.data.data.user) {
-            applyUserData(anonymousResponse.data.data.user);
-          } else {
-            await fetchAndApplyCurrentUser();
-          }
+          await createAnonymousSession();
         }
       } catch (error) {
         // Silent fail - user is not authenticated
@@ -171,7 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initAuth();
-  }, [applyUserData, fetchAndApplyCurrentUser]);
+  }, [createAnonymousSession, fetchAndApplyCurrentUser]);
 
   // ============================================
   // Listen for auth:logout events from axios interceptor
@@ -238,7 +259,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userName: userData.userName,
           email: userData.email,
           role: userData.role,
-          avatar: userData.avatarUrl, // Map avatarUrl -> avatar
+          authProvider: userData.authProvider,
+          avatar: userData.avatarUrl ?? undefined, // Map avatarUrl -> avatar
           quota: userData.quota,
           subscription: userData.subscription,
         };
@@ -347,8 +369,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('[AuthContext] Local auth state cleared');
 
-      // Redirect to login page
-      window.location.href = '/';
+      try {
+        await createAnonymousSession();
+      } catch (anonymousError) {
+        console.error(
+          '[AuthContext] Failed to create anonymous session after logout:',
+          anonymousError
+        );
+        clearAccessToken();
+        setUser(null);
+      }
     }
   };
 
@@ -359,6 +389,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const contextValue: AuthContextValue = {
     user,
     isAuthenticated: !!user,
+    isAnonymous: isAnonymousUser(user),
     isLoading,
     quota,
     subscription,
