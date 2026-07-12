@@ -33,6 +33,8 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
+import { ChatSessionsList } from '../chat/ChatSessionsList';
+import { useSidebarConversations } from './useSidebarConversations';
 
 // ============================================
 // Props Interface
@@ -78,14 +80,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const { mode, toggleTheme } = useTheme();
   const { logout } = useAuth();
+  const { sessions, isLoading, renameConversation, archiveConversation, deleteConversation } =
+    useSidebarConversations();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const isMenuOpen = Boolean(anchorEl);
+  const activeSessionId = location.pathname.startsWith('/chat/')
+    ? location.pathname.split('/chat/')[1]?.split('/')[0]
+    : undefined;
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleNavigation = () => {
     if (onNavigate) {
       onNavigate();
+    }
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    navigate(`/chat/${sessionId}`);
+    handleNavigation();
+  };
+
+  const handleNewChat = () => {
+    navigate('/new-chat');
+    handleNavigation();
+  };
+
+  const handleArchive = async (sessionId: string) => {
+    const wasActive = activeSessionId === sessionId;
+    const success = await archiveConversation(sessionId);
+
+    if (success && wasActive) {
+      navigate('/new-chat');
+      handleNavigation();
+    }
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    const wasActive = activeSessionId === sessionId;
+    const success = await deleteConversation(sessionId);
+
+    if (success && wasActive) {
+      navigate('/new-chat');
+      handleNavigation();
     }
   };
 
@@ -135,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {(!isCollapsed || isMobileDrawer) && (
-          <Link to="/dashboard" className="no-underline" onClick={handleNavigation}>
+          <Link to="/new-chat" className="no-underline" onClick={handleNavigation}>
             <Typography
               variant="h6"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"
@@ -195,6 +232,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               Conversations
             </Typography>
+            <Box className="mt-2">
+              <ChatSessionsList
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSessionSelect={handleSessionSelect}
+                onNewChat={handleNewChat}
+                onRename={renameConversation}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+                embedded
+                isLoading={isLoading}
+              />
+            </Box>
           </>
         )}
       </Box>

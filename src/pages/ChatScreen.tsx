@@ -6,22 +6,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
-import { Agent, ChatSession, ChatMessage } from '../types';
+import { Agent, ChatMessage } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent } from '../hooks/useChatAgent';
-import { ChatSessionsList } from '../components/chat/ChatSessionsList';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
+import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
-import {
-  listChatSessions,
-  createChatSession,
-  getChatSession,
-  listChatMessages,
-  updateChatSession,
-  getAgent,
-} from '../services/api';
+import { getChatSession, listChatMessages, updateChatSession, getAgent } from '../services/api';
 
 const TEMP_CHAT_AGENT_PUBLIC_ID = '__temporary-agent__';
 
@@ -31,6 +24,7 @@ export const ChatScreen: React.FC = () => {
   const location = useLocation();
   const { agents } = useAgents();
   const { error: showError } = useNotification();
+  const { sessions, addOrUpdateConversation } = useSidebarConversations();
   const initialSendRef = useRef(false);
   const initialState = location.state as {
     initialMessage?: string;
@@ -40,7 +34,6 @@ export const ChatScreen: React.FC = () => {
   const initialFile = initialState?.initialFile ?? null;
 
   const [agent, setAgent] = useState<Agent | null>(null);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activeSessionInternalId, setActiveSessionInternalId] = useState<number | null>(null);
   const [isInfoPanelVisible, setIsInfoPanelVisible] = useState(false);
@@ -48,7 +41,6 @@ export const ChatScreen: React.FC = () => {
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [executionMode] = useState<'cheap' | 'normal' | 'premium'>('normal');
-  const isTemporaryChat = agent?.publicId === TEMP_CHAT_AGENT_PUBLIC_ID;
 
   const {
     messages: agentMessages,
@@ -60,6 +52,7 @@ export const ChatScreen: React.FC = () => {
     agentPublicId: agent?.publicId || '',
     sessionId: activeSessionInternalId,
     mode: executionMode,
+    capability: 'chat',
     enabled: !!agent && !!activeSessionId && activeSessionInternalId !== null,
   });
 
@@ -67,6 +60,8 @@ export const ChatScreen: React.FC = () => {
   const allMessages = initialMessagesLoaded
     ? [...initialMessages, ...agentMessages]
     : initialMessages;
+  const latestMessage = allMessages[allMessages.length - 1];
+  const shouldShowThinkingIndicator = isAwaitingResponse && latestMessage?.role !== 'agent';
 
   useEffect(() => {
     if (agentMessages.length > 0 && agentMessages[agentMessages.length - 1].role === 'agent') {
@@ -143,19 +138,7 @@ export const ChatScreen: React.FC = () => {
       }
 
       setAgent(resolvedAgent);
-
-      const response = await listChatSessions(currentSession.agentPublicId || undefined);
-      if (response.success && response.data) {
-        const activeSessions = response.data.filter(
-          (session) => !session.status || session.status === 'ACTIVE'
-        );
-        const hasCurrentSession = activeSessions.some(
-          (session) => session.id === currentSession.id
-        );
-        setSessions(hasCurrentSession ? activeSessions : [currentSession, ...activeSessions]);
-      } else {
-        setSessions([currentSession]);
-      }
+      addOrUpdateConversation(currentSession);
 
       setActiveSessionId(currentSession.id);
       setActiveSessionInternalId(currentSession.internalId);
@@ -216,31 +199,6 @@ export const ChatScreen: React.FC = () => {
   // Handlers
   // ============================================
 
-  const handleNewChat = async () => {
-    if (!agent) return;
-
-    const response = await createChatSession(
-      isTemporaryChat ? null : agent.publicId,
-      isTemporaryChat ? 'New Chat' : `Chat with ${agent.name}`,
-      { temporary: isTemporaryChat }
-    );
-
-    if (response.success && response.data) {
-      navigate(`/chat/${response.data.id}`);
-    } else {
-      showError(response.error || 'Failed to create chat session');
-    }
-  };
-
-  const handleSessionSelect = (sessionId: string) => {
-    const session = sessions.find((s) => s.id === sessionId);
-    if (session) {
-      setActiveSessionId(sessionId);
-      setActiveSessionInternalId(session.internalId ?? null);
-      navigate(`/chat/${sessionId}`);
-    }
-  };
-
   const handleSendMessage = useCallback(
     async (content: string, files?: File[]) => {
       if (!isConnected || !activeSessionId) {
@@ -268,27 +226,20 @@ export const ChatScreen: React.FC = () => {
           });
         }
 
-        // Update session metadata (last message, title) in local state
-        setSessions((prev) =>
-          prev.map((session) =>
-            session.id === activeSessionId
-              ? {
-                  ...session,
-                  lastMessage: content.substring(0, 50),
-                  lastMessageAt: new Date(),
-                  title:
-                    session.title === 'New Chat' || session.title.startsWith('Chat with')
-                      ? newTitle
-                      : session.title,
-                }
-              : session
-          )
-        );
+        if (currentSession) {
+          addOrUpdateConversation({
+            ...currentSession,
+            lastMessage: content.substring(0, 50),
+            lastMessageAt: new Date(),
+            title: needsTitleUpdate ? newTitle : currentSession.title,
+            updatedAt: new Date(),
+          });
+        }
       } catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to send message');
       }
     },
-    [isConnected, activeSessionId, agentSendMessage, showError, sessions]
+    [isConnected, activeSessionId, agentSendMessage, showError, sessions, addOrUpdateConversation]
   );
 
   useEffect(() => {
@@ -316,60 +267,9 @@ export const ChatScreen: React.FC = () => {
     navigate,
   ]);
 
-  const handleToggleInfo = () => {
+  const handleToggleInfo = useCallback(() => {
     setIsInfoPanelVisible((prev) => !prev);
-  };
-
-  const refreshSessions = async () => {
-    if (!agent) return;
-
-    const response = await listChatSessions(isTemporaryChat ? undefined : agent.publicId);
-    if (response.success && response.data) {
-      const activeSessions = response.data.filter(
-        (session) => !session.status || session.status === 'ACTIVE'
-      );
-      setSessions(activeSessions);
-
-      // If the deleted session was active, switch to the first remaining one
-      if (activeSessions.length > 0 && !activeSessions.find((s) => s.id === activeSessionId)) {
-        navigate(`/chat/${activeSessions[0].id}`);
-      } else if (activeSessions.length === 0) {
-        setActiveSessionId(null);
-        setActiveSessionInternalId(null);
-      }
-    }
-  };
-
-  const handleArchive = async (sessionId: string) => {
-    const response = await updateChatSession(sessionId, { status: 'ARCHIVED' });
-    if (response.success) {
-      await refreshSessions();
-    } else {
-      showError(response.error || 'Failed to archive chat session');
-    }
-  };
-
-  const handleDelete = async (sessionId: string) => {
-    const response = await updateChatSession(sessionId, { status: 'DELETED' });
-    if (response.success) {
-      await refreshSessions();
-    } else {
-      showError(response.error || 'Failed to delete chat session');
-    }
-  };
-
-  const handleRename = async (sessionId: string, newTitle: string) => {
-    const response = await updateChatSession(sessionId, { title: newTitle });
-    if (response.success) {
-      setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId ? { ...session, title: newTitle } : session
-        )
-      );
-    } else {
-      showError(response.error || 'Failed to rename chat session');
-    }
-  };
+  }, []);
 
   // ============================================
   // Render
@@ -396,24 +296,13 @@ export const ChatScreen: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Left Sidebar - Chat Sessions */}
-      <ChatSessionsList
-        sessions={sessions}
-        activeSessionId={activeSessionId || undefined}
-        onSessionSelect={handleSessionSelect}
-        onNewChat={handleNewChat}
-        onRename={handleRename}
-        onArchive={handleArchive}
-        onDelete={handleDelete}
-      />
-
+    <div className="flex h-full min-h-0 overflow-hidden">
       {/* Center - Chat Conversation or Empty State */}
       {activeSessionId ? (
         <ChatConversation
           agent={agent}
           messages={allMessages}
-          isLoading={isConnecting || isAwaitingResponse}
+          isLoading={isConnecting || shouldShowThinkingIndicator}
           onSendMessage={handleSendMessage}
           onToggleInfo={handleToggleInfo}
         />

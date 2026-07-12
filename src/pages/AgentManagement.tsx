@@ -10,6 +10,7 @@ import { Button } from '@mui/material';
 import { useAgents } from '../contexts/AgentsContext';
 import { AgentCard } from '../components/agents/AgentCard';
 import { AgentDrawer } from '../components/agents/AgentDrawer';
+import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { Agent, CreateAgentInput } from '../types';
 import { useNotification } from '../hooks/useNotification';
 import { createChatSession } from '../services/api';
@@ -52,6 +53,7 @@ export const AgentManagement: React.FC = () => {
   const { agents, loading, error, createAgent, updateAgent, deleteAgent, setDefaultAgent } =
     useAgents();
   const { success, error: showError } = useNotification();
+  const { addOrUpdateConversation } = useSidebarConversations();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
@@ -81,6 +83,7 @@ export const AgentManagement: React.FC = () => {
   const handleChat = async (agent: Agent) => {
     const response = await createChatSession(agent.publicId, `Chat with ${agent.name}`);
     if (response.success && response.data) {
+      addOrUpdateConversation(response.data);
       navigate(`/chat/${response.data.id}`);
     } else {
       showError(response.error || 'Failed to create chat session');

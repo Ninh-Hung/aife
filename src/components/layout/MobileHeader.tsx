@@ -36,7 +36,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ user, onMenuClick })
       </IconButton>
 
       {/* Center Section: Logo */}
-      <Link to="/dashboard" className="no-underline">
+      <Link to="/new-chat" className="no-underline">
         <Typography
           variant="h6"
           className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"

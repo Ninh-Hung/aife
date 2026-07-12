@@ -14,9 +14,16 @@ import {
   Box,
   IconButton,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  Typography,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import { X, Save } from 'lucide-react';
-import { Characteristic, CreateCharacteristicInput } from '../../types';
+import { Characteristic, CharacteristicLayer, CreateCharacteristicInput } from '../../types';
 import { createCharacteristic } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
 
@@ -37,8 +44,58 @@ interface CreateCharacteristicModalProps {
 const initialFormState: CreateCharacteristicInput = {
   code: '',
   name: '',
+  description: '',
+  layer: 'behavior',
   prompt: '',
+  status: 'published',
 };
+
+const CHARACTERISTIC_LAYERS: Array<{
+  value: CharacteristicLayer;
+  label: string;
+  helper: string;
+  placeholder: string;
+}> = [
+  {
+    value: 'identity',
+    label: 'Identity',
+    helper: 'Who the agent is and what role it should play',
+    placeholder: 'Example: You are a senior product advisor for early-stage SaaS founders...',
+  },
+  {
+    value: 'tone_style',
+    label: 'Tone & Style',
+    helper: 'How the agent should sound when responding',
+    placeholder: 'Example: Use concise, direct language. Avoid hype. Keep responses practical...',
+  },
+  {
+    value: 'values',
+    label: 'Values & Priorities',
+    helper: 'What the agent should optimize for',
+    placeholder:
+      'Example: Prioritize accuracy, user safety, explicit tradeoffs, and practical next steps...',
+  },
+  {
+    value: 'behavior',
+    label: 'Behavioral Rules',
+    helper: 'Reusable rules for how the agent should behave',
+    placeholder: 'Example: Ask one clarifying question when the request lacks enough context...',
+  },
+  {
+    value: 'constraints',
+    label: 'Constraints',
+    helper: 'Boundaries, refusals, and things the agent should avoid',
+    placeholder:
+      'Example: Do not invent facts. Say when information is uncertain or unavailable...',
+  },
+  {
+    value: 'domain',
+    label: 'Domain Guidance',
+    helper: 'Domain-specific behavior or expertise style',
+    placeholder:
+      'Example: When discussing legal topics, explain risk categories and recommend professional review...',
+  },
+];
 
 // ============================================
 // CreateCharacteristicModal Component
@@ -82,6 +139,17 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
       }
     };
 
+  const handleLayerChange = (event: SelectChangeEvent<CharacteristicLayer>) => {
+    setFormData((prev) => ({
+      ...prev,
+      layer: event.target.value as CharacteristicLayer,
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      layer: undefined,
+    }));
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof CreateCharacteristicInput, string>> = {};
 
@@ -91,8 +159,13 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
 
     if (!formData.code.trim()) {
       newErrors.code = 'Code is required';
-    } else if (!/^[a-z0-9_]+$/.test(formData.code)) {
-      newErrors.code = 'Code must contain only lowercase letters, numbers, and underscores';
+    } else if (!/^[a-z0-9._-]+$/.test(formData.code)) {
+      newErrors.code =
+        'Code must contain lowercase letters, numbers, dots, hyphens, or underscores';
+    }
+
+    if (!formData.layer) {
+      newErrors.layer = 'Layer is required';
     }
 
     if (!formData.prompt.trim()) {
@@ -113,7 +186,14 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
     setIsSaving(true);
 
     try {
-      const response = await createCharacteristic(formData);
+      const response = await createCharacteristic({
+        ...formData,
+        code: formData.code.trim(),
+        name: formData.name.trim(),
+        description: formData.description?.trim() || undefined,
+        prompt: formData.prompt.trim(),
+        status: 'published',
+      });
 
       if (response.success && response.data) {
         success('Characteristic created successfully!');
@@ -138,11 +218,13 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
     }
   };
 
+  const selectedLayer = CHARACTERISTIC_LAYERS.find((layer) => layer.value === formData.layer);
+
   return (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         className: 'bg-white dark:bg-slate-800',
@@ -164,16 +246,37 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
 
       <DialogContent className="mt-4">
         <Box className="space-y-4">
-          <TextField
-            label="Name"
-            fullWidth
-            value={formData.name}
-            onChange={handleChange('name')}
-            error={!!errors.name}
-            helperText={errors.name || 'e.g., Professional Tone, Friendly Assistant'}
-            disabled={isSaving}
-            required
-          />
+          <Box>
+            <Typography variant="body2" className="mb-3 text-gray-600 dark:text-slate-400">
+              Create one reusable prompt layer. You can combine identity, tone, values, and rules
+              when building an agent.
+            </Typography>
+          </Box>
+
+          <Box className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <TextField
+              label="Name"
+              fullWidth
+              value={formData.name}
+              onChange={handleChange('name')}
+              error={!!errors.name}
+              helperText={errors.name || 'e.g., Friendly Tone, Risk-Aware Advisor'}
+              disabled={isSaving}
+              required
+            />
+
+            <FormControl fullWidth error={!!errors.layer} disabled={isSaving} required>
+              <InputLabel>Layer</InputLabel>
+              <Select label="Layer" value={formData.layer} onChange={handleLayerChange}>
+                {CHARACTERISTIC_LAYERS.map((layer) => (
+                  <MenuItem key={layer.value} value={layer.value}>
+                    {layer.label}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>{errors.layer || selectedLayer?.helper}</FormHelperText>
+            </FormControl>
+          </Box>
 
           <TextField
             label="Code"
@@ -181,15 +284,23 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
             value={formData.code}
             onChange={handleChange('code')}
             error={!!errors.code}
-            helperText={
-              errors.code || 'Unique identifier (auto-generated from name, lowercase_with_underscores)'
-            }
+            helperText={errors.code || 'Unique identifier, auto-generated from name'}
             disabled={isSaving}
             required
           />
 
           <TextField
-            label="Behavior Definition"
+            label="Description"
+            fullWidth
+            value={formData.description || ''}
+            onChange={handleChange('description')}
+            error={!!errors.description}
+            helperText={errors.description || 'Short note shown when selecting characteristics'}
+            disabled={isSaving}
+          />
+
+          <TextField
+            label="Prompt"
             fullWidth
             multiline
             rows={8}
@@ -197,12 +308,11 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
             onChange={handleChange('prompt')}
             error={!!errors.prompt}
             helperText={
-              errors.prompt ||
-              'Define how the agent should behave when this characteristic is applied'
+              errors.prompt || 'This prompt block will be injected under the selected layer'
             }
             disabled={isSaving}
             required
-            placeholder="Example: You are a professional communicator who maintains a formal tone. Always be concise, accurate, and respectful in your responses..."
+            placeholder={selectedLayer?.placeholder}
           />
         </Box>
       </DialogContent>

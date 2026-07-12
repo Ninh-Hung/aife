@@ -16,7 +16,7 @@ export const NotFoundPage: React.FC = () => {
   const location = useLocation();
 
   const handleGoHome = () => {
-    navigate('/dashboard');
+    navigate('/new-chat');
   };
 
   const handleGoBack = () => {
@@ -48,21 +48,19 @@ export const NotFoundPage: React.FC = () => {
       {/* Requested path */}
       {location.pathname && (
         <div className="mb-8 mt-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-800/60">
-          <p className="font-mono text-sm text-gray-400 dark:text-slate-500">
-            {location.pathname}
-          </p>
+          <p className="font-mono text-sm text-gray-400 dark:text-slate-500">{location.pathname}</p>
         </div>
       )}
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        {/* Go to Dashboard */}
+        {/* Go to New Chat */}
         <button
           onClick={handleGoHome}
           className="flex items-center justify-center gap-2 rounded-lg bg-blue-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-600 active:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
         >
           <Home className="h-4 w-4" />
-          Go to Dashboard
+          Go to New Chat
         </button>
 
         {/* Go Back */}

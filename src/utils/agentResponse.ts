@@ -1,0 +1,144 @@
+export interface ParsedAgentResponse {
+  content: string;
+  reasoning: string | null;
+}
+
+const REASONING_TAGS = ['think', 'thinking', 'reasoning', 'thought', 'analysis'];
+const REASONING_KEYS = [
+  'reasoning_content',
+  'reasoningContent',
+  'thinking',
+  'reasoning',
+  'thought',
+  'thoughts',
+  'analysis',
+];
+const CONTENT_KEYS = [
+  'answer',
+  'finalAnswer',
+  'final_answer',
+  'response',
+  'content',
+  'text',
+  'message',
+];
+
+const normalize = (value: string) => value.replace(/\n{3,}/g, '\n\n').trim();
+
+const stringifyValue = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return '';
+  return JSON.stringify(value, null, 2);
+};
+
+const parseJsonResponse = (rawContent: string): ParsedAgentResponse | null => {
+  const trimmed = rawContent.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const gatewayChoice = getGatewayChoiceMessage(parsed);
+
+    if (gatewayChoice) {
+      return gatewayChoice;
+    }
+
+    const reasoningKey = REASONING_KEYS.find((key) => typeof parsed[key] === 'string');
+    const contentKey = CONTENT_KEYS.find((key) => parsed[key] !== undefined);
+
+    if (!reasoningKey || !contentKey) return null;
+
+    return {
+      reasoning: normalize(stringifyValue(parsed[reasoningKey])),
+      content: normalize(stringifyValue(parsed[contentKey])),
+    };
+  } catch {
+    return null;
+  }
+};
+
+const getGatewayChoiceMessage = (parsed: Record<string, unknown>): ParsedAgentResponse | null => {
+  const result = isRecord(parsed.result) ? parsed.result : parsed;
+  const choices = Array.isArray(result.choices) ? result.choices : null;
+  const firstChoice = choices?.[0];
+
+  if (!isRecord(firstChoice) || !isRecord(firstChoice.message)) return null;
+
+  const message = firstChoice.message;
+  const reasoningKey = REASONING_KEYS.find((key) => typeof message[key] === 'string');
+  const contentKey = CONTENT_KEYS.find((key) => message[key] !== undefined);
+
+  if (!reasoningKey || !contentKey) return null;
+
+  return {
+    reasoning: normalize(stringifyValue(message[reasoningKey])),
+    content: normalize(stringifyValue(message[contentKey])),
+  };
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const parseTaggedResponse = (rawContent: string): ParsedAgentResponse | null => {
+  let content = rawContent;
+  const reasoningParts: string[] = [];
+
+  for (const tag of REASONING_TAGS) {
+    const tagPattern = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)(?:<\\/${tag}>|$)`, 'gi');
+
+    content = content.replace(tagPattern, (_match, reasoning: string) => {
+      const normalizedReasoning = normalize(reasoning);
+      if (normalizedReasoning) {
+        reasoningParts.push(normalizedReasoning);
+      }
+      return '';
+    });
+  }
+
+  if (reasoningParts.length === 0) return null;
+
+  return {
+    reasoning: normalize(reasoningParts.join('\n\n')),
+    content: normalize(content),
+  };
+};
+
+const parseLabeledResponse = (rawContent: string): ParsedAgentResponse | null => {
+  const startPattern =
+    /^\s*(?:#{1,6}\s*)?(?:\*\*)?(thinking|thought process|reasoning)(?:\*\*)?\s*:\s*/i;
+  const answerPattern =
+    /\n\s*(?:#{1,6}\s*)?(?:\*\*)?(answer|final answer|response)(?:\*\*)?\s*:\s*/i;
+  const startMatch = rawContent.match(startPattern);
+
+  if (!startMatch) return null;
+
+  const startIndex = startMatch[0].length;
+  const afterStart = rawContent.slice(startIndex);
+  const answerMatch = afterStart.match(answerPattern);
+
+  if (!answerMatch || answerMatch.index === undefined) return null;
+
+  return {
+    reasoning: normalize(afterStart.slice(0, answerMatch.index)),
+    content: normalize(afterStart.slice(answerMatch.index + answerMatch[0].length)),
+  };
+};
+
+export const parseAgentResponse = (rawContent: string): ParsedAgentResponse => {
+  const parsed =
+    parseJsonResponse(rawContent) ||
+    parseTaggedResponse(rawContent) ||
+    parseLabeledResponse(rawContent);
+
+  if (!parsed || !parsed.reasoning) {
+    return {
+      reasoning: null,
+      content: rawContent,
+    };
+  }
+
+  return {
+    reasoning: parsed.reasoning,
+    content: parsed.content,
+  };
+};

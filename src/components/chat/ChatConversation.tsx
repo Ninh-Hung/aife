@@ -40,7 +40,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   }, [messages]);
 
   return (
-    <div className="flex h-full flex-1 flex-col">
+    <div className="flex h-full min-w-0 flex-1 flex-col">
       {/* Header - Fixed Height */}
       <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center gap-3">
@@ -78,7 +78,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
       </div>
 
       {/* Messages Area - Flex 1, Scrollable */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">
         {messages.length === 0 ? (
           // Empty State - Centered in available space
           <div className="flex h-full items-center justify-center p-8">
@@ -90,14 +90,14 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
                 Start a conversation
               </h3>
               <p className="max-w-md text-sm text-gray-600 dark:text-slate-400">
-                Send a message to start chatting with {agent.name}. Your conversation will be
-                saved for future reference.
+                Send a message to start chatting with {agent.name}. Your conversation will be saved
+                for future reference.
               </p>
             </div>
           </div>
         ) : (
           // Messages List - With proper padding
-          <div className="mx-auto max-w-4xl px-4 py-4">
+          <div className="w-full px-4 py-4">
             {messages.map((message) => (
               <MessageBubble
                 key={message.id}

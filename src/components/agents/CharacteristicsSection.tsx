@@ -20,6 +20,24 @@ import { Characteristic } from '../../types';
 import { listCharacteristics } from '../../services/api';
 import { CreateCharacteristicModal } from './CreateCharacteristicModal';
 
+const LAYER_LABELS: Record<string, string> = {
+  identity: 'Identity',
+  tone_style: 'Tone & Style',
+  values: 'Values',
+  behavior: 'Behavior',
+  constraints: 'Constraints',
+  domain: 'Domain',
+};
+
+const LAYER_STYLES: Record<string, string> = {
+  identity: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  tone_style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  values: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  behavior: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+  constraints: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  domain: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+};
+
 // ============================================
 // Props Interface
 // ============================================
@@ -91,6 +109,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
 
   const renderCharacteristicItem = (characteristic: Characteristic) => {
     const selected = isSelected(characteristic);
+    const layer = characteristic.layer || 'behavior';
 
     return (
       <Box
@@ -112,7 +131,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
             sx={{ mt: -1 }}
           />
           <Box className="flex-1">
-            <Box className="flex items-center gap-2">
+            <Box className="flex flex-wrap items-center gap-2">
               <Typography
                 variant="subtitle1"
                 className={`font-semibold ${
@@ -124,7 +143,12 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
                 {characteristic.name}
               </Typography>
               <Chip
-                label={characteristic.isSystem ? 'System' : 'User'}
+                label={LAYER_LABELS[layer] || layer}
+                size="small"
+                className={LAYER_STYLES[layer] || LAYER_STYLES.domain}
+              />
+              <Chip
+                label={characteristic.isSystem ? 'System' : 'Mine'}
                 size="small"
                 className={
                   characteristic.isSystem
@@ -136,6 +160,20 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
             <Typography variant="caption" className="mt-1 text-gray-500 dark:text-slate-500">
               Code: {characteristic.code}
             </Typography>
+            {(characteristic.description || characteristic.prompt) && (
+              <Typography
+                variant="body2"
+                className="mt-2 text-gray-600 dark:text-slate-400"
+                sx={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {characteristic.description || characteristic.prompt}
+              </Typography>
+            )}
           </Box>
         </Box>
       </Box>

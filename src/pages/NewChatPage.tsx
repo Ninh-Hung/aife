@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
+import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { createChatSession, listAgents } from '../services/api';
 import type { Agent, ChatSession } from '../types';
 
@@ -16,6 +17,7 @@ const NewChatPage: React.FC = () => {
   const navigate = useNavigate();
   const { agents, loading } = useAgents();
   const { error: showError } = useNotification();
+  const { addOrUpdateConversation } = useSidebarConversations();
   const [isStartingChat, setIsStartingChat] = useState(false);
 
   const resolveAgent = async (selectedAgent?: Agent | null): Promise<Agent | null> => {
@@ -51,6 +53,8 @@ const NewChatPage: React.FC = () => {
           throw new Error(sessionResponse.error || 'Failed to create chat session');
         }
 
+        addOrUpdateConversation(sessionResponse.data);
+
         navigate(`/chat/${sessionResponse.data.id}`, {
           state: { initialMessage: message, initialFile: file ?? null },
         });
@@ -71,6 +75,8 @@ const NewChatPage: React.FC = () => {
       if (!sessionId) {
         throw new Error('Created chat session is missing publicId');
       }
+
+      addOrUpdateConversation(session);
 
       // Navigate inside the protected layout so the global sidebar stays mounted.
       navigate(`/chat/${sessionId}`, {

@@ -8,6 +8,7 @@ interface UseChatAgentOptions {
   agentPublicId: string;
   sessionId: number | null;
   mode?: 'cheap' | 'normal' | 'premium' | 'fast' | 'smart' | 'expensive';
+  capability?: 'chat' | 'image_to_text' | 'text_to_image' | 'translation';
   enabled?: boolean;
 }
 
@@ -16,6 +17,7 @@ interface ChatMessage {
   sessionId: string;
   role: 'user' | 'agent';
   content: string;
+  reasoning?: string | null;
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
 }
@@ -66,6 +68,7 @@ export function useChatAgent({
   agentPublicId,
   sessionId,
   mode = 'normal',
+  capability = 'chat',
   enabled = true,
 }: UseChatAgentOptions) {
   const [isSocketOpen, setIsSocketOpen] = useState(false);
@@ -178,23 +181,45 @@ export function useChatAgent({
     return '';
   }, []);
 
+  const extractReasoning = useCallback((message: UIMessage): string | null => {
+    const raw = message as unknown as {
+      parts?: Array<{ type: string; text?: string }>;
+    };
+
+    if (!Array.isArray(raw.parts)) return null;
+
+    const reasoning = raw.parts
+      .filter((part) => part.type === 'reasoning' && part.text?.trim())
+      .map((part) => part.text?.trim() ?? '')
+      .join('\n\n')
+      .trim();
+
+    return reasoning || null;
+  }, []);
+
   const messages: ChatMessage[] = useMemo(() => {
     if (!shouldConnect) return [];
 
     return (agentMessages || [])
-      .map((msg) => ({
-        id: msg.id || `${msg.role}-${Date.now()}`,
-        sessionId: String(sessionId ?? ''),
-        role: msg.role === 'user' ? ('user' as const) : ('agent' as const),
-        content: extractText(msg),
-        timestamp: new Date(),
-        status:
-          chatStatus === 'submitted' && msg.role === 'user'
-            ? ('sending' as const)
-            : ('sent' as const),
-      }))
-      .filter((msg) => msg.content.trim().length > 0);
-  }, [agentMessages, chatStatus, extractText, sessionId, shouldConnect]);
+      .map((msg) => {
+        const content = extractText(msg);
+        const reasoning = extractReasoning(msg);
+
+        return {
+          id: msg.id || `${msg.role}-${Date.now()}`,
+          sessionId: String(sessionId ?? ''),
+          role: msg.role === 'user' ? ('user' as const) : ('agent' as const),
+          content,
+          reasoning,
+          timestamp: new Date(),
+          status:
+            chatStatus === 'submitted' && msg.role === 'user'
+              ? ('sending' as const)
+              : ('sent' as const),
+        };
+      })
+      .filter((msg) => msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim()));
+  }, [agentMessages, chatStatus, extractReasoning, extractText, sessionId, shouldConnect]);
 
   const sendMessage = useCallback(
     async (content: string, files?: File[]) => {
@@ -218,10 +243,11 @@ export function useChatAgent({
           agentPublicId,
           sessionId,
           mode,
+          capability,
         },
       });
     },
-    [agent.ready, agentPublicId, agentSendMessage, mode, sessionId, shouldConnect]
+    [agent.ready, agentPublicId, agentSendMessage, capability, mode, sessionId, shouldConnect]
   );
 
   const isAgentConnected = shouldConnect && isSocketOpen && agent.identified;

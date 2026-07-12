@@ -113,12 +113,25 @@ export interface Capability {
 // ============================================
 
 export type CharacteristicScope = 'system' | 'user' | 'project' | 'all';
+export type CharacteristicLayer =
+  | 'identity'
+  | 'tone_style'
+  | 'values'
+  | 'behavior'
+  | 'constraints'
+  | 'domain';
 
 export interface Characteristic {
   publicId: string;
   code: string;
   name: string;
+  description?: string | null;
+  layer: CharacteristicLayer | string;
   prompt: string;
+  sortOrder?: number;
+  priority?: number;
+  status?: string;
+  visibility?: string;
   isSystem: boolean;
   userId?: number;
   projectId?: number;
@@ -129,7 +142,11 @@ export interface Characteristic {
 export interface CreateCharacteristicInput {
   code: string;
   name: string;
+  description?: string;
+  layer: CharacteristicLayer;
   prompt: string;
+  sortOrder?: number;
+  status?: 'published';
   projectId?: number;
 }
 
@@ -379,6 +396,7 @@ export interface ChatMessage {
   sessionId: string;
   role: 'user' | 'agent';
   content: string;
+  reasoning?: string | null;
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
 }

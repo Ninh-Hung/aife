@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Plus, MessageSquare, MoreVertical, Share2, Pencil, Archive, Trash2 } from 'lucide-react';
 import {
   Button,
+  CircularProgress,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -29,6 +30,8 @@ interface ChatSessionsListProps {
   onRename?: (sessionId: string, newTitle: string) => void;
   onArchive?: (sessionId: string) => void;
   onDelete?: (sessionId: string) => void;
+  embedded?: boolean;
+  isLoading?: boolean;
 }
 
 export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
@@ -40,6 +43,8 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
   onRename,
   onArchive,
   onDelete,
+  embedded = false,
+  isLoading = false,
 }) => {
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -139,40 +144,54 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
   };
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+    <div
+      className={`flex flex-col ${
+        embedded
+          ? 'h-full w-full bg-transparent'
+          : 'h-full w-64 border-r border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800'
+      }`}
+    >
       {/* Header */}
-      <div className="border-b border-gray-200 p-4 dark:border-slate-700">
-        <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-slate-100">
-          Chat Sessions
-        </h2>
-        <Button
-          variant="contained"
-          fullWidth
-          startIcon={<Plus size={18} />}
-          onClick={onNewChat}
-          className="bg-[#3B82F6] text-white hover:bg-[#2563EB]"
-        >
-          New Chat
-        </Button>
-      </div>
+      {!embedded && (
+        <div className="border-b border-gray-200 p-4 dark:border-slate-700">
+          <h2 className="mb-3 text-lg font-semibold text-gray-900 dark:text-slate-100">
+            Chat Sessions
+          </h2>
+          <Button
+            variant="contained"
+            fullWidth
+            startIcon={<Plus size={18} />}
+            onClick={onNewChat}
+            className="bg-[#3B82F6] text-white hover:bg-[#2563EB]"
+          >
+            New Chat
+          </Button>
+        </div>
+      )}
 
       {/* Sessions List */}
       <div className="flex-1 overflow-y-auto">
-        {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
+        {isLoading ? (
+          <div className="flex items-center justify-center px-4 py-6">
+            <CircularProgress size={18} />
+          </div>
+        ) : sessions.length === 0 ? (
+          <div
+            className={`flex flex-col items-center justify-center text-center ${
+              embedded ? 'px-4 py-6' : 'p-8'
+            }`}
+          >
             <MessageSquare
-              size={48}
+              size={embedded ? 32 : 48}
               className="mb-3 text-gray-300 dark:text-slate-600"
             />
-            <p className="text-sm text-gray-500 dark:text-slate-400">
-              No chat sessions yet
-            </p>
+            <p className="text-sm text-gray-500 dark:text-slate-400">No chat sessions yet</p>
             <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
               Start a new chat to begin
             </p>
           </div>
         ) : (
-          <div className="py-2">
+          <div className={embedded ? 'pb-2' : 'py-2'}>
             {sessions.map((session) => (
               <div
                 key={session.id}
@@ -185,7 +204,7 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
                 {/* Clickable session area */}
                 <button
                   onClick={() => onSessionSelect(session.id)}
-                  className="min-w-0 flex-1 px-4 py-3 text-left"
+                  className={`min-w-0 flex-1 text-left ${embedded ? 'px-5 py-2.5' : 'px-4 py-3'}`}
                 >
                   {/* Session Title */}
                   <div className="mb-1 truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
