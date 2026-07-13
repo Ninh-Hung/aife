@@ -5,6 +5,7 @@
 
 import { AxiosError } from 'axios';
 import axiosInstance from '../lib/axios';
+import type { Language } from '../types';
 
 // ============================================
 // API Response Types
@@ -16,6 +17,92 @@ export interface ApiResponse<T = unknown> {
   message?: string;
   error?: string;
 }
+
+export interface TranslateTextInput {
+  text: string;
+  sourceLang?: string;
+  targetLang: string[];
+  agentPublicId?: string;
+}
+
+export interface TranslateTextResponse {
+  source: {
+    text: string;
+    lang: string;
+    detected: boolean;
+  };
+  translations: Array<{
+    lang: string;
+    text: string;
+    status?: string;
+  }>;
+  usage: {
+    model: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    costInCredits?: number;
+    cacheHit: boolean;
+  };
+  requestId: string;
+  capabilityCode: string;
+  entrypoint: string;
+  quota: {
+    remaining: number;
+    limit?: number;
+    resetAt?: string;
+  };
+}
+
+export const translateText = async (
+  input: TranslateTextInput
+): Promise<ApiResponse<TranslateTextResponse>> => {
+  try {
+    const response = await axiosInstance.post('/v1/translate', input);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Translate text error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Translation failed',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+export const getSupportedLanguages = async (): Promise<ApiResponse<Language[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/common/supported-languages');
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Get supported languages error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load supported languages',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
 
 // ============================================
 // Email Verification API

@@ -205,7 +205,7 @@ export interface Language {
   code: string; // ISO 639-1 code (e.g., 'en', 'fr', 'ja')
   name: string; // Display name (e.g., 'English', 'French', 'Japanese')
   nativeName: string; // Native name (e.g., 'English', 'Français', '日本語')
-  flag?: string; // Emoji flag or icon
+  countryCode?: string; // ISO 3166-1 alpha-2 code used for flag image URLs
 }
 
 // ============================================
@@ -213,19 +213,19 @@ export interface Language {
 // ============================================
 
 export const SUPPORTED_LANGUAGES: Language[] = [
-  { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
-  { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
-  { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' },
-  { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵' },
-  { code: 'ko', name: 'Korean', nativeName: '한국어', flag: '🇰🇷' },
-  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', flag: '🇻🇳' },
-  { code: 'zh', name: 'Chinese', nativeName: '中文', flag: '🇨🇳' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'en', name: 'English', nativeName: 'English', countryCode: 'gb' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', countryCode: 'es' },
+  { code: 'fr', name: 'French', nativeName: 'Français', countryCode: 'fr' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch', countryCode: 'de' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano', countryCode: 'it' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português', countryCode: 'pt' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский', countryCode: 'ru' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語', countryCode: 'jp' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어', countryCode: 'kr' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', countryCode: 'vn' },
+  { code: 'zh', name: 'Chinese', nativeName: '中文', countryCode: 'cn' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', countryCode: 'sa' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', countryCode: 'in' },
 ];
 
 // ============================================

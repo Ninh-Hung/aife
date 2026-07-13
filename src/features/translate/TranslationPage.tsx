@@ -1,26 +1,30 @@
 /**
  * Translation Workspace Page
- * Features: Agent Selection, Source Input, Multi-language Results Grid
+ * Features: source text input, target language selection, multi-language results.
  */
 
 import {
+  Alert,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
-  FormControl,
+  Checkbox,
+  Chip,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Select,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { FileText, Mic, Upload } from 'lucide-react';
-import React, { useState } from 'react';
+import { ChevronDown, FileText, Languages, Mic, Upload } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ResultCard } from '../../components/translate/ResultCard';
+import { getSupportedLanguages, translateText } from '../../services/api';
 import { Agent, Language, SUPPORTED_LANGUAGES, TranslationResult } from '../../types';
-
-// ============================================
-// Props Interface
-// ============================================
 
 interface TranslationPageProps {
   agents: Agent[];
@@ -28,206 +32,305 @@ interface TranslationPageProps {
   selectedAgentId?: string;
 }
 
-// ============================================
-// TranslationPage Component
-// ============================================
-
 export const TranslationPage: React.FC<TranslationPageProps> = ({
   agents,
   onCreateAgent: _onCreateAgent,
   selectedAgentId: propSelectedAgentId,
 }) => {
-  const [selectedAgentId] = useState<string>(
-    propSelectedAgentId || agents.find((a) => a.isDefault)?.id || agents[0]?.id || ''
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    propSelectedAgentId || agents.find((agent) => agent.isDefault)?.id || agents[0]?.id || ''
   );
   const [sourceText, setSourceText] = useState('');
-  const [detectedLanguage, setDetectedLanguage] = useState<Language | null>(null);
-  const [targetLanguages] = useState<Language[]>([
-    SUPPORTED_LANGUAGES[0], // English
-    SUPPORTED_LANGUAGES[9], // Vietnamese
-    SUPPORTED_LANGUAGES[8], // Korean
-  ]);
+  const [selectedTargetCodes, setSelectedTargetCodes] = useState<string[]>(['en', 'vi', 'ko']);
+  const [supportedLanguages, setSupportedLanguages] = useState<Language[]>(SUPPORTED_LANGUAGES);
   const [results, setResults] = useState<TranslationResult[]>([]);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [sourceLanguage, setSourceLanguage] = useState<string>('auto');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const selectedAgent = agents.find((a) => a.id === selectedAgentId);
+  const selectedAgent = agents.find((agent) => agent.id === selectedAgentId);
+  const selectedTargets = useMemo(
+    () => supportedLanguages.filter((language) => selectedTargetCodes.includes(language.code)),
+    [selectedTargetCodes, supportedLanguages]
+  );
 
-  // ============================================
-  // Handlers
-  // ============================================
+  const findLanguage = (code: string): Language =>
+    supportedLanguages.find((language) => language.code === code) || {
+      code,
+      name: code.toUpperCase(),
+      nativeName: code.toUpperCase(),
+    };
 
-  const handleSourceTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = event.target.value;
-    setSourceText(text);
+  useEffect(() => {
+    let isMounted = true;
 
-    // Simple language detection (in production, use a real API)
-    if (text.trim()) {
-      // Mock detection - defaults to English
-      setDetectedLanguage(SUPPORTED_LANGUAGES[0]);
-    } else {
-      setDetectedLanguage(null);
-    }
+    const loadSupportedLanguages = async () => {
+      const response = await getSupportedLanguages();
+      if (isMounted && response.success && response.data && response.data.length > 0) {
+        setSupportedLanguages(response.data);
+      }
+    };
+
+    void loadSupportedLanguages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const getFlagUrl = (language: Language) =>
+    language.countryCode ? `https://flagcdn.com/24x18/${language.countryCode}.png` : null;
+
+  const renderLanguageLabel = (language: Language) => {
+    const flagUrl = getFlagUrl(language);
+
+    return (
+      <Box className="flex min-w-0 items-center gap-2">
+        {flagUrl ? (
+          <Box
+            component="img"
+            src={flagUrl}
+            alt=""
+            className="h-[14px] w-[20px] rounded-sm object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <Box className="flex h-[18px] w-[24px] items-center justify-center rounded-sm bg-gray-200 text-[10px] font-semibold text-gray-700 dark:bg-slate-600 dark:text-slate-100">
+            {language.code.toUpperCase()}
+          </Box>
+        )}
+        <Box className="min-w-0">
+          <Typography variant="body2" className="truncate text-gray-900 dark:text-white">
+            {language.name}
+          </Typography>
+          <Typography variant="caption" className="block truncate text-gray-500 dark:text-slate-400">
+            {language.nativeName}
+          </Typography>
+        </Box>
+      </Box>
+    );
   };
 
-  const handleTranslate = async () => {
-    if (!sourceText.trim() || !selectedAgent) return;
+  const toggleTargetLanguage = (code: string) => {
+    setSelectedTargetCodes((current) => {
+      if (current.includes(code)) {
+        return current.filter((item) => item !== code);
+      }
+      return [...current, code];
+    });
+  };
 
-    setIsTranslating(true);
-
-    // Create initial pending results
-    const newResults: TranslationResult[] = targetLanguages.map((lang, index) => ({
-      id: `result-${Date.now()}-${index}`,
-      targetLanguage: lang,
+  const buildPendingResults = (): TranslationResult[] =>
+    selectedTargets.map((language) => ({
+      id: `result-${Date.now()}-${language.code}`,
+      targetLanguage: language,
       translatedText: '',
       sourceText,
-      sourceLanguage: detectedLanguage || SUPPORTED_LANGUAGES[0],
+      sourceLanguage: findLanguage('en'),
       agentId: selectedAgentId,
-      status: 'processing' as const,
+      status: 'processing',
       createdAt: new Date(),
     }));
 
-    setResults(newResults);
+  const handleTranslate = async () => {
+    const text = sourceText.trim();
+    if (!text || selectedTargets.length === 0) return;
 
-    // Simulate translation API calls (replace with actual API)
-    try {
-      const translatedResults = await Promise.all(
-        newResults.map(async (result) => {
-          // Simulate API delay
-          await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
+    setIsTranslating(true);
+    setErrorMessage(null);
+    setResults(buildPendingResults());
 
-          // Mock translation (in production, call actual translation API)
-          return {
-            ...result,
-            translatedText: `[${result.targetLanguage.name}] ${sourceText}`,
-            status: 'completed' as const,
-          };
-        })
-      );
+    const response = await translateText({
+      text,
+      targetLang: selectedTargets.map((language) => language.code),
+      agentPublicId: selectedAgent?.publicId,
+    });
 
-      setResults(translatedResults);
-    } catch (error) {
-      console.error('Translation failed:', error);
-      setResults((prev) => prev.map((r) => ({ ...r, status: 'failed' as const })));
-    } finally {
+    if (!response.success || !response.data) {
+      setErrorMessage(response.error || 'Translation failed');
+      setResults((current) => current.map((result) => ({ ...result, status: 'failed' })));
       setIsTranslating(false);
+      return;
     }
-  };
 
-  // ============================================
-  // Render
-  // ============================================
+    const translatedResults: TranslationResult[] = response.data.translations.map((translation) => ({
+      id: `${response.data?.requestId}-${translation.lang}`,
+      targetLanguage: findLanguage(translation.lang),
+      translatedText: translation.text,
+      sourceText: response.data?.source.text || text,
+      sourceLanguage:
+        response.data?.source.lang && response.data.source.lang !== 'auto'
+          ? findLanguage(response.data.source.lang)
+          : findLanguage('en'),
+      agentId: selectedAgentId,
+      status: translation.status === 'failed' ? 'failed' : 'completed',
+      createdAt: new Date(),
+    }));
+
+    setResults(translatedResults);
+    setIsTranslating(false);
+  };
 
   return (
     <Box className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900">
-      {/* Main Content: Two Columns */}
-      <Box className="flex flex-1 gap-6 px-8 py-6">
-        {/* Left Column: Source Text Input */}
-        <Box className="w-[45%]">
-          <Box className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-            {/* Source Text Header */}
-            <Box className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
-              <Typography
-                variant="subtitle1"
-                className="font-semibold text-gray-900 dark:text-white"
-              >
-                Source Text
+      <Box className="grid flex-1 grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
+        <Box className="flex min-h-[640px] flex-col rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <Box className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-slate-700">
+            <Box className="flex items-center gap-2">
+              <Languages size={20} className="text-blue-600 dark:text-blue-400" />
+              <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
+                Source
               </Typography>
-              <Box className="flex items-center gap-2">
-                <FormControl size="small" className="min-w-[140px]">
-                  <Select
-                    value={sourceLanguage}
-                    onChange={(e) => setSourceLanguage(e.target.value)}
-                    className="bg-gray-100 text-sm text-gray-900 dark:bg-slate-700 dark:text-white"
-                    displayEmpty
-                  >
-                    <MenuItem value="auto">Auto Detect</MenuItem>
-                    {SUPPORTED_LANGUAGES.map((lang) => (
-                      <MenuItem key={lang.code} value={lang.code}>
-                        {lang.flag} {lang.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+            </Box>
+
+            <Box className="flex items-center gap-2">
+              {agents.length > 0 && (
+                <Select
+                  size="small"
+                  value={selectedAgentId}
+                  onChange={(event) => setSelectedAgentId(event.target.value)}
+                  className="min-w-[180px] bg-gray-100 text-sm text-gray-900 dark:bg-slate-700 dark:text-white"
+                >
+                  {agents.map((agent) => (
+                    <MenuItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              <Tooltip title="Voice input">
                 <IconButton
                   size="small"
                   className="text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-slate-700"
                 >
                   <Mic size={20} />
                 </IconButton>
-              </Box>
+              </Tooltip>
             </Box>
+          </Box>
 
-            {/* Text Area */}
-            <Box className="flex-1 p-4">
-              <TextField
-                multiline
-                fullWidth
-                placeholder="Enter your text to translate..."
-                value={sourceText}
-                onChange={handleSourceTextChange}
-                variant="standard"
-                InputProps={{
-                  disableUnderline: true,
-                  className: 'text-gray-900 dark:text-slate-300',
-                }}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    height: '100%',
-                    alignItems: 'flex-start',
-                  },
-                  '& textarea': {
-                    height: '100% !important',
-                    overflow: 'auto !important',
-                  },
-                }}
-              />
-            </Box>
+          <Box className="flex-1 p-4">
+            <TextField
+              multiline
+              fullWidth
+              placeholder="Enter text to translate"
+              value={sourceText}
+              onChange={(event) => setSourceText(event.target.value)}
+              variant="standard"
+              InputProps={{
+                disableUnderline: true,
+                className: 'text-gray-900 dark:text-slate-300',
+              }}
+              sx={{
+                height: '100%',
+                '& .MuiInputBase-root': {
+                  height: '100%',
+                  alignItems: 'flex-start',
+                },
+                '& textarea': {
+                  height: '100% !important',
+                  overflow: 'auto !important',
+                },
+              }}
+            />
+          </Box>
 
-            {/* Bottom Actions */}
-            <Box className="border-t border-gray-200 px-4 py-3 dark:border-slate-700">
-              <Box className="mb-3 flex items-center justify-between">
-                <Box className="flex gap-2">
-                  <Button
-                    size="small"
-                    startIcon={<Upload size={16} />}
-                    className="text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
-                  >
-                    Upload File
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<FileText size={16} />}
-                    className="text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
-                  >
-                    Paste
-                  </Button>
-                </Box>
-                <Typography variant="caption" className="text-gray-500 dark:text-slate-500">
-                  {sourceText.length} / 5000 characters
-                </Typography>
+          <Box className="border-t border-gray-200 px-4 py-3 dark:border-slate-700">
+            <Box className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <Box className="flex gap-2">
+                <Button size="small" startIcon={<Upload size={16} />} disabled>
+                  Upload File
+                </Button>
+                <Button size="small" startIcon={<FileText size={16} />} disabled>
+                  Paste
+                </Button>
               </Box>
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={handleTranslate}
-                disabled={!sourceText.trim() || isTranslating}
-                className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
-                size="large"
-              >
-                {isTranslating ? 'Translating...' : 'Translate'}
-              </Button>
+              <Typography variant="caption" className="text-gray-500 dark:text-slate-500">
+                {sourceText.length} / 5000 characters
+              </Typography>
             </Box>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleTranslate}
+              disabled={!sourceText.trim() || selectedTargets.length === 0 || isTranslating}
+              className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
+              size="large"
+            >
+              {isTranslating ? 'Translating...' : 'Translate'}
+            </Button>
           </Box>
         </Box>
 
-        {/* Right Column: Translations Stacked */}
-        <Box className="flex-1 overflow-y-auto">
-          <Box className="space-y-4">
+        <Box className="flex min-h-[640px] flex-col rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <Box className="flex min-h-[57px] items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
+            <Box className="flex min-w-0 items-center gap-2">
+              <Languages size={20} className="text-blue-600 dark:text-blue-400" />
+              <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
+                Response
+              </Typography>
+            </Box>
+          </Box>
+
+          <Accordion
+            disableGutters
+            className="border-b border-gray-200 bg-white shadow-none before:hidden dark:border-slate-700 dark:bg-slate-800"
+          >
+            <AccordionSummary
+              expandIcon={<ChevronDown size={18} />}
+              className="min-h-[56px] border-b border-gray-200 px-4 dark:border-slate-700"
+            >
+              <Box className="min-w-0">
+                <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
+                  Target Languages
+                </Typography>
+                <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                  {selectedTargets.length} selected
+                </Typography>
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails className="px-4 py-3">
+              <Box className="mb-3 flex flex-wrap gap-2">
+                {selectedTargets.map((language) => {
+                  const flagUrl = getFlagUrl(language);
+                  return (
+                    <Chip
+                      key={language.code}
+                      size="small"
+                      label={language.name}
+                      avatar={
+                        flagUrl ? (
+                          <Box component="img" src={flagUrl} alt="" className="h-[14px] w-[20px]" />
+                        ) : undefined
+                      }
+                    />
+                  );
+                })}
+              </Box>
+              <Box className="max-h-[260px] overflow-y-auto">
+                {supportedLanguages.map((language) => (
+                  <FormControlLabel
+                    key={language.code}
+                    className="m-0 flex w-full rounded px-1 py-1 hover:bg-gray-50 dark:hover:bg-slate-700"
+                    control={
+                      <Checkbox
+                        checked={selectedTargetCodes.includes(language.code)}
+                        onChange={() => toggleTargetLanguage(language.code)}
+                      />
+                    }
+                    label={renderLanguageLabel(language)}
+                  />
+                ))}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
+          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+
+          <Box className="flex-1 space-y-4 overflow-y-auto p-4">
             {results.length === 0 ? (
-              <Box className="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-800">
-                <Typography variant="body1" className="text-gray-500 dark:text-slate-500">
-                  Translation will appear here...
+              <Box className="flex h-full min-h-[240px] items-center justify-center text-center">
+                <Typography variant="body2" className="text-gray-500 dark:text-slate-500">
+                  Translation results will appear here.
                 </Typography>
               </Box>
             ) : (
