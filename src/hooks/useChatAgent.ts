@@ -230,22 +230,11 @@ export function useChatAgent({
           reasoning,
           sources,
           timestamp: new Date(),
-          status:
-            chatStatus === 'submitted' && msg.role === 'user'
-              ? ('sending' as const)
-              : ('sent' as const),
+          status: 'sent' as const,
         };
       })
       .filter((msg) => msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim()));
-  }, [
-    agentMessages,
-    chatStatus,
-    extractReasoning,
-    extractSources,
-    extractText,
-    sessionId,
-    shouldConnect,
-  ]);
+  }, [agentMessages, extractReasoning, extractSources, extractText, sessionId, shouldConnect]);
 
   const sendMessage = useCallback(
     async (content: string, files?: File[]) => {

@@ -64,6 +64,7 @@ type AuthUserData = {
 };
 
 const ANONYMOUS_AUTH_PROVIDER = 'ANONYMOUS';
+const ENABLE_SUBSCRIPTION_QUOTA_CHECKS = false;
 
 const isAnonymousUser = (user: User | null): boolean => {
   if (!user) {
@@ -208,6 +209,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
 
   useEffect(() => {
+    // Temporarily disabled: backend quota endpoint is not available in the current flow.
+    if (!ENABLE_SUBSCRIPTION_QUOTA_CHECKS) return;
     if (!user) return;
 
     const intervalId = setInterval(async () => {
@@ -287,6 +290,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
 
   const refreshQuota = async () => {
+    // Temporarily disabled: avoid calling GET /v1/subscriptions/quota.
+    if (!ENABLE_SUBSCRIPTION_QUOTA_CHECKS) return;
     if (!user) return;
 
     try {
@@ -307,6 +312,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
 
   const refreshSubscription = async () => {
+    // Temporarily disabled with quota checks while subscription gating is not active.
+    if (!ENABLE_SUBSCRIPTION_QUOTA_CHECKS) return;
     if (!user) return;
 
     try {

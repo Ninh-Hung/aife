@@ -15,6 +15,7 @@ interface ChatConversationProps {
   agent: Agent;
   messages: ChatMessage[];
   isLoading: boolean;
+  isInputDisabled?: boolean;
   onSendMessage: (content: string, files?: File[]) => void;
   onToggleInfo: () => void;
   /** Current user's avatar URL */
@@ -27,6 +28,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   agent,
   messages,
   isLoading,
+  isInputDisabled,
   onSendMessage,
   onToggleInfo,
   userAvatar,
@@ -82,18 +84,27 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
         {messages.length === 0 ? (
           // Empty State - Centered in available space
           <div className="flex h-full items-center justify-center p-8">
-            <div className="text-center">
-              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-slate-800">
-                <MessageSquare size={32} className="text-gray-400 dark:text-slate-500" />
+            {isLoading ? (
+              <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
+                <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
+                <span className="text-sm text-gray-600 dark:text-slate-400">
+                  thinking...
+                </span>
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
-                Start a conversation
-              </h3>
-              <p className="max-w-md text-sm text-gray-600 dark:text-slate-400">
-                Send a message to start chatting with {agent.name}. Your conversation will be saved
-                for future reference.
-              </p>
-            </div>
+            ) : (
+              <div className="text-center">
+                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-slate-800">
+                  <MessageSquare size={32} className="text-gray-400 dark:text-slate-500" />
+                </div>
+                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
+                  Start a conversation
+                </h3>
+                <p className="max-w-md text-sm text-gray-600 dark:text-slate-400">
+                  Send a message to start chatting with {agent.name}. Your conversation will be
+                  saved for future reference.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           // Messages List - With proper padding
@@ -124,7 +135,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
                 <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
                   <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
                   <span className="text-sm text-gray-600 dark:text-slate-400">
-                    {agent.name} is thinking...
+                    thinking...
                   </span>
                 </div>
               </div>
@@ -140,7 +151,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
       <div className="flex-shrink-0">
         <MessageInput
           onSend={onSendMessage}
-          disabled={isLoading}
+          disabled={isInputDisabled ?? isLoading}
           placeholder={`Message ${agent.name}...`}
         />
       </div>

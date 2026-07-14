@@ -14,7 +14,7 @@ import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
-import { getChatSession, listChatMessages, updateChatSession, getAgent } from '../services/api';
+import { getChatSession, listChatMessages, getAgent } from '../services/api';
 
 const TEMP_CHAT_AGENT_PUBLIC_ID = '__temporary-agent__';
 
@@ -26,6 +26,7 @@ export const ChatScreen: React.FC = () => {
   const { error: showError } = useNotification();
   const { sessions, addOrUpdateConversation } = useSidebarConversations();
   const initialSendRef = useRef(false);
+  const lastSyncedAgentMessageRef = useRef<string | null>(null);
   const initialState = location.state as {
     initialMessage?: string;
     initialFile?: File | null;
@@ -64,15 +65,39 @@ export const ChatScreen: React.FC = () => {
   const shouldShowThinkingIndicator = isAwaitingResponse && latestMessage?.role !== 'agent';
 
   useEffect(() => {
-    if (agentMessages.length > 0 && agentMessages[agentMessages.length - 1].role === 'agent') {
-      setIsAwaitingResponse(false);
+    const latestAgentMessage = agentMessages[agentMessages.length - 1];
+    if (!latestAgentMessage || latestAgentMessage.role !== 'agent' || !activeSessionId) {
+      return;
     }
-  }, [agentMessages]);
+
+    setIsAwaitingResponse(false);
+
+    if (lastSyncedAgentMessageRef.current === latestAgentMessage.id) {
+      return;
+    }
+    lastSyncedAgentMessageRef.current = latestAgentMessage.id;
+
+    let cancelled = false;
+    void getChatSession(activeSessionId)
+      .then((response) => {
+        if (!cancelled && response.success && response.data) {
+          addOrUpdateConversation(response.data);
+        }
+      })
+      .catch(() => {
+        // Session title sync is non-critical; the next sidebar refresh will pick it up.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, addOrUpdateConversation, agentMessages]);
 
   // Reset thinking indicator when switching sessions
   useEffect(() => {
     setIsAwaitingResponse(false);
     initialSendRef.current = false;
+    lastSyncedAgentMessageRef.current = null;
   }, [activeSessionId]);
 
   // ============================================
@@ -238,41 +263,33 @@ export const ChatScreen: React.FC = () => {
 
   const handleSendMessage = useCallback(
     async (content: string, files?: File[]) => {
+      if (!content.trim() && (!files || files.length === 0)) {
+        return;
+      }
+
       if (!isConnected || !activeSessionId) {
         showError('Not connected to agent. Please wait...');
         return;
       }
 
+      setIsAwaitingResponse(true);
+
       try {
         // Send message via WebSocket - agent handles everything
         await agentSendMessage(content, files);
-        setIsAwaitingResponse(true);
 
-        // Compute new title before updating state so we can persist it
         const currentSession = sessions.find((s) => s.id === activeSessionId);
-        const needsTitleUpdate =
-          currentSession?.title === 'New Chat' || currentSession?.title.startsWith('Chat with');
-        const newTitle = needsTitleUpdate
-          ? content.substring(0, 30) + (content.length > 30 ? '...' : '')
-          : (currentSession?.title ?? '');
-
-        // Persist title change to backend so it survives page reload
-        if (needsTitleUpdate && newTitle) {
-          updateChatSession(activeSessionId, { title: newTitle }).catch(() => {
-            // Title update failure is non-critical; session and messages are unaffected
-          });
-        }
 
         if (currentSession) {
           addOrUpdateConversation({
             ...currentSession,
             lastMessage: content.substring(0, 50),
             lastMessageAt: new Date(),
-            title: needsTitleUpdate ? newTitle : currentSession.title,
             updatedAt: new Date(),
           });
         }
       } catch (err) {
+        setIsAwaitingResponse(false);
         showError(err instanceof Error ? err.message : 'Failed to send message');
       }
     },
@@ -339,7 +356,8 @@ export const ChatScreen: React.FC = () => {
         <ChatConversation
           agent={agent}
           messages={allMessages}
-          isLoading={isConnecting || shouldShowThinkingIndicator}
+          isLoading={shouldShowThinkingIndicator}
+          isInputDisabled={isConnecting || shouldShowThinkingIndicator}
           onSendMessage={handleSendMessage}
           onToggleInfo={handleToggleInfo}
         />
