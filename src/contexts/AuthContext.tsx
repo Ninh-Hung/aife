@@ -5,8 +5,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { User, UserQuota, SubscriptionInfo } from '../types';
-import axiosInstance, { setAccessToken, clearAccessToken } from '../lib/axios';
-import { AxiosError } from 'axios';
+import axiosInstance, { setAccessToken, clearAccessToken, refreshAccessToken } from '../lib/axios';
+import type { AxiosError } from 'axios';
 import { getQuota, getSubscription } from '../services/quota.service';
 
 // ============================================
@@ -162,14 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         try {
           // Attempt to refresh access token using HttpOnly refresh token
-          const response = await axiosInstance.post('/auth/refresh');
-          console.log('[AuthContext] Refresh response:', response.data);
-
-          if (!response.data.success || !response.data.data?.accessToken) {
-            throw new Error('Refresh response invalid format');
-          }
-
-          setAccessToken(response.data.data.accessToken);
+          await refreshAccessToken();
           console.log('[AuthContext] Access token set successfully');
           await fetchAndApplyCurrentUser();
         } catch (refreshError) {

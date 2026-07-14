@@ -32,8 +32,8 @@ const stringifyValue = (value: unknown): string => {
 };
 
 const parseJsonResponse = (rawContent: string): ParsedAgentResponse | null => {
-  const trimmed = rawContent.trim();
-  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+  const trimmed = extractJsonText(rawContent);
+  if (!trimmed) return null;
 
   try {
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
@@ -46,15 +46,29 @@ const parseJsonResponse = (rawContent: string): ParsedAgentResponse | null => {
     const reasoningKey = REASONING_KEYS.find((key) => typeof parsed[key] === 'string');
     const contentKey = CONTENT_KEYS.find((key) => parsed[key] !== undefined);
 
-    if (!reasoningKey || !contentKey) return null;
+    if (!contentKey) return null;
 
     return {
-      reasoning: normalize(stringifyValue(parsed[reasoningKey])),
+      reasoning: reasoningKey ? normalize(stringifyValue(parsed[reasoningKey])) : null,
       content: normalize(stringifyValue(parsed[contentKey])),
     };
   } catch {
     return null;
   }
+};
+
+const extractJsonText = (rawContent: string): string | null => {
+  const trimmed = rawContent.trim();
+  const fencedJson = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fencedJson?.[1]) {
+    return fencedJson[1].trim();
+  }
+
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return trimmed;
+  }
+
+  return null;
 };
 
 const getGatewayChoiceMessage = (parsed: Record<string, unknown>): ParsedAgentResponse | null => {
@@ -68,10 +82,10 @@ const getGatewayChoiceMessage = (parsed: Record<string, unknown>): ParsedAgentRe
   const reasoningKey = REASONING_KEYS.find((key) => typeof message[key] === 'string');
   const contentKey = CONTENT_KEYS.find((key) => message[key] !== undefined);
 
-  if (!reasoningKey || !contentKey) return null;
+  if (!contentKey) return null;
 
   return {
-    reasoning: normalize(stringifyValue(message[reasoningKey])),
+    reasoning: reasoningKey ? normalize(stringifyValue(message[reasoningKey])) : null,
     content: normalize(stringifyValue(message[contentKey])),
   };
 };
@@ -130,7 +144,7 @@ export const parseAgentResponse = (rawContent: string): ParsedAgentResponse => {
     parseTaggedResponse(rawContent) ||
     parseLabeledResponse(rawContent);
 
-  if (!parsed || !parsed.reasoning) {
+  if (!parsed) {
     return {
       reasoning: null,
       content: rawContent,

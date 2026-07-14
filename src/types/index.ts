@@ -397,8 +397,15 @@ export interface ChatMessage {
   role: 'user' | 'agent';
   content: string;
   reasoning?: string | null;
+  sources?: ChatSource[];
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
+}
+
+export interface ChatSource {
+  marker: string;
+  url?: string;
+  title: string;
 }
 
 export interface SendMessageRequest {

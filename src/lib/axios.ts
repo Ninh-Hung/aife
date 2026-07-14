@@ -3,7 +3,7 @@
  * Configured with base URL, credentials, and interceptors for token management
  */
 
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 // ============================================
 // Axios Instance Configuration
@@ -12,6 +12,14 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_SERVER_URL,
   withCredentials: true, // Required for HttpOnly cookies (refresh token)
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+const refreshClient = axios.create({
+  baseURL: import.meta.env.VITE_SERVER_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,6 +41,34 @@ export const getAccessToken = (): string | null => {
 
 export const clearAccessToken = () => {
   accessToken = null;
+};
+
+let refreshPromise: Promise<string> | null = null;
+
+export const refreshAccessToken = async (): Promise<string> => {
+  if (!refreshPromise) {
+    refreshPromise = refreshClient
+      .post('/auth/refresh')
+      .then((response) => {
+        const newAccessToken = response.data.data?.accessToken;
+
+        if (!newAccessToken) {
+          throw new Error('No access token in refresh response');
+        }
+
+        setAccessToken(newAccessToken);
+        return newAccessToken;
+      })
+      .catch((error) => {
+        clearAccessToken();
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
 };
 
 // ============================================
@@ -60,18 +96,6 @@ axiosInstance.interceptors.request.use(
 // Response Interceptor
 // Handle 401 errors and token refresh
 // ============================================
-
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string | null) => void> = [];
-
-const subscribeTokenRefresh = (cb: (token: string | null) => void) => {
-  refreshSubscribers.push(cb);
-};
-
-const onRefreshFinished = (token: string | null) => {
-  refreshSubscribers.forEach((cb) => cb(token));
-  refreshSubscribers = [];
-};
 
 axiosInstance.interceptors.response.use(
   (response) => response,
@@ -119,49 +143,13 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      if (isRefreshing) {
-        // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
-          subscribeTokenRefresh((token: string | null) => {
-            if (!token) {
-              reject(error);
-              return;
-            }
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            resolve(axiosInstance(originalRequest));
-          });
-        });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
         console.log('[Axios] Attempting token refresh...');
 
-        // Attempt to refresh the token
-        const response = await axios.post(
-          `${import.meta.env.VITE_SERVER_URL}/auth/refresh`,
-          {},
-          {
-            withCredentials: true, // Send refresh token cookie
-          }
-        );
-
-        console.log('[Axios] Refresh response:', response.data);
-
-        const newAccessToken = response.data.data?.accessToken;
-        if (!newAccessToken) {
-          throw new Error('No access token in refresh response');
-        }
-
-        setAccessToken(newAccessToken);
-        console.log('[Axios] New access token set, retrying queued requests');
-
-        // Retry all queued requests with new token
-        onRefreshFinished(newAccessToken);
+        const newAccessToken = await refreshAccessToken();
+        console.log('[Axios] New access token set, retrying request');
 
         // Retry the original request
         if (originalRequest.headers) {
@@ -172,12 +160,9 @@ axiosInstance.interceptors.response.use(
         // Refresh failed - user needs to log in again
         console.error('[Axios] Token refresh failed:', refreshError);
         clearAccessToken();
-        onRefreshFinished(null);
         // Dispatch a custom event to notify AuthContext
         window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

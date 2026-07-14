@@ -3,7 +3,7 @@
  * Handles all backend API communications
  */
 
-import { AxiosError } from 'axios';
+import type { AxiosError } from 'axios';
 import axiosInstance from '../lib/axios';
 import type { Language } from '../types';
 

@@ -3,8 +3,8 @@
  * Sets up automatic error toast notifications for failed API requests
  */
 
-import { AxiosError, AxiosInstance } from 'axios';
-import { EnqueueSnackbar } from 'notistack';
+import type { AxiosError, AxiosInstance } from 'axios';
+import type { EnqueueSnackbar } from 'notistack';
 
 /**
  * Setup axios interceptor to show toast notifications on errors

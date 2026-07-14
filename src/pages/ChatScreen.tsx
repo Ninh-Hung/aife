@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
-import { Agent, ChatMessage } from '../types';
+import { Agent, ChatMessage, ChatSource } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent } from '../hooks/useChatAgent';
@@ -149,51 +149,88 @@ export const ChatScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeSessionId, agents]);
 
+  // ============================================
+  // Helper Functions
+  // ============================================
+
+  const extractSourcesFromRawPayload = useCallback(
+    (rawPayload: string | Record<string, unknown> | null | undefined): ChatSource[] => {
+      if (!rawPayload) return [];
+
+      try {
+        const payload =
+          typeof rawPayload === 'string'
+            ? (JSON.parse(rawPayload) as Record<string, unknown>)
+            : rawPayload;
+        const sources = payload.sources;
+        if (!Array.isArray(sources)) return [];
+
+        return sources
+          .map((source): ChatSource | null => {
+            if (!source || typeof source !== 'object') return null;
+            const item = source as Record<string, unknown>;
+            if (typeof item.marker !== 'string' || typeof item.title !== 'string') return null;
+            return {
+              marker: item.marker,
+              title: item.title,
+              url: typeof item.url === 'string' ? item.url : undefined,
+            };
+          })
+          .filter((source): source is ChatSource => Boolean(source));
+      } catch {
+        return [];
+      }
+    },
+    []
+  );
+
+  const loadInitialMessages = useCallback(
+    async (sessionId: string) => {
+      setInitialMessagesLoaded(false);
+      const response = await listChatMessages(sessionId);
+
+      if (response.success && response.data) {
+        // Convert backend message format to UI format
+        const formattedMessages: ChatMessage[] = response.data.map((message) => {
+          const msg = message as unknown as {
+            publicId?: string;
+            id?: string;
+            sessionId?: string;
+            role: string;
+            content: string;
+            timestamp?: string | Date;
+            createdAt?: string | Date;
+            status?: ChatMessage['status'];
+            sources?: ChatSource[];
+            rawPayload?: string | Record<string, unknown> | null;
+          };
+
+          return {
+            id: msg.publicId || msg.id || `${msg.role}-${Date.now()}`,
+            sessionId: msg.sessionId || sessionId,
+            role: msg.role === 'user' ? 'user' : 'agent',
+            content: msg.content,
+            sources: msg.sources || extractSourcesFromRawPayload(msg.rawPayload),
+            timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
+            status: msg.status || 'sent',
+          };
+        });
+        setInitialMessages(formattedMessages);
+        setInitialMessagesLoaded(true);
+      } else {
+        setInitialMessages([]);
+        setInitialMessagesLoaded(true);
+      }
+    },
+    [extractSourcesFromRawPayload]
+  );
+
   // Load initial messages when active session changes
   useEffect(() => {
     if (activeSessionId) {
       loadInitialMessages(activeSessionId);
     }
-  }, [activeSessionId]);
-
-  // ============================================
-  // Helper Functions
-  // ============================================
-
-  const loadInitialMessages = async (sessionId: string) => {
-    setInitialMessagesLoaded(false);
-    const response = await listChatMessages(sessionId);
-
-    if (response.success && response.data) {
-      // Convert backend message format to UI format
-      const formattedMessages: ChatMessage[] = response.data.map((message) => {
-        const msg = message as unknown as {
-          publicId?: string;
-          id?: string;
-          sessionId?: string;
-          role: string;
-          content: string;
-          timestamp?: string | Date;
-          createdAt?: string | Date;
-          status?: ChatMessage['status'];
-        };
-
-        return {
-          id: msg.publicId || msg.id || `${msg.role}-${Date.now()}`,
-          sessionId: msg.sessionId || sessionId,
-          role: msg.role === 'user' ? 'user' : 'agent',
-          content: msg.content,
-          timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
-          status: msg.status || 'sent',
-        };
-      });
-      setInitialMessages(formattedMessages);
-      setInitialMessagesLoaded(true);
-    } else {
-      setInitialMessages([]);
-      setInitialMessagesLoaded(true);
-    }
-  };
+  }, [activeSessionId, loadInitialMessages]);
 
   // ============================================
   // Handlers

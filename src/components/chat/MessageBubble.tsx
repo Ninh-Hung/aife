@@ -4,8 +4,17 @@
  */
 
 import React, { useState } from 'react';
-import { Bot, User as UserIcon, Copy, Check, Brain, ChevronDown, ChevronRight } from 'lucide-react';
-import { ChatMessage } from '../../types';
+import {
+  Bot,
+  User as UserIcon,
+  Copy,
+  Check,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+} from 'lucide-react';
+import { ChatMessage, ChatSource } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
 import { parseAgentResponse } from '../../utils/agentResponse';
 
@@ -28,13 +37,25 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isReasoningOpen, setIsReasoningOpen] = useState(false);
+  const parsedContent = parseAgentResponse(message.content);
+  const parsedReasoning = message.reasoning ? parseAgentResponse(message.reasoning) : null;
+  const reasoningContainsAnswer =
+    Boolean(parsedReasoning?.content.trim()) &&
+    parsedReasoning?.content.trim() !== message.reasoning?.trim();
   const parsedMessage = isUser
     ? { content: message.content, reasoning: null }
-    : message.reasoning
-      ? { content: message.content, reasoning: message.reasoning }
-      : parseAgentResponse(message.content);
+    : reasoningContainsAnswer
+      ? {
+          content: parsedContent.content.trim() || parsedReasoning?.content || '',
+          reasoning: parsedContent.reasoning,
+        }
+      : {
+          content: parsedContent.content,
+          reasoning: parsedReasoning?.reasoning ?? parsedContent.reasoning,
+        };
   const displayContent = parsedMessage.content;
   const reasoning = parsedMessage.reasoning?.trim() || null;
+  const sources = isUser ? [] : message.sources || [];
 
   const handleCopy = () => {
     navigator.clipboard.writeText(displayContent || message.content).then(() => {
@@ -60,6 +81,34 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+    });
+  };
+
+  const sourceByMarker = new Map(sources.map((source) => [source.marker, source]));
+
+  const renderContentWithSources = (content: string, citationSources: ChatSource[]) => {
+    if (citationSources.length === 0) {
+      return content;
+    }
+
+    return content.split(/(\[\d+\])/g).map((part, index) => {
+      const source = sourceByMarker.get(part);
+      if (!source?.url) {
+        return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+      }
+
+      return (
+        <a
+          key={`${part}-${index}`}
+          href={source.url}
+          target="_blank"
+          rel="noreferrer"
+          title={source.title}
+          className="mx-0.5 rounded-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 transition-colors hover:text-blue-700 dark:text-sky-300 dark:decoration-sky-500/60 dark:hover:text-sky-200"
+        >
+          {part}
+        </a>
+      );
     });
   };
 
@@ -126,7 +175,35 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
             {displayContent && (
               <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                {displayContent}
+                {renderContentWithSources(displayContent, sources)}
+              </div>
+            )}
+
+            {!isUser && sources.length > 0 && (
+              <div className="mt-3 border-t border-gray-100 pt-2 dark:border-slate-700">
+                <div className="mb-1 text-xs font-medium text-gray-500 dark:text-slate-400">
+                  Nguồn tham khảo
+                </div>
+                <div className="space-y-1">
+                  {sources.map((source) => (
+                    <a
+                      key={`${source.marker}-${source.url || source.title}`}
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={source.title}
+                      className={`flex items-start gap-1.5 rounded px-1 py-0.5 text-xs leading-snug transition-colors ${
+                        source.url
+                          ? 'text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-sky-300 dark:hover:bg-sky-950/40 dark:hover:text-sky-200'
+                          : 'pointer-events-none text-gray-500 dark:text-slate-400'
+                      }`}
+                    >
+                      <span className="mt-px flex-shrink-0 font-medium">{source.marker}</span>
+                      <span className="min-w-0 flex-1 break-words">{source.title}</span>
+                      {source.url && <ExternalLink size={12} className="mt-0.5 flex-shrink-0" />}
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
           </div>

@@ -2,6 +2,7 @@ import { useAgent } from 'agents/react';
 import { useAgentChat } from '@cloudflare/ai-chat/react';
 import type { FileUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChatMessage, ChatSource } from '../types';
 
 interface UseChatAgentOptions {
   conversationId: string;
@@ -10,16 +11,6 @@ interface UseChatAgentOptions {
   mode?: 'cheap' | 'normal' | 'premium' | 'fast' | 'smart' | 'expensive';
   capability?: 'chat' | 'image_to_text' | 'text_to_image' | 'translation';
   enabled?: boolean;
-}
-
-interface ChatMessage {
-  id: string;
-  sessionId: string;
-  role: 'user' | 'agent';
-  content: string;
-  reasoning?: string | null;
-  timestamp: Date;
-  status?: 'sending' | 'sent' | 'failed';
 }
 
 function fileToUIPart(file: File): Promise<FileUIPart> {
@@ -197,6 +188,31 @@ export function useChatAgent({
     return reasoning || null;
   }, []);
 
+  const extractSources = useCallback((message: UIMessage): ChatSource[] => {
+    const raw = message as unknown as {
+      metadata?: {
+        sources?: unknown;
+      };
+    };
+
+    if (!Array.isArray(raw.metadata?.sources)) {
+      return [];
+    }
+
+    return raw.metadata.sources
+      .map((source): ChatSource | null => {
+        if (!source || typeof source !== 'object') return null;
+        const item = source as Record<string, unknown>;
+        if (typeof item.marker !== 'string' || typeof item.title !== 'string') return null;
+        return {
+          marker: item.marker,
+          title: item.title,
+          url: typeof item.url === 'string' ? item.url : undefined,
+        };
+      })
+      .filter((source): source is ChatSource => Boolean(source));
+  }, []);
+
   const messages: ChatMessage[] = useMemo(() => {
     if (!shouldConnect) return [];
 
@@ -204,6 +220,7 @@ export function useChatAgent({
       .map((msg) => {
         const content = extractText(msg);
         const reasoning = extractReasoning(msg);
+        const sources = extractSources(msg);
 
         return {
           id: msg.id || `${msg.role}-${Date.now()}`,
@@ -211,6 +228,7 @@ export function useChatAgent({
           role: msg.role === 'user' ? ('user' as const) : ('agent' as const),
           content,
           reasoning,
+          sources,
           timestamp: new Date(),
           status:
             chatStatus === 'submitted' && msg.role === 'user'
@@ -219,7 +237,15 @@ export function useChatAgent({
         };
       })
       .filter((msg) => msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim()));
-  }, [agentMessages, chatStatus, extractReasoning, extractText, sessionId, shouldConnect]);
+  }, [
+    agentMessages,
+    chatStatus,
+    extractReasoning,
+    extractSources,
+    extractText,
+    sessionId,
+    shouldConnect,
+  ]);
 
   const sendMessage = useCallback(
     async (content: string, files?: File[]) => {

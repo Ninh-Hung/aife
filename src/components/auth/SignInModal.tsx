@@ -8,6 +8,7 @@ import { X, Mail, Lock, Eye, EyeOff, User, Loader2, CheckCircle2 } from 'lucide-
 import { useNavigate } from 'react-router-dom';
 import { USERNAME_REGEX, MIN_USERNAME_LENGTH } from '../../common/constants';
 import { useAuth } from '../../contexts/AuthContext';
+import axiosInstance from '../../lib/axios';
 
 // ============================================
 // Props Interface
@@ -98,15 +99,10 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
     usernameCheckTimeoutRef.current = setTimeout(async () => {
       try {
-        const SERVER_URL = import.meta.env.VITE_SERVER_URL;
-        const response = await fetch(
-          `${SERVER_URL}/v1/common/check-availability?userName=${encodeURIComponent(username)}`,
-          {
-            method: 'GET',
-          }
-        );
-
-        const data = await response.json();
+        const response = await axiosInstance.get('/v1/common/check-availability', {
+          params: { userName: username },
+        });
+        const data = response.data;
 
         // Check if the response indicates success
         if (data.success) {
@@ -176,29 +172,32 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
       setIsLoading(true);
       try {
-        const SERVER_URL = import.meta.env.VITE_SERVER_URL;
-        const response = await fetch(`${SERVER_URL}/auth/register`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userName: username,
-            email,
-            password,
-          }),
+        await axiosInstance.post('/auth/register', {
+          userName: username,
+          email,
+          password,
         });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Registration failed. Please try again.');
-        }
 
         // Registration successful - redirect to "check your email" page
         navigate('/email-sent', { state: { email } });
         handleClose();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
+        const message =
+          typeof err === 'object' &&
+          err !== null &&
+          'response' in err &&
+          typeof err.response === 'object' &&
+          err.response !== null &&
+          'data' in err.response &&
+          typeof err.response.data === 'object' &&
+          err.response.data !== null &&
+          'message' in err.response.data &&
+          typeof err.response.data.message === 'string'
+            ? err.response.data.message
+            : err instanceof Error
+              ? err.message
+              : 'An error occurred. Please try again.';
+        setError(message);
       } finally {
         setIsLoading(false);
       }

@@ -4,7 +4,7 @@
  * Provides methods for fetching quota, subscription, and anonymous user statistics
  */
 
-import axios from 'axios';
+import axiosInstance from '../lib/axios';
 import type {
   UserQuota,
   CurrentSubscriptionDetails,
@@ -12,17 +12,11 @@ import type {
   Package,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_SERVER_URL || '';
-
 /**
  * Get current user's quota information
  */
 export async function getQuota(): Promise<UserQuota> {
-  const response = await axios.get(`${API_BASE_URL}/api/me/quota`, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-    },
-  });
+  const response = await axiosInstance.get('/v1/subscriptions/quota');
 
   return response.data.data;
 }
@@ -31,13 +25,18 @@ export async function getQuota(): Promise<UserQuota> {
  * Get current user's subscription with package details
  */
 export async function getSubscription(): Promise<CurrentSubscriptionDetails> {
-  const response = await axios.get(`${API_BASE_URL}/api/me/subscription`, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-    },
-  });
+  const response = await axiosInstance.get('/v1/subscriptions/current');
 
-  return response.data.data;
+  const subscription = response.data.data;
+
+  return {
+    ...subscription,
+    userId: subscription.userId ?? 0,
+    packageId: subscription.packageId ?? 0,
+    isTrialSubscription: subscription.isTrialSubscription ?? subscription.status === 'trialing',
+    trialEndsAt: subscription.trialEndsAt ?? null,
+    willDowngradeTo: subscription.willDowngradeTo ?? null,
+  };
 }
 
 /**
@@ -45,9 +44,7 @@ export async function getSubscription(): Promise<CurrentSubscriptionDetails> {
  * No authentication required - uses aibe_anon_id cookie
  */
 export async function getAnonymousStats(): Promise<AnonymousUserStats> {
-  const response = await axios.get(`${API_BASE_URL}/api/me/anonymous-stats`, {
-    withCredentials: true, // Send cookies
-  });
+  const response = await axiosInstance.get('/api/me/anonymous-stats');
 
   return response.data.data;
 }
@@ -56,11 +53,7 @@ export async function getAnonymousStats(): Promise<AnonymousUserStats> {
  * Get all available packages
  */
 export async function getPackages(): Promise<Package[]> {
-  const response = await axios.get(`${API_BASE_URL}/api/packages`, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-    },
-  });
+  const response = await axiosInstance.get('/v1/common/packages');
 
   return response.data.data;
 }
@@ -69,15 +62,9 @@ export async function getPackages(): Promise<Package[]> {
  * Upgrade subscription to a new package
  */
 export async function upgradeSubscription(packageId: string): Promise<CurrentSubscriptionDetails> {
-  const response = await axios.post(
-    `${API_BASE_URL}/api/subscriptions/upgrade`,
-    { packageId },
-    {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-    }
-  );
+  const response = await axiosInstance.post('/v1/subscriptions/subscribe', {
+    packagePublicId: packageId,
+  });
 
   return response.data.data;
 }
