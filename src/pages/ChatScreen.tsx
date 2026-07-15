@@ -3,7 +3,7 @@
  * Main chat interface for conversing with an AI Agent via WebSocket
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { Agent, ChatMessage, ChatSource } from '../types';
@@ -58,9 +58,30 @@ export const ChatScreen: React.FC = () => {
   });
 
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
-  const allMessages = initialMessagesLoaded
-    ? [...initialMessages, ...agentMessages]
-    : initialMessages;
+  const allMessages = useMemo(() => {
+    if (!initialMessagesLoaded) {
+      return agentMessages.length > 0 ? agentMessages : initialMessages;
+    }
+
+    if (agentMessages.length === 0) {
+      return initialMessages;
+    }
+
+    const liveMessageKeys = new Set(
+      agentMessages.map((message) => `${message.role}\u0000${message.content}`)
+    );
+    const dedupedInitialMessages = [...initialMessages];
+
+    while (dedupedInitialMessages.length > 0) {
+      const latestInitial = dedupedInitialMessages[dedupedInitialMessages.length - 1];
+      if (!liveMessageKeys.has(`${latestInitial.role}\u0000${latestInitial.content}`)) {
+        break;
+      }
+      dedupedInitialMessages.pop();
+    }
+
+    return [...dedupedInitialMessages, ...agentMessages];
+  }, [agentMessages, initialMessages, initialMessagesLoaded]);
   const latestMessage = allMessages[allMessages.length - 1];
   const shouldShowThinkingIndicator = isAwaitingResponse && latestMessage?.role !== 'agent';
 
@@ -297,13 +318,7 @@ export const ChatScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    if (
-      !initialMessage ||
-      initialSendRef.current ||
-      !isConnected ||
-      !activeSessionId ||
-      !initialMessagesLoaded
-    ) {
+    if (!initialMessage || initialSendRef.current || !isConnected || !activeSessionId) {
       return;
     }
 
@@ -315,7 +330,6 @@ export const ChatScreen: React.FC = () => {
     handleSendMessage,
     initialFile,
     initialMessage,
-    initialMessagesLoaded,
     isConnected,
     location.pathname,
     navigate,

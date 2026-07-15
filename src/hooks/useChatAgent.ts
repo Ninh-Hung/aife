@@ -145,7 +145,7 @@ export function useChatAgent({
   } = useAgentChat<unknown, UIMessage>({
     agent,
     getInitialMessages: null,
-    experimental_throttle: 100,
+    experimental_throttle: 50,
   });
 
   const extractText = useCallback((message: UIMessage): string => {
