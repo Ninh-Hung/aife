@@ -60,25 +60,6 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Format last message time
-  const formatTime = (date: Date) => {
-    const now = new Date();
-    const messageDate = new Date(date);
-    const diffInHours = (now.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor((now.getTime() - messageDate.getTime()) / (1000 * 60));
-      return `${diffInMinutes}m ago`;
-    }
-    if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    }
-    if (diffInHours < 24 * 7) {
-      return `${Math.floor(diffInHours / 24)}d ago`;
-    }
-    return messageDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   const handleMenuOpen = (e: React.MouseEvent<HTMLButtonElement>, sessionId: string) => {
     e.stopPropagation();
     setMenuAnchor(e.currentTarget);
@@ -207,20 +188,8 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
                   className={`min-w-0 flex-1 text-left ${embedded ? 'px-5 py-2.5' : 'px-4 py-3'}`}
                 >
                   {/* Session Title */}
-                  <div className="mb-1 truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
+                  <div className="truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
                     {session.title}
-                  </div>
-
-                  {/* Last Message Preview */}
-                  {session.lastMessage && (
-                    <div className="mb-1 truncate text-sm text-gray-600 dark:text-slate-400">
-                      {session.lastMessage}
-                    </div>
-                  )}
-
-                  {/* Timestamp */}
-                  <div className="text-xs text-gray-500 dark:text-slate-500">
-                    {formatTime(session.lastMessageAt)}
                   </div>
                 </button>
 

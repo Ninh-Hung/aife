@@ -69,6 +69,10 @@ export function useChatAgent({
   const agentHost = normalizeAgentHost(serverUrl);
   const agentName = 'AgentDO';
 
+  useEffect(() => {
+    setIsSocketOpen(false);
+  }, [agentPublicId, conversationId, sessionId]);
+
   const agent = useAgent({
     agent: agentName,
     name: conversationId,
@@ -145,6 +149,7 @@ export function useChatAgent({
   } = useAgentChat<unknown, UIMessage>({
     agent,
     getInitialMessages: null,
+    resume: false,
     experimental_throttle: 50,
   });
 
@@ -213,6 +218,18 @@ export function useChatAgent({
       .filter((source): source is ChatSource => Boolean(source));
   }, []);
 
+  const extractConversationTitle = useCallback((message: UIMessage): string | undefined => {
+    const raw = message as unknown as {
+      metadata?: {
+        conversationTitle?: unknown;
+      };
+    };
+
+    return typeof raw.metadata?.conversationTitle === 'string'
+      ? raw.metadata.conversationTitle.trim() || undefined
+      : undefined;
+  }, []);
+
   const messages: ChatMessage[] = useMemo(() => {
     if (!shouldConnect) return [];
 
@@ -221,6 +238,8 @@ export function useChatAgent({
         const content = extractText(msg);
         const reasoning = extractReasoning(msg);
         const sources = extractSources(msg);
+        const conversationTitle = extractConversationTitle(msg);
+        const createdAt = (msg as unknown as { createdAt?: string | Date }).createdAt;
 
         return {
           id: msg.id || `${msg.role}-${Date.now()}`,
@@ -229,12 +248,21 @@ export function useChatAgent({
           content,
           reasoning,
           sources,
-          timestamp: new Date(),
+          conversationTitle,
+          timestamp: createdAt ? new Date(createdAt) : new Date(),
           status: 'sent' as const,
         };
       })
       .filter((msg) => msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim()));
-  }, [agentMessages, extractReasoning, extractSources, extractText, sessionId, shouldConnect]);
+  }, [
+    agentMessages,
+    extractConversationTitle,
+    extractReasoning,
+    extractSources,
+    extractText,
+    sessionId,
+    shouldConnect,
+  ]);
 
   const sendMessage = useCallback(
     async (content: string, files?: File[]) => {

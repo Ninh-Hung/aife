@@ -581,6 +581,9 @@ type BackendChatSession = Omit<
 
 const normalizeChatSession = (session: BackendChatSession): ChatSession => {
   const publicId = session.publicId || String(session.id);
+  const createdAt = new Date(session.createdAt || Date.now());
+  const updatedAt = new Date(session.updatedAt || Date.now());
+
   return {
     ...session,
     id: publicId,
@@ -588,9 +591,11 @@ const normalizeChatSession = (session: BackendChatSession): ChatSession => {
     internalId: typeof session.id === 'number' ? session.id : session.internalId,
     title: session.title || 'New Chat',
     agentId: session.agentId ?? session.agentPublicId ?? null,
-    lastMessageAt: new Date(session.lastMessageAt || session.updatedAt || Date.now()),
-    createdAt: new Date(session.createdAt || Date.now()),
-    updatedAt: new Date(session.updatedAt || Date.now()),
+    lastMessageAt: new Date(
+      session.lastMessageAt || session.createdAt || session.updatedAt || Date.now()
+    ),
+    createdAt,
+    updatedAt,
   };
 };
 
@@ -724,7 +729,7 @@ export const updateChatSession = async (
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: normalizeChatSession(response.data.data || response.data),
       message: 'Chat session updated successfully',
     };
   } catch (error) {

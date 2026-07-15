@@ -17,6 +17,45 @@ import { CircularProgress } from '@mui/material';
 import { getChatSession, listChatMessages, getAgent } from '../services/api';
 
 const TEMP_CHAT_AGENT_PUBLIC_ID = '__temporary-agent__';
+const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
+const FIRST_RESPONSE_TITLE_SYNC_DELAYS_MS = [0, 700, 1200, 1800, 2600, 3600];
+
+const isDefaultConversationTitle = (title: string | null | undefined) => {
+  const normalized = title?.trim().toLowerCase() ?? '';
+  return (
+    !normalized || DEFAULT_SESSION_TITLES.has(normalized) || normalized.startsWith('chat with ')
+  );
+};
+
+const getMessageDedupeKey = (message: ChatMessage) =>
+  `${message.role}\u0000${message.content.trim().replace(/\s+/g, ' ')}`;
+
+const removePersistedMessagesDuplicatedByLiveMessages = (
+  persistedMessages: ChatMessage[],
+  liveMessages: ChatMessage[]
+) => {
+  const liveMessageCounts = new Map<string, number>();
+  for (const message of liveMessages) {
+    const key = getMessageDedupeKey(message);
+    liveMessageCounts.set(key, (liveMessageCounts.get(key) ?? 0) + 1);
+  }
+
+  const dedupedReversed: ChatMessage[] = [];
+  for (let index = persistedMessages.length - 1; index >= 0; index -= 1) {
+    const message = persistedMessages[index];
+    const key = getMessageDedupeKey(message);
+    const matchingLiveCount = liveMessageCounts.get(key) ?? 0;
+
+    if (matchingLiveCount > 0) {
+      liveMessageCounts.set(key, matchingLiveCount - 1);
+      continue;
+    }
+
+    dedupedReversed.push(message);
+  }
+
+  return dedupedReversed.reverse();
+};
 
 export const ChatScreen: React.FC = () => {
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
@@ -25,8 +64,10 @@ export const ChatScreen: React.FC = () => {
   const { agents } = useAgents();
   const { error: showError } = useNotification();
   const { sessions, addOrUpdateConversation } = useSidebarConversations();
-  const initialSendRef = useRef(false);
+  const initialSendRef = useRef<string | null>(null);
   const lastSyncedAgentMessageRef = useRef<string | null>(null);
+  const lastAppliedConversationTitleRef = useRef<string | null>(null);
+  const messageLoadRequestRef = useRef(0);
   const initialState = location.state as {
     initialMessage?: string;
     initialFile?: File | null;
@@ -48,6 +89,7 @@ export const ChatScreen: React.FC = () => {
     sendMessage: agentSendMessage,
     isConnected,
     isConnecting,
+    chatStatus,
   } = useChatAgent({
     conversationId: activeSessionId || '',
     agentPublicId: agent?.publicId || '',
@@ -58,40 +100,94 @@ export const ChatScreen: React.FC = () => {
   });
 
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+  const isActiveRouteSession = Boolean(routeSessionId && activeSessionId === routeSessionId);
   const allMessages = useMemo(() => {
-    if (!initialMessagesLoaded) {
-      return agentMessages.length > 0 ? agentMessages : initialMessages;
+    if (!isActiveRouteSession || !initialMessagesLoaded) {
+      return [];
     }
 
     if (agentMessages.length === 0) {
       return initialMessages;
     }
 
-    const liveMessageKeys = new Set(
-      agentMessages.map((message) => `${message.role}\u0000${message.content}`)
+    const dedupedInitialMessages = removePersistedMessagesDuplicatedByLiveMessages(
+      initialMessages,
+      agentMessages
     );
-    const dedupedInitialMessages = [...initialMessages];
-
-    while (dedupedInitialMessages.length > 0) {
-      const latestInitial = dedupedInitialMessages[dedupedInitialMessages.length - 1];
-      if (!liveMessageKeys.has(`${latestInitial.role}\u0000${latestInitial.content}`)) {
-        break;
-      }
-      dedupedInitialMessages.pop();
-    }
 
     return [...dedupedInitialMessages, ...agentMessages];
-  }, [agentMessages, initialMessages, initialMessagesLoaded]);
-  const latestMessage = allMessages[allMessages.length - 1];
-  const shouldShowThinkingIndicator = isAwaitingResponse && latestMessage?.role !== 'agent';
+  }, [agentMessages, initialMessages, initialMessagesLoaded, isActiveRouteSession]);
+  const visibleMessages = useMemo(
+    () =>
+      allMessages.filter(
+        (message) =>
+          !(
+            message.role === 'agent' &&
+            message.status === 'sending' &&
+            message.content.trim().length === 0
+          )
+      ),
+    [allMessages]
+  );
+  const latestVisibleMessage = visibleMessages[visibleMessages.length - 1];
+  const hasPendingAgentMessage = allMessages.some(
+    (message) => message.role === 'agent' && message.status === 'sending'
+  );
+  const shouldShowThinkingIndicator =
+    hasPendingAgentMessage || (isAwaitingResponse && latestVisibleMessage?.role !== 'agent');
 
   useEffect(() => {
     const latestAgentMessage = agentMessages[agentMessages.length - 1];
-    if (!latestAgentMessage || latestAgentMessage.role !== 'agent' || !activeSessionId) {
+    if (
+      !latestAgentMessage ||
+      latestAgentMessage.role !== 'agent' ||
+      !activeSessionId ||
+      chatStatus !== 'ready'
+    ) {
       return;
     }
 
     setIsAwaitingResponse(false);
+
+    const currentSession = sessions.find((session) => session.id === activeSessionId);
+    const conversationTitle = latestAgentMessage.conversationTitle?.trim();
+    const userMessageCount = allMessages.filter((message) => message.role === 'user').length;
+    const agentResponseCount = allMessages.filter(
+      (message) =>
+        message.role === 'agent' &&
+        (message.content.trim().length > 0 || Boolean(message.reasoning?.trim()))
+    ).length;
+    const shouldSyncFirstResponseTitle = userMessageCount <= 1 && agentResponseCount <= 1;
+    let didApplyConversationTitle = false;
+
+    if (conversationTitle) {
+      const titleKey = `${activeSessionId}\u0000${conversationTitle}`;
+
+      if (
+        lastAppliedConversationTitleRef.current !== titleKey &&
+        currentSession &&
+        isDefaultConversationTitle(currentSession.title)
+      ) {
+        lastAppliedConversationTitleRef.current = titleKey;
+        addOrUpdateConversation({
+          ...currentSession,
+          title: conversationTitle,
+          updatedAt: new Date(),
+        });
+        didApplyConversationTitle = true;
+      }
+    }
+
+    if (
+      didApplyConversationTitle ||
+      (currentSession && !isDefaultConversationTitle(currentSession.title))
+    ) {
+      return;
+    }
+
+    if (!shouldSyncFirstResponseTitle) {
+      return;
+    }
 
     if (lastSyncedAgentMessageRef.current === latestAgentMessage.id) {
       return;
@@ -99,33 +195,68 @@ export const ChatScreen: React.FC = () => {
     lastSyncedAgentMessageRef.current = latestAgentMessage.id;
 
     let cancelled = false;
-    void getChatSession(activeSessionId)
-      .then((response) => {
-        if (!cancelled && response.success && response.data) {
-          addOrUpdateConversation(response.data);
+    void (async () => {
+      for (const delayMs of FIRST_RESPONSE_TITLE_SYNC_DELAYS_MS) {
+        if (cancelled) {
+          return;
         }
-      })
-      .catch(() => {
-        // Session title sync is non-critical; the next sidebar refresh will pick it up.
-      });
+
+        if (delayMs > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        try {
+          const response = await getChatSession(activeSessionId);
+          if (!response.success || !response.data || cancelled) {
+            continue;
+          }
+
+          if (isDefaultConversationTitle(response.data.title)) {
+            continue;
+          }
+
+          addOrUpdateConversation(response.data);
+          return;
+        } catch {
+          // Session title sync is non-critical; a later sidebar refresh will pick it up.
+        }
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, addOrUpdateConversation, agentMessages]);
+  }, [activeSessionId, addOrUpdateConversation, agentMessages, allMessages, chatStatus, sessions]);
 
   // Reset thinking indicator when switching sessions
   useEffect(() => {
     setIsAwaitingResponse(false);
-    initialSendRef.current = false;
     lastSyncedAgentMessageRef.current = null;
+    lastAppliedConversationTitleRef.current = null;
   }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!routeSessionId || routeSessionId === activeSessionId) {
+      return;
+    }
+
+    messageLoadRequestRef.current += 1;
+    setInitialMessages([]);
+    setInitialMessagesLoaded(false);
+    setIsAwaitingResponse(false);
+  }, [activeSessionId, routeSessionId]);
 
   // ============================================
   // Initialize Agent & Sessions
   // ============================================
 
   useEffect(() => {
+    let cancelled = false;
+
     const initializeChatScreen = async () => {
       setIsInitializing(true);
 
@@ -136,6 +267,10 @@ export const ChatScreen: React.FC = () => {
       }
 
       const sessionResponse = await getChatSession(routeSessionId);
+      if (cancelled) {
+        return;
+      }
+
       if (!sessionResponse.success || !sessionResponse.data) {
         showError(sessionResponse.error || 'Chat session not found');
         navigate('/new-chat');
@@ -153,6 +288,10 @@ export const ChatScreen: React.FC = () => {
       if (currentSession.agentPublicId) {
         const contextAgent = agents.find((item) => item.publicId === currentSession.agentPublicId);
         const agentResponse = contextAgent ? null : await getAgent(currentSession.agentPublicId);
+        if (cancelled) {
+          return;
+        }
+
         const loadedAgent =
           contextAgent ||
           (agentResponse?.success && agentResponse.data ? agentResponse.data : null);
@@ -192,6 +331,9 @@ export const ChatScreen: React.FC = () => {
     };
 
     initializeChatScreen();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeSessionId, agents]);
 
@@ -230,10 +372,33 @@ export const ChatScreen: React.FC = () => {
     []
   );
 
+  const normalizeMessageStatus = useCallback((status: unknown): ChatMessage['status'] => {
+    if (typeof status !== 'string') return 'sent';
+
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+      case 'STREAMING':
+        return 'sending';
+      case 'FAILED':
+        return 'failed';
+      default:
+        return 'sent';
+    }
+  }, []);
+
   const loadInitialMessages = useCallback(
-    async (sessionId: string) => {
-      setInitialMessagesLoaded(false);
+    async (sessionId: string, options?: { resetLoaded?: boolean }) => {
+      const requestId = ++messageLoadRequestRef.current;
+
+      if (options?.resetLoaded !== false) {
+        setInitialMessages([]);
+        setInitialMessagesLoaded(false);
+      }
       const response = await listChatMessages(sessionId);
+
+      if (requestId !== messageLoadRequestRef.current) {
+        return;
+      }
 
       if (response.success && response.data) {
         // Convert backend message format to UI format
@@ -250,6 +415,7 @@ export const ChatScreen: React.FC = () => {
             sources?: ChatSource[];
             rawPayload?: string | Record<string, unknown> | null;
           };
+          const status = normalizeMessageStatus(msg.status);
 
           return {
             id: msg.publicId || msg.id || `${msg.role}-${Date.now()}`,
@@ -258,7 +424,7 @@ export const ChatScreen: React.FC = () => {
             content: msg.content,
             sources: msg.sources || extractSourcesFromRawPayload(msg.rawPayload),
             timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
-            status: msg.status || 'sent',
+            status,
           };
         });
         setInitialMessages(formattedMessages);
@@ -268,7 +434,7 @@ export const ChatScreen: React.FC = () => {
         setInitialMessagesLoaded(true);
       }
     },
-    [extractSourcesFromRawPayload]
+    [extractSourcesFromRawPayload, normalizeMessageStatus]
   );
 
   // Load initial messages when active session changes
@@ -277,6 +443,21 @@ export const ChatScreen: React.FC = () => {
       loadInitialMessages(activeSessionId);
     }
   }, [activeSessionId, loadInitialMessages]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+
+    const hasPendingPersistedResponse = initialMessages.some(
+      (message) => message.role === 'agent' && message.status === 'sending'
+    );
+    if (!hasPendingPersistedResponse) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadInitialMessages(activeSessionId, { resetLoaded: false });
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeSessionId, initialMessages, loadInitialMessages]);
 
   // ============================================
   // Handlers
@@ -318,11 +499,16 @@ export const ChatScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!initialMessage || initialSendRef.current || !isConnected || !activeSessionId) {
+    if (!initialMessage || !isConnected || !activeSessionId) {
       return;
     }
 
-    initialSendRef.current = true;
+    const initialSendKey = `${activeSessionId}\u0000${initialMessage}`;
+    if (initialSendRef.current === initialSendKey) {
+      return;
+    }
+
+    initialSendRef.current = initialSendKey;
     void handleSendMessage(initialMessage, initialFile ? [initialFile] : undefined);
     navigate(location.pathname, { replace: true, state: null });
   }, [
@@ -344,7 +530,7 @@ export const ChatScreen: React.FC = () => {
   // ============================================
 
   // Show loading while chat is initializing
-  if (isInitializing) {
+  if (isInitializing || !isActiveRouteSession || !initialMessagesLoaded) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900">
         <div className="text-center">
@@ -369,7 +555,7 @@ export const ChatScreen: React.FC = () => {
       {activeSessionId ? (
         <ChatConversation
           agent={agent}
-          messages={allMessages}
+          messages={visibleMessages}
           isLoading={shouldShowThinkingIndicator}
           isInputDisabled={isConnecting || shouldShowThinkingIndicator}
           onSendMessage={handleSendMessage}

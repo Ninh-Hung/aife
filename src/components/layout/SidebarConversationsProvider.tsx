@@ -4,6 +4,26 @@ import { listChatSessions, updateChatSession } from '../../services/api';
 import type { ChatSession } from '../../types';
 import { SidebarConversationsContext } from './sidebarConversationsContext';
 
+const toTimestamp = (value: Date | string | null | undefined) => {
+  if (!value) return 0;
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
+const getConversationActivityTimestamp = (session: ChatSession) =>
+  toTimestamp(session.lastMessageAt) ||
+  toTimestamp(session.createdAt) ||
+  toTimestamp(session.updatedAt);
+
+const sortConversationsByActivity = (sessions: ChatSession[]) =>
+  [...sessions].sort((a, b) => {
+    const activityDiff = getConversationActivityTimestamp(b) - getConversationActivityTimestamp(a);
+    if (activityDiff !== 0) return activityDiff;
+
+    return a.id.localeCompare(b.id);
+  });
+
 export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -23,7 +43,9 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
 
       if (response.success && response.data) {
         setSessions(
-          response.data.filter((session) => !session.status || session.status === 'ACTIVE')
+          sortConversationsByActivity(
+            response.data.filter((session) => !session.status || session.status === 'ACTIVE')
+          )
         );
       } else {
         showErrorRef.current(response.error || 'Failed to load chat sessions');
@@ -46,7 +68,10 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
     setSessions((prev) => {
       const existing = prev.find((item) => item.id === session.id);
       const nextSession = existing ? { ...existing, ...session } : session;
-      return [nextSession, ...prev.filter((item) => item.id !== session.id)];
+      return sortConversationsByActivity([
+        nextSession,
+        ...prev.filter((item) => item.id !== session.id),
+      ]);
     });
   }, []);
 
@@ -55,10 +80,12 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
 
     if (response.success) {
       setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId
-            ? { ...session, title: newTitle, updatedAt: new Date() }
-            : session
+        sortConversationsByActivity(
+          prev.map((session) =>
+            session.id === sessionId
+              ? { ...session, title: newTitle, updatedAt: new Date() }
+              : session
+          )
         )
       );
       return true;

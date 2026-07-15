@@ -398,6 +398,7 @@ export interface ChatMessage {
   content: string;
   reasoning?: string | null;
   sources?: ChatSource[];
+  conversationTitle?: string;
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
 }
