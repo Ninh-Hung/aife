@@ -14,7 +14,7 @@ import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
-import { getChatSession, listChatMessages, getAgent } from '../services/api';
+import { cancelChatResponse, getChatSession, listChatMessages, getAgent } from '../services/api';
 import { parseAgentResponse } from '../utils/agentResponse';
 
 const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
@@ -68,7 +68,10 @@ const hasRenderableMessageContent = (message: ChatMessage) => {
     return message.content.trim().length > 0;
   }
 
-  return parseAgentResponse(message.content).content.trim().length > 0;
+  return (
+    parseAgentResponse(message.content).content.trim().length > 0 ||
+    Boolean(message.reasoning?.trim())
+  );
 };
 
 export const ChatScreen: React.FC = () => {
@@ -97,6 +100,7 @@ export const ChatScreen: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const [cancelledResponseSessionId, setCancelledResponseSessionId] = useState<string | null>(null);
   const [executionMode, setExecutionMode] = useState<ChatExecutionMode>(() =>
     normalizeInitialExecutionMode(initialState?.initialMode)
   );
@@ -107,6 +111,7 @@ export const ChatScreen: React.FC = () => {
     isConnected,
     isConnecting,
     chatStatus,
+    stop: stopAgentResponse,
   } = useChatAgent({
     conversationId: activeSessionId || '',
     agentPublicId: agent?.publicId || '',
@@ -145,9 +150,9 @@ export const ChatScreen: React.FC = () => {
           return true;
         }
 
-        return !(message.status === 'sending' || chatStatus !== 'ready' || isAwaitingResponse);
+        return false;
       }),
-    [allMessages, chatStatus, isAwaitingResponse]
+    [allMessages]
   );
   const latestVisibleMessage = visibleMessages[visibleMessages.length - 1];
   let lastUserMessageIndex = -1;
@@ -171,9 +176,12 @@ export const ChatScreen: React.FC = () => {
       message.status === 'sending' &&
       !hasRenderableMessageContent(message)
   );
+  const isResponseCancelled = cancelledResponseSessionId === activeSessionId;
   const isResponseInFlight =
-    isAwaitingResponse || chatStatus === 'submitted' || chatStatus === 'streaming';
+    !isResponseCancelled &&
+    (isAwaitingResponse || chatStatus === 'submitted' || chatStatus === 'streaming');
   const shouldShowThinkingIndicator =
+    !isResponseCancelled &&
     (hasPendingAgentPlaceholder || isResponseInFlight) &&
     !latestResponseHasRenderableContent &&
     latestVisibleMessage?.role !== 'agent';
@@ -277,6 +285,7 @@ export const ChatScreen: React.FC = () => {
   // Reset thinking indicator when switching sessions
   useEffect(() => {
     setIsAwaitingResponse(false);
+    setCancelledResponseSessionId(null);
     lastSyncedAgentMessageRef.current = null;
     lastAppliedConversationTitleRef.current = null;
   }, [activeSessionId]);
@@ -435,6 +444,23 @@ export const ChatScreen: React.FC = () => {
     []
   );
 
+  const isCancelledRawPayload = useCallback(
+    (rawPayload: string | Record<string, unknown> | null | undefined): boolean => {
+      if (!rawPayload) return false;
+
+      try {
+        const payload =
+          typeof rawPayload === 'string'
+            ? (JSON.parse(rawPayload) as Record<string, unknown>)
+            : rawPayload;
+        return payload.cancelled === true || payload.reason === 'user_cancelled';
+      } catch {
+        return false;
+      }
+    },
+    []
+  );
+
   const normalizeMessageStatus = useCallback((status: unknown): ChatMessage['status'] => {
     if (typeof status !== 'string') return 'sent';
 
@@ -480,6 +506,7 @@ export const ChatScreen: React.FC = () => {
             rawPayload?: string | Record<string, unknown> | null;
           };
           const status = normalizeMessageStatus(msg.status);
+          const isCancelled = isCancelledRawPayload(msg.rawPayload);
 
           return {
             id: msg.publicId || msg.id || `${msg.role}-${Date.now()}`,
@@ -489,7 +516,7 @@ export const ChatScreen: React.FC = () => {
             reasoning: msg.reasoning || extractReasoningFromRawPayload(msg.rawPayload),
             sources: msg.sources || extractSourcesFromRawPayload(msg.rawPayload),
             timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
-            status,
+            status: isCancelled ? 'sent' : status,
           };
         });
         setInitialMessages(formattedMessages);
@@ -499,7 +526,12 @@ export const ChatScreen: React.FC = () => {
         setInitialMessagesLoaded(true);
       }
     },
-    [extractReasoningFromRawPayload, extractSourcesFromRawPayload, normalizeMessageStatus]
+    [
+      extractReasoningFromRawPayload,
+      extractSourcesFromRawPayload,
+      isCancelledRawPayload,
+      normalizeMessageStatus,
+    ]
   );
 
   // Load initial messages when active session changes
@@ -540,6 +572,7 @@ export const ChatScreen: React.FC = () => {
       }
 
       setIsAwaitingResponse(true);
+      setCancelledResponseSessionId(null);
 
       try {
         // Send message via WebSocket - agent handles everything
@@ -562,6 +595,75 @@ export const ChatScreen: React.FC = () => {
     },
     [isConnected, activeSessionId, agentSendMessage, showError, sessions, addOrUpdateConversation]
   );
+
+  const handleCancelResponse = useCallback(async () => {
+    if (!activeSessionId) {
+      return;
+    }
+
+    const partialResponseSnapshot = [...responseMessagesAfterLastUser]
+      .reverse()
+      .find((message) => message.role === 'agent' && hasRenderableMessageContent(message));
+
+    try {
+      stopAgentResponse();
+    } catch {
+      // The persisted cancel below is still enough to unblock this conversation.
+    }
+
+    setIsAwaitingResponse(false);
+    setCancelledResponseSessionId(activeSessionId);
+    setInitialMessages((currentMessages) => {
+      const nextMessages = currentMessages.flatMap((message) => {
+        if (message.role !== 'agent' || message.status !== 'sending') {
+          return [message];
+        }
+
+        if (!hasRenderableMessageContent(message)) {
+          return [];
+        }
+
+        return [{ ...message, status: 'sent' as const }];
+      });
+
+      if (!partialResponseSnapshot) {
+        return nextMessages;
+      }
+
+      const snapshot = { ...partialResponseSnapshot, status: 'sent' as const };
+      const existingIndex = nextMessages.findIndex((message) => message.id === snapshot.id);
+      if (existingIndex >= 0) {
+        return nextMessages.map((message, index) => (index === existingIndex ? snapshot : message));
+      }
+
+      return [...nextMessages, snapshot];
+    });
+
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+
+    const response = await cancelChatResponse(
+      activeSessionId,
+      partialResponseSnapshot
+        ? {
+            content: partialResponseSnapshot.content,
+            reasoning: partialResponseSnapshot.reasoning ?? null,
+          }
+        : undefined
+    );
+    if (!response.success) {
+      showError(response.error || 'Failed to cancel response');
+      return;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+    await loadInitialMessages(activeSessionId, { resetLoaded: false });
+  }, [
+    activeSessionId,
+    loadInitialMessages,
+    responseMessagesAfterLastUser,
+    showError,
+    stopAgentResponse,
+  ]);
 
   useEffect(() => {
     if (!initialMessage || !isConnected || !activeSessionId) {
@@ -622,8 +724,10 @@ export const ChatScreen: React.FC = () => {
           agent={agent}
           messages={visibleMessages}
           isLoading={shouldShowThinkingIndicator}
-          isInputDisabled={isConnecting || shouldShowThinkingIndicator}
+          isGenerating={isResponseInFlight}
+          isInputDisabled={isConnecting}
           onSendMessage={handleSendMessage}
+          onCancelResponse={isResponseInFlight ? handleCancelResponse : undefined}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
           onToggleInfo={handleToggleInfo}

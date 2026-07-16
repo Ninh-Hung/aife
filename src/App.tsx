@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AgentsProvider, useAgents } from './contexts/AgentsContext';
@@ -60,6 +60,11 @@ const RootRoute: React.FC = () => {
   }
 
   return <LandingPage />;
+};
+
+const ChatScreenRoute: React.FC = () => {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  return <ChatScreen key={sessionId ?? 'missing-session'} />;
 };
 
 // ============================================
@@ -216,7 +221,7 @@ const AppContent: React.FC = () => {
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
 
                   <Route path="/agents" element={<AgentManagement />} />
-                  <Route path="/chat/:sessionId" element={<ChatScreen />} />
+                  <Route path="/chat/:sessionId" element={<ChatScreenRoute />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
                     path="/code"

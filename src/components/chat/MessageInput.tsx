@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Plus, X, File as FileIcon } from 'lucide-react';
+import { Send, Plus, X, File as FileIcon, StopCircle } from 'lucide-react';
 import { IconButton } from '@mui/material';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 
@@ -15,7 +15,9 @@ interface FileWithPreview {
 
 interface MessageInputProps {
   onSend: (message: string, files?: File[]) => void;
+  onCancel?: () => void;
   disabled?: boolean;
+  isGenerating?: boolean;
   placeholder?: string;
   mode: ChatExecutionMode;
   onModeChange: (mode: ChatExecutionMode) => void;
@@ -23,7 +25,9 @@ interface MessageInputProps {
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
+  onCancel,
   disabled = false,
+  isGenerating = false,
   placeholder = 'Type your message...',
   mode,
   onModeChange,
@@ -53,7 +57,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSend = () => {
     const trimmedMessage = message.trim();
-    if ((trimmedMessage || attachments.length > 0) && !disabled) {
+    if ((trimmedMessage || attachments.length > 0) && !disabled && !isGenerating) {
       const files = attachments.map((a) => a.file);
       onSend(trimmedMessage, files.length > 0 ? files : undefined);
 
@@ -101,7 +105,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     });
   };
 
-  const canSend = !disabled && (message.trim().length > 0 || attachments.length > 0);
+  const canSend =
+    !disabled && !isGenerating && (message.trim().length > 0 || attachments.length > 0);
 
   return (
     <div className="border-t border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
@@ -156,7 +161,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {/* Plus / Attach Button */}
         <IconButton
           onClick={() => fileInputRef.current?.click()}
-          disabled={disabled}
+          disabled={disabled || isGenerating}
           size="small"
           className="flex-shrink-0"
           sx={{
@@ -173,7 +178,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <select
           value={mode}
           onChange={(event) => onModeChange(event.target.value as ChatExecutionMode)}
-          disabled={disabled}
+          disabled={disabled || isGenerating}
           aria-label="Model mode"
           className="h-[42px] flex-shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
         >
@@ -190,7 +195,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            disabled={disabled}
+            disabled={disabled || isGenerating}
             rows={1}
             className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm leading-5 text-gray-900 placeholder-gray-500 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400 dark:focus:border-blue-500"
             style={{
@@ -200,16 +205,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           />
         </div>
 
-        {/* Send Button */}
+        {/* Send / Cancel Button */}
         <IconButton
-          onClick={handleSend}
-          disabled={!canSend}
+          onClick={isGenerating ? onCancel : handleSend}
+          disabled={isGenerating ? disabled || !onCancel : !canSend}
+          title={isGenerating ? 'Cancel response' : 'Send message'}
           className="h-10 w-10 flex-shrink-0"
           sx={{
-            bgcolor: 'rgb(59 130 246)',
+            bgcolor: isGenerating ? 'rgb(239 68 68)' : 'rgb(59 130 246)',
             color: 'white',
             '&:hover': {
-              bgcolor: 'rgb(37 99 235)',
+              bgcolor: isGenerating ? 'rgb(220 38 38)' : 'rgb(37 99 235)',
             },
             '&:disabled': {
               bgcolor: 'rgb(203 213 225)',
@@ -217,7 +223,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             },
           }}
         >
-          <Send size={18} />
+          {isGenerating ? <StopCircle size={18} /> : <Send size={18} />}
         </IconButton>
       </div>
     </div>

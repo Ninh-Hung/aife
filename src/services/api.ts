@@ -714,6 +714,39 @@ export const listChatMessages = async (sessionId: string): Promise<ApiResponse<C
   }
 };
 
+export interface CancelChatResponseInput {
+  content?: string;
+  reasoning?: string | null;
+}
+
+export const cancelChatResponse = async (
+  sessionId: string,
+  partialResponse?: CancelChatResponseInput
+): Promise<ApiResponse<{ cancelled: boolean }>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/chat/sessions/${sessionId}/cancel`,
+      partialResponse
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('Cancel chat response error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to cancel response',
+    };
+  }
+};
+
 /**
  * Updates a chat session (e.g. status, title)
  * @param sessionId - The public ID of the chat session

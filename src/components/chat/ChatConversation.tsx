@@ -16,8 +16,10 @@ interface ChatConversationProps {
   agent: Agent;
   messages: ChatMessage[];
   isLoading: boolean;
+  isGenerating?: boolean;
   isInputDisabled?: boolean;
   onSendMessage: (content: string, files?: File[]) => void;
+  onCancelResponse?: () => void;
   executionMode: ChatExecutionMode;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
   onToggleInfo: () => void;
@@ -31,8 +33,10 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   agent,
   messages,
   isLoading,
+  isGenerating,
   isInputDisabled,
   onSendMessage,
+  onCancelResponse,
   executionMode,
   onExecutionModeChange,
   onToggleInfo,
@@ -45,6 +49,13 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const thinkingIndicator = (
+    <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
+      <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
+      <span className="text-sm text-gray-600 dark:text-slate-400">thinking...</span>
+    </div>
+  );
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -90,10 +101,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           // Empty State - Centered in available space
           <div className="flex h-full items-center justify-center p-8">
             {isLoading ? (
-              <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
-                <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
-                <span className="text-sm text-gray-600 dark:text-slate-400">thinking...</span>
-              </div>
+              thinkingIndicator
             ) : (
               <div className="text-center">
                 <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-slate-800">
@@ -135,10 +143,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
                     fallback={<Bot size={16} className="text-white" />}
                   />
                 </div>
-                <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
-                  <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
-                  <span className="text-sm text-gray-600 dark:text-slate-400">thinking...</span>
-                </div>
+                {thinkingIndicator}
               </div>
             )}
 
@@ -152,7 +157,9 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
       <div className="flex-shrink-0">
         <MessageInput
           onSend={onSendMessage}
-          disabled={isInputDisabled ?? isLoading}
+          onCancel={onCancelResponse}
+          disabled={isInputDisabled ?? false}
+          isGenerating={isGenerating ?? isLoading}
           placeholder={`Message ${agent.name}...`}
           mode={executionMode}
           onModeChange={onExecutionModeChange}

@@ -56,6 +56,14 @@ function normalizeAgentHost(serverUrl: string): string | undefined {
   }
 }
 
+function isAbortOrCancelMessage(content: string): boolean {
+  const normalized = content.trim().toLowerCase();
+  return (
+    normalized === 'the operation was aborted' ||
+    normalized === 'response generation was cancelled.'
+  );
+}
+
 export function useChatAgent({
   conversationId,
   agentPublicId,
@@ -232,10 +240,24 @@ export function useChatAgent({
       : undefined;
   }, []);
 
+  const extractMessageSessionId = useCallback((message: UIMessage): number | null => {
+    const raw = message as unknown as {
+      metadata?: {
+        sessionId?: unknown;
+      };
+    };
+
+    return typeof raw.metadata?.sessionId === 'number' ? raw.metadata.sessionId : null;
+  }, []);
+
   const messages: ChatMessage[] = useMemo(() => {
     if (!shouldConnect) return [];
 
     return (agentMessages || [])
+      .filter((msg) => {
+        const messageSessionId = extractMessageSessionId(msg);
+        return messageSessionId === null || messageSessionId === sessionId;
+      })
       .map((msg) => {
         const content = extractText(msg);
         const reasoning = extractReasoning(msg);
@@ -255,10 +277,17 @@ export function useChatAgent({
           status: 'sent' as const,
         };
       })
-      .filter((msg) => msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim()));
+      .filter((msg) => {
+        if (msg.role === 'agent' && isAbortOrCancelMessage(msg.content)) {
+          return false;
+        }
+
+        return msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim());
+      });
   }, [
     agentMessages,
     extractConversationTitle,
+    extractMessageSessionId,
     extractReasoning,
     extractSources,
     extractText,
