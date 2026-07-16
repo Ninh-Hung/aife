@@ -14,9 +14,10 @@ import {
   ChevronRight,
   ExternalLink,
 } from 'lucide-react';
-import { ChatMessage, ChatSource } from '../../types';
+import { ChatMessage } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
 import { parseAgentResponse } from '../../utils/agentResponse';
+import { MarkdownRenderer } from '../common/MarkdownRenderer';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -81,34 +82,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     });
   };
 
-  const sourceByMarker = new Map(sources.map((source) => [source.marker, source]));
-
-  const renderContentWithSources = (content: string, citationSources: ChatSource[]) => {
-    if (citationSources.length === 0) {
-      return content;
-    }
-
-    return content.split(/(\[\d+\])/g).map((part, index) => {
-      const source = sourceByMarker.get(part);
-      if (!source?.url) {
-        return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
-      }
-
-      return (
-        <a
-          key={`${part}-${index}`}
-          href={source.url}
-          target="_blank"
-          rel="noreferrer"
-          title={source.title}
-          className="mx-0.5 rounded-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 transition-colors hover:text-blue-700 dark:text-sky-300 dark:decoration-sky-500/60 dark:hover:text-sky-200"
-        >
-          {part}
-        </a>
-      );
-    });
-  };
-
   return (
     <div className={`mb-3 flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`flex max-w-[70%] gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -163,17 +136,30 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <span>Reasoning</span>
                 </button>
                 {isReasoningOpen && (
-                  <div className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words pr-1 text-xs italic leading-relaxed text-gray-400 dark:text-slate-500">
-                    {reasoning}
+                  <div className="mt-2 max-h-64 overflow-auto pr-1">
+                    <MarkdownRenderer
+                      text={reasoning}
+                      className="text-xs italic leading-relaxed text-gray-400 dark:text-slate-500"
+                    />
                   </div>
                 )}
               </div>
             )}
 
             {displayContent && (
-              <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                {renderContentWithSources(displayContent, sources)}
-              </div>
+              <>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                    {displayContent}
+                  </div>
+                ) : (
+                  <MarkdownRenderer
+                    text={displayContent}
+                    sources={sources}
+                    className="text-sm leading-relaxed"
+                  />
+                )}
+              </>
             )}
 
             {!isUser && sources.length > 0 && (

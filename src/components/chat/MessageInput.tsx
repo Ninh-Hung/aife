@@ -143,7 +143,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-end gap-2">
         {/* Hidden File Input */}
         <input
           ref={fileInputRef}
@@ -175,7 +175,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onChange={(event) => onModeChange(event.target.value as ChatExecutionMode)}
           disabled={disabled}
           aria-label="Model mode"
-          className="h-10 flex-shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+          className="h-[42px] flex-shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
         >
           <option value="cheap">cheap</option>
           <option value="normal">normal</option>
@@ -192,7 +192,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder-gray-500 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400 dark:focus:border-blue-500"
+            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm leading-5 text-gray-900 placeholder-gray-500 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400 dark:focus:border-blue-500"
             style={{
               maxHeight: '120px',
               minHeight: '42px',

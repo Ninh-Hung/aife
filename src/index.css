@@ -32,7 +32,9 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
   }
 }
 
@@ -63,6 +65,39 @@
   }
 }
 
+@layer components {
+  .markdown-renderer .hljs {
+    color: #e2e8f0;
+    background: transparent;
+  }
+
+  .markdown-renderer .hljs-keyword,
+  .markdown-renderer .hljs-selector-tag,
+  .markdown-renderer .hljs-built_in {
+    color: #c084fc;
+  }
+
+  .markdown-renderer .hljs-string,
+  .markdown-renderer .hljs-attr,
+  .markdown-renderer .hljs-symbol {
+    color: #86efac;
+  }
+
+  .markdown-renderer .hljs-number,
+  .markdown-renderer .hljs-literal {
+    color: #fbbf24;
+  }
+
+  .markdown-renderer .hljs-title,
+  .markdown-renderer .hljs-function {
+    color: #93c5fd;
+  }
+
+  .markdown-renderer .hljs-comment {
+    color: #94a3b8;
+  }
+}
+
 /* ============================================ */
 /* Scrollbar Styling */
 /* ============================================ */
@@ -77,7 +112,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-slate-600 rounded-full;
+  @apply rounded-full bg-gray-300 dark:bg-slate-600;
 }
 
 ::-webkit-scrollbar-thumb:hover {
