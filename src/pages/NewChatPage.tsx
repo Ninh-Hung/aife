@@ -12,6 +12,7 @@ import { useNotification } from '../hooks/useNotification';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { createChatSession, listAgents } from '../services/api';
 import type { Agent, ChatSession } from '../types';
+import type { ChatExecutionMode } from '../hooks/useChatAgent';
 
 const NewChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,9 +20,10 @@ const NewChatPage: React.FC = () => {
   const { error: showError } = useNotification();
   const { addOrUpdateConversation } = useSidebarConversations();
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [executionMode, setExecutionMode] = useState<ChatExecutionMode>('cheap');
 
   const resolveAgent = async (selectedAgent?: Agent | null): Promise<Agent | null> => {
-    if (selectedAgent) {
+    if (selectedAgent && agents.some((agent) => agent.publicId === selectedAgent.publicId)) {
       return selectedAgent;
     }
 
@@ -33,13 +35,18 @@ const NewChatPage: React.FC = () => {
 
     const response = await listAgents();
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to load agents');
+      return null;
     }
 
     return response.data.find((a) => a.isDefault) ?? response.data[0] ?? null;
   };
 
-  const handleSend = async (message: string, file?: File, selectedAgent?: Agent | null) => {
+  const handleSend = async (
+    message: string,
+    file?: File,
+    selectedAgent?: Agent | null,
+    mode: ChatExecutionMode = executionMode
+  ) => {
     if (!message.trim() || isStartingChat || loading) return;
 
     setIsStartingChat(true);
@@ -47,7 +54,7 @@ const NewChatPage: React.FC = () => {
       const agent = await resolveAgent(selectedAgent);
 
       if (!agent) {
-        const sessionResponse = await createChatSession(null, 'New Chat', { temporary: true });
+        const sessionResponse = await createChatSession(null, 'New Chat');
 
         if (!sessionResponse.success || !sessionResponse.data) {
           throw new Error(sessionResponse.error || 'Failed to create chat session');
@@ -56,7 +63,7 @@ const NewChatPage: React.FC = () => {
         addOrUpdateConversation(sessionResponse.data);
 
         navigate(`/chat/${sessionResponse.data.id}`, {
-          state: { initialMessage: message, initialFile: file ?? null },
+          state: { initialMessage: message, initialFile: file ?? null, initialMode: mode },
         });
         return;
       }
@@ -80,7 +87,7 @@ const NewChatPage: React.FC = () => {
 
       // Navigate inside the protected layout so the global sidebar stays mounted.
       navigate(`/chat/${sessionId}`, {
-        state: { initialMessage: message, initialFile: file ?? null },
+        state: { initialMessage: message, initialFile: file ?? null, initialMode: mode },
       });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to start chat');
@@ -96,6 +103,8 @@ const NewChatPage: React.FC = () => {
         placeholder="Ask me anything..."
         onSend={handleSend}
         isSubmitting={isStartingChat || loading}
+        executionMode={executionMode}
+        onExecutionModeChange={setExecutionMode}
       />
     </div>
   );

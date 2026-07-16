@@ -9,16 +9,22 @@ import { MessageSquare } from 'lucide-react';
 import { Agent, ChatMessage, ChatSource } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
-import { useChatAgent } from '../hooks/useChatAgent';
+import { useChatAgent, type ChatExecutionMode } from '../hooks/useChatAgent';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
 import { getChatSession, listChatMessages, getAgent } from '../services/api';
+import { parseAgentResponse } from '../utils/agentResponse';
 
-const TEMP_CHAT_AGENT_PUBLIC_ID = '__temporary-agent__';
 const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
 const FIRST_RESPONSE_TITLE_SYNC_DELAYS_MS = [0, 700, 1200, 1800, 2600, 3600];
+const CHAT_EXECUTION_MODES = new Set<ChatExecutionMode>(['cheap', 'normal', 'premium']);
+
+const normalizeInitialExecutionMode = (mode: unknown): ChatExecutionMode =>
+  typeof mode === 'string' && CHAT_EXECUTION_MODES.has(mode as ChatExecutionMode)
+    ? (mode as ChatExecutionMode)
+    : 'cheap';
 
 const isDefaultConversationTitle = (title: string | null | undefined) => {
   const normalized = title?.trim().toLowerCase() ?? '';
@@ -57,6 +63,14 @@ const removePersistedMessagesDuplicatedByLiveMessages = (
   return dedupedReversed.reverse();
 };
 
+const hasRenderableMessageContent = (message: ChatMessage) => {
+  if (message.role === 'user') {
+    return message.content.trim().length > 0;
+  }
+
+  return parseAgentResponse(message.content).content.trim().length > 0;
+};
+
 export const ChatScreen: React.FC = () => {
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -71,6 +85,7 @@ export const ChatScreen: React.FC = () => {
   const initialState = location.state as {
     initialMessage?: string;
     initialFile?: File | null;
+    initialMode?: ChatExecutionMode;
   } | null;
   const initialMessage = initialState?.initialMessage;
   const initialFile = initialState?.initialFile ?? null;
@@ -82,7 +97,9 @@ export const ChatScreen: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
-  const [executionMode] = useState<'cheap' | 'normal' | 'premium'>('normal');
+  const [executionMode, setExecutionMode] = useState<ChatExecutionMode>(() =>
+    normalizeInitialExecutionMode(initialState?.initialMode)
+  );
 
   const {
     messages: agentMessages,
@@ -119,22 +136,47 @@ export const ChatScreen: React.FC = () => {
   }, [agentMessages, initialMessages, initialMessagesLoaded, isActiveRouteSession]);
   const visibleMessages = useMemo(
     () =>
-      allMessages.filter(
-        (message) =>
-          !(
-            message.role === 'agent' &&
-            message.status === 'sending' &&
-            message.content.trim().length === 0
-          )
-      ),
-    [allMessages]
+      allMessages.filter((message) => {
+        if (message.role !== 'agent') {
+          return true;
+        }
+
+        if (hasRenderableMessageContent(message)) {
+          return true;
+        }
+
+        return !(message.status === 'sending' || chatStatus !== 'ready' || isAwaitingResponse);
+      }),
+    [allMessages, chatStatus, isAwaitingResponse]
   );
   const latestVisibleMessage = visibleMessages[visibleMessages.length - 1];
-  const hasPendingAgentMessage = allMessages.some(
-    (message) => message.role === 'agent' && message.status === 'sending'
+  let lastUserMessageIndex = -1;
+  for (let index = allMessages.length - 1; index >= 0; index -= 1) {
+    if (allMessages[index].role === 'user') {
+      lastUserMessageIndex = index;
+      break;
+    }
+  }
+  const responseMessagesAfterLastUser =
+    lastUserMessageIndex >= 0 ? allMessages.slice(lastUserMessageIndex + 1) : allMessages;
+  const latestResponseAgentMessage = responseMessagesAfterLastUser
+    .filter((message) => message.role === 'agent')
+    .slice(-1)[0];
+  const latestResponseHasRenderableContent =
+    latestResponseAgentMessage !== undefined &&
+    hasRenderableMessageContent(latestResponseAgentMessage);
+  const hasPendingAgentPlaceholder = responseMessagesAfterLastUser.some(
+    (message) =>
+      message.role === 'agent' &&
+      message.status === 'sending' &&
+      !hasRenderableMessageContent(message)
   );
+  const isResponseInFlight =
+    isAwaitingResponse || chatStatus === 'submitted' || chatStatus === 'streaming';
   const shouldShowThinkingIndicator =
-    hasPendingAgentMessage || (isAwaitingResponse && latestVisibleMessage?.role !== 'agent');
+    (hasPendingAgentPlaceholder || isResponseInFlight) &&
+    !latestResponseHasRenderableContent &&
+    latestVisibleMessage?.role !== 'agent';
 
   useEffect(() => {
     const latestAgentMessage = agentMessages[agentMessages.length - 1];
@@ -284,32 +326,35 @@ export const ChatScreen: React.FC = () => {
         return;
       }
 
+      if (!currentSession.agentPublicId) {
+        showError('Chat session is missing agent ID');
+        navigate('/new-chat');
+        return;
+      }
+
       let resolvedAgent: Agent | null = null;
-      if (currentSession.agentPublicId) {
-        const contextAgent = agents.find((item) => item.publicId === currentSession.agentPublicId);
-        const agentResponse = contextAgent ? null : await getAgent(currentSession.agentPublicId);
-        if (cancelled) {
-          return;
-        }
+      const contextAgent = agents.find((item) => item.publicId === currentSession.agentPublicId);
+      const agentResponse = contextAgent ? null : await getAgent(currentSession.agentPublicId);
+      if (cancelled) {
+        return;
+      }
 
-        const loadedAgent =
-          contextAgent ||
-          (agentResponse?.success && agentResponse.data ? agentResponse.data : null);
+      const loadedAgent =
+        contextAgent || (agentResponse?.success && agentResponse.data ? agentResponse.data : null);
 
-        if (loadedAgent) {
-          resolvedAgent = {
-            ...loadedAgent,
-            id: loadedAgent.id || loadedAgent.publicId,
-          };
-        }
+      if (loadedAgent) {
+        resolvedAgent = {
+          ...loadedAgent,
+          id: loadedAgent.id || loadedAgent.publicId,
+        };
       }
 
       if (!resolvedAgent) {
         resolvedAgent = {
-          id: currentSession.agentPublicId || TEMP_CHAT_AGENT_PUBLIC_ID,
-          publicId: currentSession.agentPublicId || TEMP_CHAT_AGENT_PUBLIC_ID,
+          id: currentSession.agentPublicId,
+          publicId: currentSession.agentPublicId,
           name: currentSession.agentName || 'AI Assistant',
-          description: currentSession.agentPublicId ? 'Chat assistant' : 'Temporary chat assistant',
+          description: 'Chat assistant',
           avatarUrl: null,
           capabilityIds: [],
           characteristicIds: [],
@@ -372,6 +417,24 @@ export const ChatScreen: React.FC = () => {
     []
   );
 
+  const extractReasoningFromRawPayload = useCallback(
+    (rawPayload: string | Record<string, unknown> | null | undefined): string | null => {
+      if (!rawPayload) return null;
+
+      try {
+        const payload =
+          typeof rawPayload === 'string'
+            ? (JSON.parse(rawPayload) as Record<string, unknown>)
+            : rawPayload;
+        const reasoning = payload.reasoning;
+        return typeof reasoning === 'string' && reasoning.trim() ? reasoning : null;
+      } catch {
+        return null;
+      }
+    },
+    []
+  );
+
   const normalizeMessageStatus = useCallback((status: unknown): ChatMessage['status'] => {
     if (typeof status !== 'string') return 'sent';
 
@@ -412,6 +475,7 @@ export const ChatScreen: React.FC = () => {
             timestamp?: string | Date;
             createdAt?: string | Date;
             status?: ChatMessage['status'];
+            reasoning?: string | null;
             sources?: ChatSource[];
             rawPayload?: string | Record<string, unknown> | null;
           };
@@ -422,6 +486,7 @@ export const ChatScreen: React.FC = () => {
             sessionId: msg.sessionId || sessionId,
             role: msg.role === 'user' ? 'user' : 'agent',
             content: msg.content,
+            reasoning: msg.reasoning || extractReasoningFromRawPayload(msg.rawPayload),
             sources: msg.sources || extractSourcesFromRawPayload(msg.rawPayload),
             timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
             status,
@@ -434,7 +499,7 @@ export const ChatScreen: React.FC = () => {
         setInitialMessagesLoaded(true);
       }
     },
-    [extractSourcesFromRawPayload, normalizeMessageStatus]
+    [extractReasoningFromRawPayload, extractSourcesFromRawPayload, normalizeMessageStatus]
   );
 
   // Load initial messages when active session changes
@@ -559,6 +624,8 @@ export const ChatScreen: React.FC = () => {
           isLoading={shouldShowThinkingIndicator}
           isInputDisabled={isConnecting || shouldShowThinkingIndicator}
           onSendMessage={handleSendMessage}
+          executionMode={executionMode}
+          onExecutionModeChange={setExecutionMode}
           onToggleInfo={handleToggleInfo}
         />
       ) : (

@@ -65,6 +65,45 @@ type AuthUserData = {
 
 const ANONYMOUS_AUTH_PROVIDER = 'ANONYMOUS';
 const ENABLE_SUBSCRIPTION_QUOTA_CHECKS = false;
+const PRESERVED_STORAGE_KEYS = new Set(['theme-mode']);
+const USER_SCOPED_STORAGE_KEY_PATTERNS = [
+  'agent',
+  'auth',
+  'chat',
+  'conversation',
+  'quota',
+  'session',
+  'subscription',
+  'token',
+  'user',
+];
+
+const clearStorageByPattern = (storage: Storage) => {
+  const keysToRemove: string[] = [];
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key || PRESERVED_STORAGE_KEYS.has(key)) {
+      continue;
+    }
+
+    const normalizedKey = key.toLowerCase();
+    if (USER_SCOPED_STORAGE_KEY_PATTERNS.some((pattern) => normalizedKey.includes(pattern))) {
+      keysToRemove.push(key);
+    }
+  }
+
+  keysToRemove.forEach((key) => storage.removeItem(key));
+};
+
+const clearUserScopedClientStorage = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  clearStorageByPattern(window.localStorage);
+  clearStorageByPattern(window.sessionStorage);
+};
 
 const isAnonymousUser = (user: User | null): boolean => {
   if (!user) {
@@ -178,7 +217,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Silent fail - user is not authenticated
         console.error('[AuthContext] Auth initialization failed:', error);
         clearAccessToken();
+        clearUserScopedClientStorage();
         setUser(null);
+        setQuota(null);
+        setSubscription(null);
       } finally {
         setIsLoading(false);
         console.log('[AuthContext] Auth initialization complete');
@@ -195,7 +237,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const handleLogout = () => {
       setUser(null);
+      setQuota(null);
+      setSubscription(null);
       clearAccessToken();
+      clearUserScopedClientStorage();
     };
 
     window.addEventListener('auth:logout', handleLogout);
@@ -244,6 +289,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.data.success && response.data.data) {
         const { accessToken, user: userData } = response.data.data;
+
+        clearUserScopedClientStorage();
+        setUser(null);
+        setQuota(null);
+        setSubscription(null);
 
         // Store access token in memory
         setAccessToken(accessToken);
@@ -361,6 +411,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Clear access token from memory
       clearAccessToken();
+      clearUserScopedClientStorage();
 
       // Clear user-related state (user profile, permissions, cached auth data)
       setUser(null);
@@ -377,7 +428,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           anonymousError
         );
         clearAccessToken();
+        clearUserScopedClientStorage();
         setUser(null);
+        setQuota(null);
+        setSubscription(null);
       }
     }
   };

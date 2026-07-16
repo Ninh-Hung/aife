@@ -4,7 +4,7 @@
  * Refactored to support capability-driven, data-driven architecture
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Agent, CreateAgentInput } from '../types';
 import * as agentApi from '../services/api';
 import { useAuth } from './AuthContext';
@@ -58,31 +58,48 @@ interface AgentsProviderProps {
 
 export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   const [agents, setAgents] = useState<Agent[]>(defaultAgents);
+  const [agentsOwnerPublicId, setAgentsOwnerPublicId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const authIdentity = isAuthenticated ? (user?.publicId ?? null) : null;
+  const fetchRequestIdRef = useRef(0);
+  const scopedAgents = agentsOwnerPublicId === authIdentity ? agents : defaultAgents;
 
   // ============================================
   // Fetch Agents
   // ============================================
 
   const fetchAgents = async (): Promise<void> => {
+    const requestId = ++fetchRequestIdRef.current;
+
     setLoading(true);
     setError(null);
 
     try {
       const response = await agentApi.listAgents();
 
+      if (requestId !== fetchRequestIdRef.current) {
+        return;
+      }
+
       if (response.success && response.data) {
         setAgents(response.data);
+        setAgentsOwnerPublicId(authIdentity);
       } else {
         // Use message field for user-friendly error, fallback to error field
         setError(response.message || response.error || 'Failed to load agents');
       }
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) {
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'Failed to load agents');
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -94,14 +111,18 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     if (authLoading) return;
 
     if (!isAuthenticated) {
+      fetchRequestIdRef.current += 1;
       setAgents(defaultAgents);
+      setAgentsOwnerPublicId(null);
       setLoading(false);
       setError(null);
       return;
     }
 
+    setAgents(defaultAgents);
+    setAgentsOwnerPublicId(authIdentity);
     fetchAgents();
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, authIdentity]);
 
   // ============================================
   // Agent Operations
@@ -116,7 +137,8 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     }
 
     const newAgent = response.data;
-    setAgents((prev) => [...prev, newAgent]);
+    setAgentsOwnerPublicId(authIdentity);
+    setAgents((prev) => (agentsOwnerPublicId === authIdentity ? [...prev, newAgent] : [newAgent]));
     return newAgent;
   };
 
@@ -164,7 +186,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   };
 
   const contextValue: AgentsContextValue = {
-    agents,
+    agents: scopedAgents,
     loading,
     error,
     fetchAgents,

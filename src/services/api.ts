@@ -590,7 +590,9 @@ const normalizeChatSession = (session: BackendChatSession): ChatSession => {
     publicId,
     internalId: typeof session.id === 'number' ? session.id : session.internalId,
     title: session.title || 'New Chat',
-    agentId: session.agentId ?? session.agentPublicId ?? null,
+    agentId: session.agentId ?? session.agentPublicId ?? '',
+    agentPublicId: session.agentPublicId || String(session.agentId ?? ''),
+    agentName: session.agentName || 'AI Assistant',
     lastMessageAt: new Date(
       session.lastMessageAt || session.createdAt || session.updatedAt || Date.now()
     ),
@@ -636,14 +638,12 @@ export const listChatSessions = async (agentId?: string): Promise<ApiResponse<Ch
  */
 export const createChatSession = async (
   agentId?: string | null,
-  title?: string,
-  options?: { temporary?: boolean }
+  title?: string
 ): Promise<ApiResponse<ChatSession>> => {
   try {
     const response = await axiosInstance.post('/v1/chat/sessions', {
       ...(agentId ? { agentId } : {}),
       title,
-      ...(options?.temporary ? { temporary: true } : {}),
     });
 
     return {

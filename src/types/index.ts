@@ -379,9 +379,9 @@ export interface ChatSession {
   id: string;
   publicId?: string;
   internalId?: number;
-  agentId: string | number | null;
-  agentPublicId?: string | null;
-  agentName?: string | null;
+  agentId: string | number;
+  agentPublicId: string;
+  agentName: string;
   agentKey?: string;
   title: string; // Auto-generated or custom title
   lastMessage?: string; // Preview of last message

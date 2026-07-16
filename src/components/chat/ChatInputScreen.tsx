@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAgents } from '../../contexts/AgentsContext';
 import { AvatarMedia } from './AvatarMedia';
 import type { Agent } from '../../types';
+import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 
 // ============================================
 // Props Interface
@@ -21,11 +22,18 @@ export interface ChatInputScreenProps {
   /** Textarea placeholder text */
   placeholder?: string;
   /** Called when the user submits a message */
-  onSend: (message: string, image?: File, agent?: Agent | null) => void | Promise<void>;
+  onSend: (
+    message: string,
+    image?: File,
+    agent?: Agent | null,
+    mode?: ChatExecutionMode
+  ) => void | Promise<void>;
   /** Disable input while the parent is preparing the chat */
   isSubmitting?: boolean;
   /** Optional suggestion chips shown below the input */
   suggestions?: string[];
+  executionMode?: ChatExecutionMode;
+  onExecutionModeChange?: (mode: ChatExecutionMode) => void;
 }
 
 // ============================================
@@ -53,6 +61,8 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   onSend,
   isSubmitting = false,
   suggestions,
+  executionMode = 'cheap',
+  onExecutionModeChange,
 }) => {
   const { user } = useAuth();
   const isLoggedIn = !!user;
@@ -64,18 +74,28 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
+  const [localExecutionMode, setLocalExecutionMode] = useState<ChatExecutionMode>(executionMode);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const agentSelectorRef = useRef<HTMLDivElement>(null);
 
-  // Initialise selectedAgent to the default (or first) agent once list loads
+  // Keep selectedAgent scoped to the current user's agent list.
   useEffect(() => {
-    if (agents.length > 0 && !selectedAgent) {
+    if (agents.length === 0) {
+      setSelectedAgent(null);
+      return;
+    }
+
+    const selectedAgentStillAvailable = selectedAgent
+      ? agents.some((agent) => agent.publicId === selectedAgent.publicId)
+      : false;
+
+    if (!selectedAgentStillAvailable) {
       setSelectedAgent(agents.find((a) => a.isDefault) ?? agents[0]);
     }
-  }, [agents, selectedAgent]);
+  }, [agents, selectedAgent, user?.publicId]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -129,14 +149,19 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     const trimmed = inputValue.trim();
     if (!trimmed || isSubmitting) return;
 
-    await onSend(trimmed, selectedImage ?? undefined, selectedAgent);
+    await onSend(trimmed, selectedImage ?? undefined, selectedAgent, localExecutionMode);
     setInputValue('');
     setSelectedImage(null);
     setUploadError(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [inputValue, isSubmitting, selectedAgent, selectedImage, onSend]);
+  }, [inputValue, isSubmitting, localExecutionMode, selectedAgent, selectedImage, onSend]);
+
+  const handleExecutionModeChange = (mode: ChatExecutionMode) => {
+    setLocalExecutionMode(mode);
+    onExecutionModeChange?.(mode);
+  };
 
   const handleImageUploadClick = () => {
     setMenuOpen(false);
@@ -357,19 +382,35 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             </div>
 
             {/* Send button */}
-            <button
-              type="button"
-              onClick={() => void handleSend()}
-              disabled={!canSend}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                canSend
-                  ? 'bg-teal-500 text-white hover:bg-teal-600'
-                  : 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-slate-700 dark:text-slate-500'
-              }`}
-              title="Send message"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                value={localExecutionMode}
+                onChange={(event) =>
+                  handleExecutionModeChange(event.target.value as ChatExecutionMode)
+                }
+                disabled={isSubmitting}
+                aria-label="Model mode"
+                className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-400 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-[#0F1F38] dark:text-slate-300 dark:focus:border-slate-500"
+              >
+                <option value="cheap">cheap</option>
+                <option value="normal">normal</option>
+                <option value="premium">premium</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={!canSend}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                  canSend
+                    ? 'bg-teal-500 text-white hover:bg-teal-600'
+                    : 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-slate-700 dark:text-slate-500'
+                }`}
+                title="Send message"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 

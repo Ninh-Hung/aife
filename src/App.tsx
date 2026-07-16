@@ -3,7 +3,7 @@
  * Integrates all providers, routing, and core features
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -68,12 +68,25 @@ const RootRoute: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { agents, createAgent } = useAgents();
+  const { user } = useAuth();
   const [isAgentDrawerOpen, setIsAgentDrawerOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     agents.find((a) => a.isDefault)?.id || agents[0]?.id || ''
   );
   const location = useLocation();
   const { errorState, closeModal } = useQuotaErrorHandler();
+
+  useEffect(() => {
+    const defaultAgentId = agents.find((agent) => agent.isDefault)?.id || agents[0]?.id || '';
+
+    setSelectedAgentId((currentAgentId) => {
+      if (currentAgentId && agents.some((agent) => agent.id === currentAgentId)) {
+        return currentAgentId;
+      }
+
+      return defaultAgentId;
+    });
+  }, [agents, user?.publicId]);
 
   const handleCreateAgent = () => {
     setIsAgentDrawerOpen(true);

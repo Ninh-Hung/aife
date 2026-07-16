@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, X, File as FileIcon } from 'lucide-react';
 import { IconButton } from '@mui/material';
+import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 
 interface FileWithPreview {
   file: File;
@@ -16,12 +17,16 @@ interface MessageInputProps {
   onSend: (message: string, files?: File[]) => void;
   disabled?: boolean;
   placeholder?: string;
+  mode: ChatExecutionMode;
+  onModeChange: (mode: ChatExecutionMode) => void;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
   disabled = false,
   placeholder = 'Type your message...',
+  mode,
+  onModeChange,
 }) => {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<FileWithPreview[]>([]);
@@ -165,6 +170,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           <Plus size={20} />
         </IconButton>
 
+        <select
+          value={mode}
+          onChange={(event) => onModeChange(event.target.value as ChatExecutionMode)}
+          disabled={disabled}
+          aria-label="Model mode"
+          className="h-10 flex-shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+        >
+          <option value="cheap">cheap</option>
+          <option value="normal">normal</option>
+          <option value="premium">premium</option>
+        </select>
+
         {/* Textarea Container */}
         <div className="flex-1">
           <textarea
@@ -203,7 +220,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           <Send size={18} />
         </IconButton>
       </div>
-
     </div>
   );
 };

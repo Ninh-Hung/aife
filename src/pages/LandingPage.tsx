@@ -12,6 +12,7 @@ import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
+import type { ChatExecutionMode } from '../hooks/useChatAgent';
 
 // ============================================
 // Suggestion chips shown below the input
@@ -32,19 +33,26 @@ const LandingPage: React.FC = () => {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const navigate = useNavigate();
   const { agents } = useAgents();
+  const [executionMode, setExecutionMode] = useState<ChatExecutionMode>('cheap');
 
   // Handle anonymous chat - create session and send first message
-  const handleSend = async (message: string, _image?: File) => {
+  const handleSend = async (
+    message: string,
+    _image?: File,
+    _agent?: unknown,
+    mode: ChatExecutionMode = executionMode
+  ) => {
     if (!message.trim()) return;
 
     try {
       // Get default agent or first available agent
       const defaultAgent = agents.find((a) => a.isDefault) ?? agents[0];
 
-      // Create anonymous chat session
-      const sessionResponse = defaultAgent
-        ? await createChatSession(defaultAgent.publicId || defaultAgent.id, 'New Chat')
-        : await createChatSession(null, 'New Chat', { temporary: true });
+      // Anonymous visitors already have a token-backed User from AuthContext.
+      const sessionResponse = await createChatSession(
+        defaultAgent ? defaultAgent.publicId || defaultAgent.id : null,
+        'New Chat'
+      );
 
       if (!sessionResponse.success || !sessionResponse.data) {
         console.error('Failed to create session:', sessionResponse.error);
@@ -54,7 +62,7 @@ const LandingPage: React.FC = () => {
 
       // Navigate to chat screen. ChatScreen sends the first message through AgentDO.
       navigate(`/chat/${sessionResponse.data.id}`, {
-        state: { initialMessage: message },
+        state: { initialMessage: message, initialMode: mode },
       });
     } catch (error) {
       console.error('Error starting anonymous chat:', error);
@@ -90,6 +98,8 @@ const LandingPage: React.FC = () => {
           placeholder="Ask me anything..."
           onSend={handleSend}
           suggestions={SUGGESTIONS}
+          executionMode={executionMode}
+          onExecutionModeChange={setExecutionMode}
         />
       </main>
 

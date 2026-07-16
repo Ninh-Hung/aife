@@ -10,6 +10,7 @@ import { Agent, ChatMessage } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { AvatarMedia } from './AvatarMedia';
+import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 
 interface ChatConversationProps {
   agent: Agent;
@@ -17,6 +18,8 @@ interface ChatConversationProps {
   isLoading: boolean;
   isInputDisabled?: boolean;
   onSendMessage: (content: string, files?: File[]) => void;
+  executionMode: ChatExecutionMode;
+  onExecutionModeChange: (mode: ChatExecutionMode) => void;
   onToggleInfo: () => void;
   /** Current user's avatar URL */
   userAvatar?: string;
@@ -30,6 +33,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   isLoading,
   isInputDisabled,
   onSendMessage,
+  executionMode,
+  onExecutionModeChange,
   onToggleInfo,
   userAvatar,
   userAvatarType,
@@ -87,9 +92,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
             {isLoading ? (
               <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
                 <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
-                <span className="text-sm text-gray-600 dark:text-slate-400">
-                  thinking...
-                </span>
+                <span className="text-sm text-gray-600 dark:text-slate-400">thinking...</span>
               </div>
             ) : (
               <div className="text-center">
@@ -134,9 +137,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
                 </div>
                 <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
                   <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
-                  <span className="text-sm text-gray-600 dark:text-slate-400">
-                    thinking...
-                  </span>
+                  <span className="text-sm text-gray-600 dark:text-slate-400">thinking...</span>
                 </div>
               </div>
             )}
@@ -153,6 +154,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           onSend={onSendMessage}
           disabled={isInputDisabled ?? isLoading}
           placeholder={`Message ${agent.name}...`}
+          mode={executionMode}
+          onModeChange={onExecutionModeChange}
         />
       </div>
     </div>

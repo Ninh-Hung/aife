@@ -39,20 +39,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [isReasoningOpen, setIsReasoningOpen] = useState(false);
   const parsedContent = parseAgentResponse(message.content);
   const parsedReasoning = message.reasoning ? parseAgentResponse(message.reasoning) : null;
-  const reasoningContainsAnswer =
-    Boolean(parsedReasoning?.content.trim()) &&
-    parsedReasoning?.content.trim() !== message.reasoning?.trim();
+  const explicitReasoning =
+    parsedReasoning?.reasoning?.trim() || parsedReasoning?.content.trim() || null;
   const parsedMessage = isUser
     ? { content: message.content, reasoning: null }
-    : reasoningContainsAnswer
-      ? {
-          content: parsedContent.content.trim() || parsedReasoning?.content || '',
-          reasoning: parsedContent.reasoning,
-        }
-      : {
-          content: parsedContent.content,
-          reasoning: parsedReasoning?.reasoning ?? parsedContent.reasoning,
-        };
+    : {
+        content: parsedContent.content,
+        reasoning: [explicitReasoning, parsedContent.reasoning]
+          .filter((part): part is string => Boolean(part?.trim()))
+          .filter((part, index, parts) => parts.indexOf(part) === index)
+          .join('\n\n'),
+      };
   const displayContent = parsedMessage.content;
   const reasoning = parsedMessage.reasoning?.trim() || null;
   const sources = isUser ? [] : message.sources || [];
