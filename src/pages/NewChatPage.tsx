@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
+import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { createChatSession, listAgents } from '../services/api';
 import type { Agent, ChatSession } from '../types';
@@ -20,7 +21,7 @@ const NewChatPage: React.FC = () => {
   const { error: showError } = useNotification();
   const { addOrUpdateConversation } = useSidebarConversations();
   const [isStartingChat, setIsStartingChat] = useState(false);
-  const [executionMode, setExecutionMode] = useState<ChatExecutionMode>('cheap');
+  const [executionMode, setExecutionMode] = useStoredChatExecutionMode();
 
   const resolveAgent = async (selectedAgent?: Agent | null): Promise<Agent | null> => {
     if (selectedAgent && agents.some((agent) => agent.publicId === selectedAgent.publicId)) {
@@ -49,6 +50,7 @@ const NewChatPage: React.FC = () => {
   ) => {
     if (!message.trim() || isStartingChat || loading) return;
 
+    setExecutionMode(mode);
     setIsStartingChat(true);
     try {
       const agent = await resolveAgent(selectedAgent);

@@ -4,13 +4,13 @@ import type { FileUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChatMessage, ChatSource } from '../types';
 
-export type ChatExecutionMode = 'cheap' | 'normal' | 'premium';
+export type ChatExecutionMode = 'cheap' | 'normal' | 'expensive';
 
 interface UseChatAgentOptions {
   conversationId: string;
   agentPublicId: string;
   sessionId: number | null;
-  mode?: ChatExecutionMode | 'fast' | 'smart' | 'expensive';
+  mode?: ChatExecutionMode | 'fast' | 'smart' | 'premium';
   capability?: 'chat' | 'image_to_text' | 'text_to_image' | 'translation';
   enabled?: boolean;
 }

@@ -12,6 +12,7 @@ import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
+import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
 
 // ============================================
@@ -33,7 +34,7 @@ const LandingPage: React.FC = () => {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const navigate = useNavigate();
   const { agents } = useAgents();
-  const [executionMode, setExecutionMode] = useState<ChatExecutionMode>('cheap');
+  const [executionMode, setExecutionMode] = useStoredChatExecutionMode();
 
   // Handle anonymous chat - create session and send first message
   const handleSend = async (
@@ -44,6 +45,7 @@ const LandingPage: React.FC = () => {
   ) => {
     if (!message.trim()) return;
 
+    setExecutionMode(mode);
     try {
       // Get default agent or first available agent
       const defaultAgent = agents.find((a) => a.isDefault) ?? agents[0];

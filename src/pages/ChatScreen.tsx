@@ -10,6 +10,7 @@ import { Agent, ChatMessage, ChatSource } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent, type ChatExecutionMode } from '../hooks/useChatAgent';
+import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
@@ -19,12 +20,7 @@ import { parseAgentResponse } from '../utils/agentResponse';
 
 const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
 const FIRST_RESPONSE_TITLE_SYNC_DELAYS_MS = [0, 700, 1200, 1800, 2600, 3600];
-const CHAT_EXECUTION_MODES = new Set<ChatExecutionMode>(['cheap', 'normal', 'premium']);
-
-const normalizeInitialExecutionMode = (mode: unknown): ChatExecutionMode =>
-  typeof mode === 'string' && CHAT_EXECUTION_MODES.has(mode as ChatExecutionMode)
-    ? (mode as ChatExecutionMode)
-    : 'cheap';
+const RESPONSE_METADATA_SYNC_DELAYS_MS = [150, 700, 1600, 3000];
 
 const isDefaultConversationTitle = (title: string | null | undefined) => {
   const normalized = title?.trim().toLowerCase() ?? '';
@@ -63,6 +59,48 @@ const removePersistedMessagesDuplicatedByLiveMessages = (
   return dedupedReversed.reverse();
 };
 
+const enrichLiveMessagesWithPersistedMetadata = (
+  persistedMessages: ChatMessage[],
+  liveMessages: ChatMessage[]
+) => {
+  if (persistedMessages.length === 0 || liveMessages.length === 0) {
+    return liveMessages;
+  }
+
+  const persistedMessagesByKey = new Map<string, ChatMessage[]>();
+  for (let index = persistedMessages.length - 1; index >= 0; index -= 1) {
+    const message = persistedMessages[index];
+    const key = getMessageDedupeKey(message);
+    const messagesForKey = persistedMessagesByKey.get(key) ?? [];
+    messagesForKey.push(message);
+    persistedMessagesByKey.set(key, messagesForKey);
+  }
+
+  const enrichedReversed: ChatMessage[] = [];
+  for (let index = liveMessages.length - 1; index >= 0; index -= 1) {
+    const liveMessage = liveMessages[index];
+    const key = getMessageDedupeKey(liveMessage);
+    const persistedMessage = persistedMessagesByKey.get(key)?.shift();
+
+    if (!persistedMessage) {
+      enrichedReversed.push(liveMessage);
+      continue;
+    }
+
+    enrichedReversed.push({
+      ...liveMessage,
+      reasoning: liveMessage.reasoning?.trim() ? liveMessage.reasoning : persistedMessage.reasoning,
+      sources:
+        liveMessage.sources && liveMessage.sources.length > 0
+          ? liveMessage.sources
+          : persistedMessage.sources,
+      conversationTitle: liveMessage.conversationTitle || persistedMessage.conversationTitle,
+    });
+  }
+
+  return enrichedReversed.reverse();
+};
+
 const hasRenderableMessageContent = (message: ChatMessage) => {
   if (message.role === 'user') {
     return message.content.trim().length > 0;
@@ -83,6 +121,7 @@ export const ChatScreen: React.FC = () => {
   const { sessions, addOrUpdateConversation } = useSidebarConversations();
   const initialSendRef = useRef<string | null>(null);
   const lastSyncedAgentMessageRef = useRef<string | null>(null);
+  const lastSyncedResponseMetadataRef = useRef<string | null>(null);
   const lastAppliedConversationTitleRef = useRef<string | null>(null);
   const messageLoadRequestRef = useRef(0);
   const initialState = location.state as {
@@ -101,9 +140,7 @@ export const ChatScreen: React.FC = () => {
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [cancelledResponseSessionId, setCancelledResponseSessionId] = useState<string | null>(null);
-  const [executionMode, setExecutionMode] = useState<ChatExecutionMode>(() =>
-    normalizeInitialExecutionMode(initialState?.initialMode)
-  );
+  const [executionMode, setExecutionMode] = useStoredChatExecutionMode(initialState?.initialMode);
 
   const {
     messages: agentMessages,
@@ -137,7 +174,12 @@ export const ChatScreen: React.FC = () => {
       agentMessages
     );
 
-    return [...dedupedInitialMessages, ...agentMessages];
+    const enrichedAgentMessages = enrichLiveMessagesWithPersistedMetadata(
+      initialMessages,
+      agentMessages
+    );
+
+    return [...dedupedInitialMessages, ...enrichedAgentMessages];
   }, [agentMessages, initialMessages, initialMessagesLoaded, isActiveRouteSession]);
   const visibleMessages = useMemo(
     () =>
@@ -287,6 +329,7 @@ export const ChatScreen: React.FC = () => {
     setIsAwaitingResponse(false);
     setCancelledResponseSessionId(null);
     lastSyncedAgentMessageRef.current = null;
+    lastSyncedResponseMetadataRef.current = null;
     lastAppliedConversationTitleRef.current = null;
   }, [activeSessionId]);
 
@@ -540,6 +583,43 @@ export const ChatScreen: React.FC = () => {
       loadInitialMessages(activeSessionId);
     }
   }, [activeSessionId, loadInitialMessages]);
+
+  useEffect(() => {
+    if (!activeSessionId || chatStatus !== 'ready') {
+      return;
+    }
+
+    const latestAgentMessage = [...agentMessages]
+      .reverse()
+      .find((message) => message.role === 'agent' && hasRenderableMessageContent(message));
+
+    if (!latestAgentMessage) {
+      return;
+    }
+
+    const syncKey = `${activeSessionId}\u0000${latestAgentMessage.id}`;
+    if (lastSyncedResponseMetadataRef.current === syncKey) {
+      return;
+    }
+    lastSyncedResponseMetadataRef.current = syncKey;
+
+    let cancelled = false;
+    void (async () => {
+      for (const delayMs of RESPONSE_METADATA_SYNC_DELAYS_MS) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+
+        if (cancelled) {
+          return;
+        }
+
+        await loadInitialMessages(activeSessionId, { resetLoaded: false });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, agentMessages, chatStatus, loadInitialMessages]);
 
   useEffect(() => {
     if (!activeSessionId) return;

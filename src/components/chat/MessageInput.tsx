@@ -184,7 +184,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         >
           <option value="cheap">cheap</option>
           <option value="normal">normal</option>
-          <option value="premium">premium</option>
+          <option value="expensive">expensive</option>
         </select>
 
         {/* Textarea Container */}

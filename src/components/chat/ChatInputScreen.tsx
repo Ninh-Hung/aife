@@ -61,7 +61,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   onSend,
   isSubmitting = false,
   suggestions,
-  executionMode = 'cheap',
+  executionMode = 'normal',
   onExecutionModeChange,
 }) => {
   const { user } = useAuth();
@@ -80,6 +80,10 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const agentSelectorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLocalExecutionMode(executionMode);
+  }, [executionMode]);
 
   // Keep selectedAgent scoped to the current user's agent list.
   useEffect(() => {
@@ -394,7 +398,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
               >
                 <option value="cheap">cheap</option>
                 <option value="normal">normal</option>
-                <option value="premium">premium</option>
+                <option value="expensive">expensive</option>
               </select>
 
               <button
