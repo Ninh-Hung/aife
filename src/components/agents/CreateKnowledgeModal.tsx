@@ -20,6 +20,7 @@ import {
   MenuItem,
   FormHelperText,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 import { X, Save, Upload, FileText } from 'lucide-react';
 import { Knowledge, KnowledgeSourceType } from '../../types';
 import { createKnowledge } from '../../services/api';
@@ -82,7 +83,7 @@ const formatFileSize = (bytes: number): string => {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 };
 
 const isImageFile = (file: File): boolean => {
@@ -172,7 +173,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
     setFormData((prev) => ({ ...prev, description: event.target.value }));
   };
 
-  const handleSourceTypeChange = (event: any) => {
+  const handleSourceTypeChange = (event: SelectChangeEvent<KnowledgeSourceType>) => {
     const newSourceType = event.target.value as KnowledgeSourceType;
     setFormData((prev) => ({
       ...prev,
@@ -192,7 +193,31 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
     const selectedFiles = Array.from(event.target.files || []);
 
     // Filter for supported extensions
-    const supportedExtensions = ['.pdf', '.txt', '.md', '.docx', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+    const supportedExtensions = [
+      '.txt',
+      '.md',
+      '.csv',
+      '.json',
+      '.html',
+      '.htm',
+      '.xml',
+      '.pdf',
+      '.docx',
+      '.xlsx',
+      '.xlsm',
+      '.xlsb',
+      '.xls',
+      '.ods',
+      '.odt',
+      '.numbers',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.webp',
+      '.svg',
+      '.bmp',
+    ];
     const validFiles = selectedFiles.filter((file) => {
       const fileName = file.name.toLowerCase();
       return supportedExtensions.some((ext) => fileName.endsWith(ext));
@@ -224,26 +249,14 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
     setIsSaving(true);
 
     try {
-      // Prepare payload based on source type
-      let payload: any;
-
-      if (formData.sourceType === 'file') {
-        // For file type, pass files for later upload handling
-        payload = {
-          name: formData.name,
-          description: formData.description,
-          source: 'file',
-          files: formData.files,
-        };
-      } else {
-        // For text and url types
-        payload = {
-          name: formData.name,
-          description: formData.description,
-          source: formData.sourceType,
-          content: formData.content,
-        };
-      }
+      const payload = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        sourceType: formData.sourceType,
+        content: formData.sourceType === 'text' ? formData.content : undefined,
+        sourceUrl: formData.sourceType === 'url' ? formData.content.trim() : undefined,
+        files: formData.sourceType === 'file' ? formData.files : undefined,
+      };
 
       const response = await createKnowledge(payload);
 
@@ -253,7 +266,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
         setFormData(initialFormState);
         setErrors({});
       } else {
-        showError(response.error || 'Failed to create knowledge');
+        showError(response.message || response.error || 'Failed to create knowledge');
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to create knowledge');
@@ -351,7 +364,9 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
               value={formData.content}
               onChange={handleContentChange}
               error={!!errors.content}
-              helperText={errors.content || 'Paste the text content that the agent should reference'}
+              helperText={
+                errors.content || 'Paste the text content that the agent should reference'
+              }
               disabled={isSaving}
               required
               placeholder="Enter text content for this knowledge source"
@@ -390,13 +405,14 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
                   type="file"
                   hidden
                   multiple
-                  accept=".pdf,.txt,.md,.docx,.jpg,.jpeg,.png,.gif,.webp,.svg"
+                  accept=".txt,.md,.csv,.json,.html,.htm,.xml,.pdf,.docx,.xlsx,.xlsm,.xlsb,.xls,.ods,.odt,.numbers,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp"
                   onChange={handleFileChange}
                 />
               </Button>
 
               <FormHelperText error={!!errors.files}>
-                {errors.files || 'Supported formats: Documents (.pdf, .txt, .md, .docx) and Images (.jpg, .png, .gif, .webp, .svg)'}
+                {errors.files ||
+                  'Supported formats: text, PDF, Office/ODF spreadsheets and docs, HTML/XML, CSV, Numbers, and images'}
               </FormHelperText>
 
               {/* Selected Files Display */}

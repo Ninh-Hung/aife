@@ -23,7 +23,9 @@ function fileToUIPart(file: File): Promise<FileUIPart> {
         type: 'file',
         mediaType: file.type || 'application/octet-stream',
         url: reader.result as string,
-      });
+        filename: file.name,
+        size: file.size,
+      } as FileUIPart & { filename: string; size: number });
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
@@ -69,7 +71,7 @@ export function useChatAgent({
   agentPublicId,
   sessionId,
   mode = 'normal',
-  capability = 'chat',
+  capability,
   enabled = true,
 }: UseChatAgentOptions) {
   const [isSocketOpen, setIsSocketOpen] = useState(false);
@@ -177,7 +179,7 @@ export function useChatAgent({
       return raw.parts
         .map((part) => {
           if (part.type === 'text') return part.text ?? '';
-          if (part.type === 'file') return part.url ? '[Attachment]' : '';
+          if (part.type === 'file') return '';
           return '';
         })
         .filter(Boolean)
@@ -228,6 +230,33 @@ export function useChatAgent({
       .filter((source): source is ChatSource => Boolean(source));
   }, []);
 
+  const extractAttachments = useCallback((message: UIMessage): ChatMessage['attachments'] => {
+    const raw = message as unknown as {
+      parts?: Array<{
+        type: string;
+        mediaType?: string;
+        url?: string;
+        filename?: string;
+        name?: string;
+        size?: number;
+      }>;
+    };
+
+    if (!Array.isArray(raw.parts)) {
+      return [];
+    }
+
+    return raw.parts
+      .filter((part) => part.type === 'file')
+      .map((part, index) => ({
+        publicId: `local-${message.id}-${index}`,
+        fileName: part.filename || part.name || `attachment-${index + 1}`,
+        mimeType: part.mediaType || 'application/octet-stream',
+        fileSize: part.size || 0,
+        fileUrl: part.url,
+      }));
+  }, []);
+
   const extractConversationTitle = useCallback((message: UIMessage): string | undefined => {
     const raw = message as unknown as {
       metadata?: {
@@ -262,6 +291,7 @@ export function useChatAgent({
         const content = extractText(msg);
         const reasoning = extractReasoning(msg);
         const sources = extractSources(msg);
+        const attachments = extractAttachments(msg);
         const conversationTitle = extractConversationTitle(msg);
         const createdAt = (msg as unknown as { createdAt?: string | Date }).createdAt;
 
@@ -272,6 +302,7 @@ export function useChatAgent({
           content,
           reasoning,
           sources,
+          attachments,
           conversationTitle,
           timestamp: createdAt ? new Date(createdAt) : new Date(),
           status: 'sent' as const,
@@ -282,11 +313,16 @@ export function useChatAgent({
           return false;
         }
 
-        return msg.content.trim().length > 0 || Boolean(msg.reasoning?.trim());
+        return (
+          msg.content.trim().length > 0 ||
+          Boolean(msg.reasoning?.trim()) ||
+          Boolean(msg.attachments?.length)
+        );
       });
   }, [
     agentMessages,
     extractConversationTitle,
+    extractAttachments,
     extractMessageSessionId,
     extractReasoning,
     extractSources,
@@ -310,15 +346,19 @@ export function useChatAgent({
         return;
       }
 
-      await agentSendMessage({
+      void agentSendMessage({
         text: trimmed,
         files: fileParts.length > 0 ? fileParts : undefined,
         metadata: {
           agentPublicId,
           sessionId,
           mode,
-          capability,
+          ...(capability ? { capability } : {}),
         },
+      }).catch((error) => {
+        if (import.meta.env.DEV) {
+          console.error('[useChatAgent] send message failed', error);
+        }
       });
     },
     [agent.ready, agentPublicId, agentSendMessage, capability, mode, sessionId, shouldConnect]

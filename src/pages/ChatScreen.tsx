@@ -29,8 +29,17 @@ const isDefaultConversationTitle = (title: string | null | undefined) => {
   );
 };
 
+const getAttachmentDedupeSignature = (message: ChatMessage) =>
+  (message.attachments || [])
+    .map((attachment) => `${attachment.fileName}:${attachment.mimeType}:${attachment.fileSize}`)
+    .join('|');
+
 const getMessageDedupeKey = (message: ChatMessage) =>
-  `${message.role}\u0000${message.content.trim().replace(/\s+/g, ' ')}`;
+  [
+    message.role,
+    message.content.trim().replace(/\s+/g, ' '),
+    getAttachmentDedupeSignature(message),
+  ].join('\u0000');
 
 const removePersistedMessagesDuplicatedByLiveMessages = (
   persistedMessages: ChatMessage[],
@@ -94,6 +103,10 @@ const enrichLiveMessagesWithPersistedMetadata = (
         liveMessage.sources && liveMessage.sources.length > 0
           ? liveMessage.sources
           : persistedMessage.sources,
+      attachments:
+        persistedMessage.attachments && persistedMessage.attachments.length > 0
+          ? persistedMessage.attachments
+          : liveMessage.attachments,
       conversationTitle: liveMessage.conversationTitle || persistedMessage.conversationTitle,
     });
   }
@@ -103,7 +116,7 @@ const enrichLiveMessagesWithPersistedMetadata = (
 
 const hasRenderableMessageContent = (message: ChatMessage) => {
   if (message.role === 'user') {
-    return message.content.trim().length > 0;
+    return message.content.trim().length > 0 || Boolean(message.attachments?.length);
   }
 
   return (
@@ -154,7 +167,6 @@ export const ChatScreen: React.FC = () => {
     agentPublicId: agent?.publicId || '',
     sessionId: activeSessionInternalId,
     mode: executionMode,
-    capability: 'chat',
     enabled: !!agent && !!activeSessionId && activeSessionInternalId !== null,
   });
 
@@ -546,6 +558,7 @@ export const ChatScreen: React.FC = () => {
             status?: ChatMessage['status'];
             reasoning?: string | null;
             sources?: ChatSource[];
+            attachments?: ChatMessage['attachments'];
             rawPayload?: string | Record<string, unknown> | null;
           };
           const status = normalizeMessageStatus(msg.status);
@@ -558,6 +571,7 @@ export const ChatScreen: React.FC = () => {
             content: msg.content,
             reasoning: msg.reasoning || extractReasoningFromRawPayload(msg.rawPayload),
             sources: msg.sources || extractSourcesFromRawPayload(msg.rawPayload),
+            attachments: msg.attachments || [],
             timestamp: new Date(msg.timestamp || msg.createdAt || Date.now()),
             status: isCancelled ? 'sent' : status,
           };
@@ -670,7 +684,9 @@ export const ChatScreen: React.FC = () => {
         }
       } catch (err) {
         setIsAwaitingResponse(false);
-        showError(err instanceof Error ? err.message : 'Failed to send message');
+        const error = err instanceof Error ? err : new Error('Failed to send message');
+        showError(error.message);
+        throw error;
       }
     },
     [isConnected, activeSessionId, agentSendMessage, showError, sessions, addOrUpdateConversation]
@@ -756,7 +772,9 @@ export const ChatScreen: React.FC = () => {
     }
 
     initialSendRef.current = initialSendKey;
-    void handleSendMessage(initialMessage, initialFile ? [initialFile] : undefined);
+    void handleSendMessage(initialMessage, initialFile ? [initialFile] : undefined).catch(() => {
+      // Error is already surfaced by handleSendMessage.
+    });
     navigate(location.pathname, { replace: true, state: null });
   }, [
     activeSessionId,

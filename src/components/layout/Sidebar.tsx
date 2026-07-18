@@ -29,6 +29,7 @@ import {
   LogOut,
   KeyRound,
   SquarePen,
+  BookOpen,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -55,6 +56,7 @@ interface SidebarProps {
 const profileMenuItems = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard },
   { id: 'agents', label: 'My Agents', path: '/agents', Icon: Users },
+  { id: 'knowledge', label: 'Knowledge', path: '/knowledge', Icon: BookOpen },
   { id: 'api-keys', label: 'API Keys', path: '/api-keys', Icon: KeyRound },
   { id: 'subscription', label: 'Subscription', path: '/subscription', Icon: CreditCard },
   {

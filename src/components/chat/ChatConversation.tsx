@@ -58,7 +58,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   );
 
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col">
+    <div className="relative flex h-[calc(100dvh-4rem)] min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:h-[100dvh]">
       {/* Header - Fixed Height */}
       <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center gap-3">
@@ -154,7 +154,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
       </div>
 
       {/* Message Input - Fixed at Bottom */}
-      <div className="flex-shrink-0">
+      <div className="sticky bottom-0 z-20 flex-shrink-0">
         <MessageInput
           onSend={onSendMessage}
           onCancel={onCancelResponse}

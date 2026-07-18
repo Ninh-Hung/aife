@@ -515,7 +515,7 @@ export const listKnowledge = async (
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: normalizeKnowledgeList(response.data.data || response.data),
     };
   } catch (error) {
     console.error('List knowledge error:', error);
@@ -532,6 +532,33 @@ export const listKnowledge = async (
 };
 
 /**
+ * Fetches safe details and sync status for a single knowledge source.
+ */
+export const getKnowledge = async (publicId: string): Promise<ApiResponse<Knowledge>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/knowledges/${publicId}`);
+
+    return {
+      success: true,
+      data: normalizeKnowledge(response.data.data || response.data),
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Get knowledge error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load knowledge',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+/**
  * Creates a new knowledge source
  * @param input - Knowledge creation parameters
  * @returns Promise with the created knowledge
@@ -540,11 +567,37 @@ export const createKnowledge = async (
   input: CreateKnowledgeInput
 ): Promise<ApiResponse<Knowledge>> => {
   try {
-    const response = await axiosInstance.post('/v1/knowledges', input);
+    const formData = new FormData();
+    formData.append('name', input.name);
+    formData.append('sourceType', input.sourceType);
+
+    if (input.description) {
+      formData.append('description', input.description);
+    }
+
+    if (input.sourceType === 'text' && input.content) {
+      formData.append('content', input.content);
+    }
+
+    if (input.sourceType === 'url' && input.sourceUrl) {
+      formData.append('sourceUrl', input.sourceUrl);
+    }
+
+    if (input.projectId) {
+      formData.append('projectId', String(input.projectId));
+    }
+
+    if (input.sourceType === 'file') {
+      input.files?.forEach((file) => {
+        formData.append('files', file);
+      });
+    }
+
+    const response = await axiosInstance.post('/v1/knowledges', formData);
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: normalizeKnowledge(response.data.data || response.data),
       message: 'Knowledge created successfully',
     };
   } catch (error) {
@@ -559,6 +612,67 @@ export const createKnowledge = async (
         'Failed to create knowledge',
     };
   }
+};
+
+/**
+ * Enqueues a manual resync for an existing knowledge source.
+ */
+export const resyncKnowledge = async (publicId: string): Promise<ApiResponse<Knowledge>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/knowledges/${publicId}/resync`);
+
+    return {
+      success: true,
+      data: normalizeKnowledge(response.data.data || response.data),
+      message: 'Knowledge resync enqueued successfully',
+    };
+  } catch (error) {
+    console.error('Resync knowledge error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to resync knowledge',
+    };
+  }
+};
+
+/**
+ * Enqueues deletion for an existing knowledge source.
+ */
+export const deleteKnowledge = async (publicId: string): Promise<ApiResponse<Knowledge>> => {
+  try {
+    const response = await axiosInstance.delete(`/v1/knowledges/${publicId}`);
+
+    return {
+      success: true,
+      data: normalizeKnowledge(response.data.data || response.data),
+      message: 'Knowledge deletion enqueued successfully',
+    };
+  } catch (error) {
+    console.error('Delete knowledge error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to delete knowledge',
+    };
+  }
+};
+
+const normalizeKnowledge = (knowledge: Knowledge): Knowledge => ({
+  ...knowledge,
+  sourceType: knowledge.sourceType || knowledge.source || 'text',
+});
+
+const normalizeKnowledgeList = (knowledges: Knowledge[]): Knowledge[] => {
+  return knowledges.map(normalizeKnowledge);
 };
 
 // ============================================
@@ -577,6 +691,16 @@ type BackendChatSession = Omit<
   lastMessageAt?: string | Date | null;
   createdAt?: string | Date;
   updatedAt?: string | Date;
+};
+
+const serverBaseUrl = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
+
+const buildServerUrl = (path: string): string => {
+  if (/^https?:\/\//i.test(path) || path.startsWith('blob:') || path.startsWith('data:')) {
+    return path;
+  }
+
+  return serverBaseUrl ? `${serverBaseUrl}${path.startsWith('/') ? path : `/${path}`}` : path;
 };
 
 const normalizeChatSession = (session: BackendChatSession): ChatSession => {
@@ -600,6 +724,14 @@ const normalizeChatSession = (session: BackendChatSession): ChatSession => {
     updatedAt,
   };
 };
+
+const normalizeChatMessage = (message: ChatMessage): ChatMessage => ({
+  ...message,
+  attachments: (message.attachments || []).map((attachment) => ({
+    ...attachment,
+    fileUrl: buildServerUrl(`/v1/chat/attachments/${attachment.publicId}`),
+  })),
+});
 
 /**
  * Fetches all chat sessions for a specific agent
@@ -698,7 +830,7 @@ export const listChatMessages = async (sessionId: string): Promise<ApiResponse<C
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: (response.data.data || response.data).map(normalizeChatMessage),
     };
   } catch (error) {
     console.error('List chat messages error:', error);
@@ -712,6 +844,24 @@ export const listChatMessages = async (sessionId: string): Promise<ApiResponse<C
         'Failed to load chat messages',
     };
   }
+};
+
+export const isAuthenticatedChatAttachmentUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.pathname.startsWith('/v1/chat/attachments/');
+  } catch {
+    return url.startsWith('/v1/chat/attachments/');
+  }
+};
+
+export const getChatAttachmentBlob = async (url: string): Promise<Blob> => {
+  const parsed = new URL(url, window.location.origin);
+  const requestUrl = serverBaseUrl && parsed.origin === serverBaseUrl ? parsed.pathname : url;
+  const response = await axiosInstance.get(requestUrl, { responseType: 'blob' });
+  return response.data;
 };
 
 export interface CancelChatResponseInput {
@@ -828,9 +978,7 @@ export const uploadAgentAvatar = async (file: File): Promise<ApiResponse<{ url: 
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await axiosInstance.post('/v1/agents/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await axiosInstance.post('/v1/agents/avatar', formData);
 
     return {
       success: true,

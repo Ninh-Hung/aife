@@ -3,7 +3,7 @@
  * Configured with base URL, credentials, and interceptors for token management
  */
 
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosHeaders, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 // ============================================
 // Axios Instance Configuration
@@ -24,6 +24,22 @@ const refreshClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+const isFormDataBody = (data: unknown): data is FormData => {
+  return typeof FormData !== 'undefined' && data instanceof FormData;
+};
+
+const removeContentTypeHeader = (config: InternalAxiosRequestConfig) => {
+  if (!config.headers) return;
+
+  if (config.headers instanceof AxiosHeaders) {
+    config.headers.delete('Content-Type');
+    return;
+  }
+
+  delete config.headers['Content-Type'];
+  delete config.headers['content-type'];
+};
 
 // ============================================
 // In-Memory Token Storage
@@ -78,6 +94,10 @@ export const refreshAccessToken = async (): Promise<string> => {
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (isFormDataBody(config.data)) {
+      removeContentTypeHeader(config);
+    }
+
     const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;

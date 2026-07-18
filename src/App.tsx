@@ -21,6 +21,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
+import { KnowledgeManagement } from './pages/KnowledgeManagement';
 import { ChatScreen } from './pages/ChatScreen';
 import NewChatPage from './pages/NewChatPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -32,6 +33,7 @@ import {
   Code,
   Image as ImageIcon,
   KeyRound,
+  BookOpen,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
 import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
@@ -139,6 +141,14 @@ const AppContent: React.FC = () => {
             icon={<Users className="text-white" size={24} />}
           />
         );
+      case '/knowledge':
+        return (
+          <Header
+            title="Knowledge"
+            subtitle="Manage persistent RAG sources"
+            icon={<BookOpen className="text-white" size={24} />}
+          />
+        );
       case '/subscription':
         return (
           <Header
@@ -221,6 +231,7 @@ const AppContent: React.FC = () => {
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
 
                   <Route path="/agents" element={<AgentManagement />} />
+                  <Route path="/knowledge" element={<KnowledgeManagement />} />
                   <Route path="/chat/:sessionId" element={<ChatScreenRoute />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route

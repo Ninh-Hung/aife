@@ -156,25 +156,43 @@ export interface CreateCharacteristicInput {
 
 export type KnowledgeScope = 'system' | 'user' | 'project' | 'all';
 export type KnowledgeSourceType = 'text' | 'file' | 'url';
+export type KnowledgeSyncStatus = 'pending' | 'processing' | 'success' | 'partial' | 'failed' | string;
+
+export interface KnowledgeFileInfo {
+  publicId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  status: string;
+}
 
 export interface Knowledge {
   publicId: string;
   name: string;
   description?: string;
   sourceType: KnowledgeSourceType;
+  source?: KnowledgeSourceType;
   sourceContent?: string;
   ownerType: 'SYSTEM' | 'USER' | 'PROJECT';
-  ownerId: number;
-  createdAt: Date;
-  updatedAt: Date;
+  ownerId?: number;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
+  syncStatus?: KnowledgeSyncStatus | null;
+  syncedAt?: Date | string | null;
+  chunkCount?: number | null;
+  vectorCount?: number | null;
+  errorSummary?: string | null;
+  files?: KnowledgeFileInfo[];
 }
 
 export interface CreateKnowledgeInput {
   name: string;
   description?: string;
   sourceType: KnowledgeSourceType;
-  sourceContent?: string;
-  projectId?: number;
+  content?: string;
+  sourceUrl?: string;
+  files?: File[];
+  projectId?: number | string;
 }
 
 // ============================================
@@ -398,9 +416,18 @@ export interface ChatMessage {
   content: string;
   reasoning?: string | null;
   sources?: ChatSource[];
+  attachments?: ChatMessageAttachment[];
   conversationTitle?: string;
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
+}
+
+export interface ChatMessageAttachment {
+  publicId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  fileUrl?: string | null;
 }
 
 export interface ChatSource {
