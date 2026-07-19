@@ -22,6 +22,7 @@ import {
 import { Plus, FileText, Globe, Upload, RefreshCw, Trash2 } from 'lucide-react';
 import { Knowledge, KnowledgeScope, KnowledgeSourceType } from '../../types';
 import { deleteKnowledge, getKnowledge, listKnowledge, resyncKnowledge } from '../../services/api';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { CreateKnowledgeModal } from './CreateKnowledgeModal';
 
 // ============================================
@@ -137,6 +138,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
   const [typeFilter, setTypeFilter] = useState<KnowledgeSourceType | 'all'>('all');
   const [resyncingIds, setResyncingIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [knowledgeToDelete, setKnowledgeToDelete] = useState<Knowledge | null>(null);
   const pollingKnowledgeKey = knowledgeList
     .filter(isSyncInProgress)
     .map((knowledge) => knowledge.publicId)
@@ -243,10 +245,17 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
 
   const handleDelete = async (event: React.MouseEvent, knowledge: Knowledge) => {
     event.stopPropagation();
+    setKnowledgeToDelete(knowledge);
+  };
 
-    if (!window.confirm(`Delete "${knowledge.name}" and its indexed knowledge artifacts?`)) {
-      return;
-    }
+  const handleCloseDeleteDialog = () => {
+    if (knowledgeToDelete && deletingIds.has(knowledgeToDelete.publicId)) return;
+    setKnowledgeToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    const knowledge = knowledgeToDelete;
+    if (!knowledge) return;
 
     setDeletingIds((prev) => new Set(prev).add(knowledge.publicId));
 
@@ -258,6 +267,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
       if (isSelected(knowledge)) {
         onKnowledgeToggle(knowledge.publicId);
       }
+      setKnowledgeToDelete(null);
     } else {
       setFetchError(response.error || 'Failed to delete knowledge');
     }
@@ -458,6 +468,24 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onCreated={handleKnowledgeCreated}
+      />
+      <ConfirmDialog
+        open={Boolean(knowledgeToDelete)}
+        title="Delete Knowledge?"
+        message={
+          <>
+            This will delete{' '}
+            <span className="font-medium text-gray-900 dark:text-slate-100">
+              {knowledgeToDelete?.name}
+            </span>{' '}
+            and its indexed knowledge artifacts. This action cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        confirmColor="error"
+        loading={Boolean(knowledgeToDelete && deletingIds.has(knowledgeToDelete.publicId))}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={() => void handleConfirmDelete()}
       />
     </Box>
   );

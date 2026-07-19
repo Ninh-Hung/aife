@@ -22,6 +22,7 @@ import {
   Upload,
   Plus,
 } from 'lucide-react';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { CreateKnowledgeModal } from '../components/agents/CreateKnowledgeModal';
 import type { Knowledge, KnowledgeScope, KnowledgeSourceType } from '../types';
 import {
@@ -84,6 +85,7 @@ export const KnowledgeManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [resyncingIds, setResyncingIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [knowledgeToDelete, setKnowledgeToDelete] = useState<Knowledge | null>(null);
 
   const pollingKey = useMemo(
     () =>
@@ -176,8 +178,18 @@ export const KnowledgeManagement: React.FC = () => {
     });
   };
 
-  const handleDelete = async (knowledge: Knowledge) => {
-    if (!window.confirm(`Delete "${knowledge.name}" and its indexed artifacts?`)) return;
+  const handleRequestDelete = (knowledge: Knowledge) => {
+    setKnowledgeToDelete(knowledge);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (knowledgeToDelete && deletingIds.has(knowledgeToDelete.publicId)) return;
+    setKnowledgeToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    const knowledge = knowledgeToDelete;
+    if (!knowledge) return;
 
     setDeletingIds((current) => new Set(current).add(knowledge.publicId));
     const response = await deleteKnowledge(knowledge.publicId);
@@ -186,6 +198,7 @@ export const KnowledgeManagement: React.FC = () => {
       setKnowledgeList((current) =>
         current.filter((item) => item.publicId !== knowledge.publicId),
       );
+      setKnowledgeToDelete(null);
     } else {
       setError(response.error || 'Failed to delete knowledge');
     }
@@ -354,7 +367,7 @@ export const KnowledgeManagement: React.FC = () => {
                       <IconButton
                         size="small"
                         disabled={actionDisabled}
-                        onClick={() => void handleDelete(knowledge)}
+                        onClick={() => handleRequestDelete(knowledge)}
                       >
                         {isDeleting ? <CircularProgress size={16} /> : <Trash2 size={16} />}
                       </IconButton>
@@ -371,6 +384,24 @@ export const KnowledgeManagement: React.FC = () => {
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={handleCreated}
+      />
+      <ConfirmDialog
+        open={Boolean(knowledgeToDelete)}
+        title="Delete Knowledge?"
+        message={
+          <>
+            This will delete{' '}
+            <span className="font-medium text-gray-900 dark:text-slate-100">
+              {knowledgeToDelete?.name}
+            </span>{' '}
+            and its indexed artifacts. This action cannot be undone.
+          </>
+        }
+        confirmText="Delete"
+        confirmColor="error"
+        loading={Boolean(knowledgeToDelete && deletingIds.has(knowledgeToDelete.publicId))}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={() => void handleConfirmDelete()}
       />
     </Box>
   );
