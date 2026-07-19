@@ -382,7 +382,7 @@ export const upgradeSubscription = subscribe;
 import type { Capability } from '../types';
 
 /**
- * Fetches all active capabilities available for agent creation
+ * Fetches all active capabilities available for API key and subscription flows
  * @returns Promise with array of capabilities
  */
 export const listCapabilities = async (): Promise<ApiResponse<Capability[]>> => {
@@ -935,6 +935,15 @@ export const updateChatSession = async (
 
 import type { Agent, CreateAgentInput } from '../types';
 
+const normalizeAgent = (item: Record<string, unknown>): Agent => ({
+  ...item,
+  id: (item.publicId || item.id) as string,
+  publicId: (item.publicId || item.id) as string,
+  ownerType: String(item.ownerType || 'USER').toUpperCase() as Agent['ownerType'],
+  characteristicIds: (item.characteristicIds as string[] | undefined) || [],
+  knowledgeIds: (item.knowledgeIds as string[] | undefined) || [],
+}) as Agent;
+
 /**
  * Fetches all agents for the current user
  * @returns Promise with array of agents
@@ -944,11 +953,7 @@ export const listAgents = async (): Promise<ApiResponse<Agent[]>> => {
     const response = await axiosInstance.get('/v1/agents');
     const raw: Array<Record<string, unknown>> = response.data.data || response.data;
 
-    // Backend exposes publicId; frontend keyed on id throughout (navigate, find, delete URL …)
-    const agents: Agent[] = raw.map((item) => ({
-      ...item,
-      id: item.publicId as string,
-    })) as Agent[];
+    const agents: Agent[] = raw.map(normalizeAgent);
 
     return {
       success: true,
@@ -1035,7 +1040,7 @@ export const listDefaultAvatars = async (): Promise<ApiResponse<DefaultAvatar[]>
 /**
  * Fetches a single agent with full association IDs (for edit mode)
  * @param publicId - The agent's public ID
- * @returns Promise with the full agent including capabilityIds, characteristicIds, knowledgeIds
+ * @returns Promise with the full agent including characteristicIds and knowledgeIds
  */
 export const getAgent = async (publicId: string): Promise<ApiResponse<Agent>> => {
   try {
@@ -1043,7 +1048,7 @@ export const getAgent = async (publicId: string): Promise<ApiResponse<Agent>> =>
 
     return {
       success: true,
-      data: response.data.data,
+      data: normalizeAgent(response.data.data || response.data),
     };
   } catch (error) {
     console.error('Get agent error:', error);
@@ -1070,7 +1075,7 @@ export const createAgent = async (input: CreateAgentInput): Promise<ApiResponse<
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: normalizeAgent(response.data.data || response.data),
       message: 'Agent created successfully',
     };
   } catch (error) {
@@ -1101,7 +1106,7 @@ export const updateAgent = async (
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: normalizeAgent(response.data.data || response.data),
       message: 'Agent updated successfully',
     };
   } catch (error) {

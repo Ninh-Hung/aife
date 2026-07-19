@@ -1,11 +1,11 @@
 /**
  * AgentCard Component
  * Displays an individual agent with actions
- * Refactored to show capabilities instead of creativity level
+ * Displays an individual agent with actions
  */
 
 import React from 'react';
-import { Bot, Sparkles, Brain, Settings, MessageCircle, Trash2, Zap } from 'lucide-react';
+import { Bot, Sparkles, Brain, Settings, MessageCircle, Trash2 } from 'lucide-react';
 import { Agent } from '../../types';
 import { IconButton, Chip, Switch, FormControlLabel } from '@mui/material';
 
@@ -59,15 +59,20 @@ const getAgentIcon = (description?: string) => {
 // ============================================
 
 export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, onChat, onSetDefault }) => {
+  const isSystemAgent = agent.ownerType === 'SYSTEM';
+  const canManageAgent = !agent.ownerType || agent.ownerType === 'USER';
+
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canManageAgent) return;
     onEdit(agent);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canManageAgent) return;
     if (window.confirm(`Are you sure you want to delete "${agent.name}"?`)) {
-      onDelete(agent.id);
+      onDelete(agent.publicId);
     }
   };
 
@@ -79,7 +84,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
 
   const handleDefaultToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    if (onSetDefault && e.target.checked) {
+    if (canManageAgent && onSetDefault && e.target.checked) {
       onSetDefault(agent.publicId);
     }
   };
@@ -94,6 +99,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
               <Switch
                 checked={agent.isDefault}
                 onChange={handleDefaultToggle}
+                disabled={!canManageAgent}
                 size="small"
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
@@ -162,40 +168,28 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
           </p>
         )}
 
-        {/* Capabilities Chips */}
-        {agent.capabilities && agent.capabilities.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {agent.capabilities.slice(0, 3).map((capability) => (
-              <Chip
-                key={capability.publicId}
-                icon={<Zap size={12} />}
-                label={capability.name}
-                size="small"
-                className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
-                sx={{ height: '22px', fontSize: '0.7rem' }}
-              />
-            ))}
-            {agent.capabilities.length > 3 && (
-              <Chip
-                label={`+${agent.capabilities.length - 3}`}
-                size="small"
-                className="bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400"
-                sx={{ height: '22px', fontSize: '0.7rem' }}
-              />
-            )}
-          </div>
-        )}
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {agent.isActive === false && (
+            <Chip
+              label="Inactive"
+              size="small"
+              className="bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400"
+              sx={{ height: '22px', fontSize: '0.7rem' }}
+            />
+          )}
+          {isSystemAgent && (
+            <Chip
+              label="System"
+              size="small"
+              className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+              sx={{ height: '22px', fontSize: '0.7rem' }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Stats */}
       <div className="mb-4 flex items-center gap-4 border-t border-gray-100 pt-4 dark:border-slate-700">
-        <div className="flex-1">
-          <p className="text-xs text-gray-500 dark:text-slate-500">Capabilities</p>
-          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-            {agent.capabilityCount ?? agent.capabilityIds?.length ?? 0}
-          </p>
-        </div>
-        <div className="h-8 w-px bg-gray-200 dark:bg-slate-700"></div>
         <div className="flex-1">
           <p className="text-xs text-gray-500 dark:text-slate-500">Behaviors</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
@@ -225,11 +219,12 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
         <IconButton
           onClick={handleEdit}
           size="small"
+          disabled={!canManageAgent}
           className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
         >
           <Settings size={18} />
         </IconButton>
-        {!agent.isDefault && (
+        {canManageAgent && !agent.isDefault && (
           <IconButton
             onClick={handleDelete}
             size="small"

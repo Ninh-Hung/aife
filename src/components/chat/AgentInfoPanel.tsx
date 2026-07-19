@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { X, Bot, Zap, Brain, Database } from 'lucide-react';
+import { X, Bot, Brain, Database } from 'lucide-react';
 import { IconButton } from '@mui/material';
 import { Agent } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
@@ -58,37 +58,6 @@ export const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
               {agent.description}
             </p>
           )}
-        </div>
-
-        {/* Capabilities Section */}
-        <div className="mb-6">
-          <div className="mb-3 flex items-center gap-2">
-            <Zap size={18} className="text-blue-500" />
-            <h4 className="font-semibold text-gray-900 dark:text-slate-100">
-              Capabilities
-            </h4>
-          </div>
-          <div className="space-y-2">
-            {agent.capabilities && agent.capabilities.length > 0 ? (
-              agent.capabilities.map((capability) => (
-                <div
-                  key={capability.publicId}
-                  className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-600 dark:bg-slate-700/50"
-                >
-                  <div className="mb-1 font-medium text-gray-900 dark:text-slate-100">
-                    {capability.name}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-slate-400">
-                    {capability.description}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-slate-400">
-                No capabilities configured
-              </p>
-            )}
-          </div>
         </div>
 
         {/* Characteristics Section */}

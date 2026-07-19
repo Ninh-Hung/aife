@@ -50,7 +50,7 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
 
 export const AgentManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { agents, loading, error, createAgent, updateAgent, deleteAgent, setDefaultAgent } =
+  const { agents, loading, error, fetchAgents, createAgent, updateAgent, deleteAgent, setDefaultAgent } =
     useAgents();
   const { success, error: showError } = useNotification();
   const { addOrUpdateConversation } = useSidebarConversations();
@@ -67,13 +67,23 @@ export const AgentManagement: React.FC = () => {
   };
 
   const handleEdit = (agent: Agent) => {
+    if (agent.ownerType && agent.ownerType !== 'USER') {
+      showError('Only your own agents can be edited');
+      return;
+    }
     setSelectedAgent(agent);
     setIsDrawerOpen(true);
   };
 
   const handleDelete = async (agentId: string) => {
     try {
+      const agent = agents.find((item) => item.publicId === agentId);
+      if (agent?.ownerType && agent.ownerType !== 'USER') {
+        showError('Only your own agents can be deleted');
+        return;
+      }
       await deleteAgent(agentId);
+      await fetchAgents();
       success('Agent deleted successfully');
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete agent');
@@ -97,18 +107,23 @@ export const AgentManagement: React.FC = () => {
 
   const handleSaveAgent = async (input: CreateAgentInput) => {
     // AgentDrawer handles the error display and drawer closing
-    // Just pass through to createAgent
     await createAgent(input);
+    await fetchAgents();
   };
 
   const handleUpdateAgent = async (id: string, input: Partial<CreateAgentInput>) => {
     // AgentDrawer handles the error display and drawer closing
-    // Just pass through to updateAgent
     await updateAgent(id, input);
+    await fetchAgents();
   };
 
   const handleSetDefault = async (publicId: string) => {
     try {
+      const agent = agents.find((item) => item.publicId === publicId);
+      if (agent?.ownerType && agent.ownerType !== 'USER') {
+        showError('Only your own agents can be selected as default');
+        return;
+      }
       await setDefaultAgent(publicId);
       success('Default agent updated successfully');
     } catch (err) {
@@ -172,7 +187,7 @@ export const AgentManagement: React.FC = () => {
         {!loading && !error && agents.length > 0 && (
           <>
             {/* Stats Summary */}
-            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
                   Total Agents
@@ -186,18 +201,7 @@ export const AgentManagement: React.FC = () => {
                   Custom Agents
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.filter((a) => !a.isDefault).length}
-                </p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
-                  Total Capabilities
-                </p>
-                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.reduce(
-                    (sum, a) => sum + (a.capabilityCount ?? a.capabilityIds?.length ?? 0),
-                    0
-                  )}
+                  {agents.filter((a) => !a.ownerType || a.ownerType === 'USER').length}
                 </p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">

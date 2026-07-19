@@ -54,21 +54,19 @@ export interface Agent {
   description?: string;
   avatarUrl?: string | null;
   avatarType?: 'image' | 'video';
-  capabilityIds: string[];
   characteristicIds: string[];
   knowledgeIds: string[];
-  ownerType: 'USER' | 'PROJECT';
+  ownerType?: 'SYSTEM' | 'USER' | 'PROJECT' | 'INTERNAL';
   ownerId?: number;
-  userId: string;
+  userId?: string;
+  isActive?: boolean;
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
   // Association totals returned by the list endpoint
-  capabilityCount?: number;
   characteristicCount?: number;
   knowledgeCount?: number;
   // Populated relations
-  capabilities?: Capability[];
   characteristics?: Characteristic[];
   knowledges?: Knowledge[];
 }
@@ -77,10 +75,9 @@ export interface CreateAgentInput {
   name: string;
   description?: string;
   avatarUrl?: string | null;
-  capabilityIds: string[];
   characteristicIds: string[];
   knowledgeIds: string[];
-  ownerType: 'USER' | 'PROJECT';
+  ownerType?: 'USER' | 'PROJECT';
   ownerId?: number;
 }
 

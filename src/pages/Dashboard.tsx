@@ -183,7 +183,7 @@ export const Dashboard: React.FC = () => {
                     {agent.name}
                   </Typography>
                   <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                    {agent.description || `${agent.capabilityIds?.length || 0} capabilities`}
+                    {agent.description || `${agent.knowledgeCount ?? 0} knowledge sources`}
                   </Typography>
                 </Box>
                 {agent.isDefault && (

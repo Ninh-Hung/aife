@@ -1,6 +1,6 @@
 /**
  * Agent Management Drawer
- * Refactored to support capability-driven, data-driven architecture
+ * Agent creation/editing drawer.
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -31,7 +31,6 @@ import { X, Sparkles, Save, ChevronDown, Upload, Trash2, UserCircle, Settings } 
 import { Agent, CreateAgentInput, Characteristic, Knowledge } from '../../types';
 import { useNotification } from '../../hooks/useNotification';
 import { uploadAgentAvatar, getAgent, listDefaultAvatars, DefaultAvatar } from '../../services/api';
-import { CapabilitiesSection } from './CapabilitiesSection';
 import { CharacteristicsSection } from './CharacteristicsSection';
 import { KnowledgeSection } from './KnowledgeSection';
 
@@ -69,7 +68,6 @@ const initialFormState: CreateAgentInput = {
   name: '',
   description: '',
   avatarUrl: null,
-  capabilityIds: [],
   characteristicIds: [],
   knowledgeIds: [],
   ownerType: 'USER',
@@ -262,10 +260,9 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             name: full.name,
             description: full.description || '',
             avatarUrl: (full.avatarUrl as string | null | undefined) ?? null,
-            capabilityIds: (full as Agent).capabilityIds || [],
             characteristicIds: (full as Agent).characteristicIds || [],
             knowledgeIds: (full as Agent).knowledgeIds || [],
-            ownerType: (full as Agent).ownerType || 'USER',
+            ownerType: 'USER',
             ownerId: (full as Agent).ownerId,
           });
           const loadedUrl = (full.avatarUrl as string | null | undefined) ?? null;
@@ -278,10 +275,9 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             name: agent.name,
             description: agent.description || '',
             avatarUrl: agent.avatarUrl ?? null,
-            capabilityIds: agent.capabilityIds || [],
             characteristicIds: agent.characteristicIds || [],
             knowledgeIds: agent.knowledgeIds || [],
-            ownerType: agent.ownerType || 'USER',
+            ownerType: 'USER',
             ownerId: agent.ownerId,
           });
           setAvatarPreview(agent.avatarUrl ?? null);
@@ -397,20 +393,6 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       }));
     };
 
-  const handleCapabilityToggle = (capabilityId: string) => {
-    setFormData((prev) => {
-      const isSelected = prev.capabilityIds.includes(capabilityId);
-      return {
-        ...prev,
-        capabilityIds: isSelected
-          ? prev.capabilityIds.filter((id) => id !== capabilityId)
-          : [...prev.capabilityIds, capabilityId],
-      };
-    });
-    // Clear capability error if any
-    setErrors((prev) => ({ ...prev, capabilityIds: undefined }));
-  };
-
   const handleCharacteristicToggle = (characteristicId: string) => {
     setFormData((prev) => {
       const isSelected = prev.characteristicIds.includes(characteristicId);
@@ -462,10 +444,6 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       newErrors.name = 'Agent name is required';
     }
 
-    if (formData.capabilityIds.length === 0) {
-      newErrors.capabilityIds = 'At least one capability is required';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -479,7 +457,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
     try {
       if (isEditMode && agent && onUpdate) {
-        await onUpdate(agent.id, formData);
+        await onUpdate(agent.publicId, formData);
         success('Agent updated successfully!');
       } else {
         await onSave(formData);
@@ -694,30 +672,13 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
             <Divider />
 
-            {/* 2. Capabilities */}
+            {/* 2. Characteristics */}
             <Box>
               <Typography
                 variant="subtitle1"
                 className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
               >
-                2. Capabilities *
-              </Typography>
-              <CapabilitiesSection
-                selectedCapabilityIds={formData.capabilityIds}
-                onCapabilityToggle={handleCapabilityToggle}
-                error={errors.capabilityIds}
-              />
-            </Box>
-
-            <Divider />
-
-            {/* 3. Characteristics */}
-            <Box>
-              <Typography
-                variant="subtitle1"
-                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
-              >
-                3. Behavior & Persona
+                2. Behavior & Persona
               </Typography>
               <CharacteristicsSection
                 selectedCharacteristicIds={formData.characteristicIds}
@@ -728,13 +689,13 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
             <Divider />
 
-            {/* 4. Knowledge */}
+            {/* 3. Knowledge */}
             <Box>
               <Typography
                 variant="subtitle1"
                 className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
               >
-                4. Knowledge & Context
+                3. Knowledge & Context
               </Typography>
               <KnowledgeSection
                 selectedKnowledgeIds={formData.knowledgeIds}
@@ -745,7 +706,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
             <Divider />
 
-            {/* 5. Advanced (Placeholder) */}
+            {/* 4. Advanced (Placeholder) */}
             <Accordion
               className="border border-gray-200 dark:border-slate-700"
               sx={{ boxShadow: 'none' }}
@@ -758,7 +719,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
                   variant="subtitle1"
                   className="font-semibold text-gray-900 dark:text-slate-100"
                 >
-                  5. Advanced Settings (Coming Soon)
+                  4. Advanced Settings (Coming Soon)
                 </Typography>
               </AccordionSummary>
               <AccordionDetails className="bg-gray-50 dark:bg-slate-800/50">
