@@ -511,7 +511,8 @@ export interface CurrentSubscriptionDetails {
 // ============================================
 
 export interface QuotaExceededError {
-  error: 'Quota exceeded';
+  error?: 'Quota exceeded' | 'QUOTA_EXCEEDED';
+  errorCode?: 'QUOTA_EXCEEDED';
   message: string;
   remainingTokens: number;
   quotaLimit: number;
@@ -519,16 +520,18 @@ export interface QuotaExceededError {
 }
 
 export interface RateLimitError {
-  error: 'Rate limit exceeded';
+  error?: 'Rate limit exceeded' | 'RATE_LIMIT_EXCEEDED';
+  errorCode?: 'RATE_LIMIT_EXCEEDED';
   message: string;
   retryAfter: number; // seconds
 }
 
 export interface AnonymousLimitError {
-  error:
+  error?:
     | 'ANONYMOUS_LIMIT_EXCEEDED'
     | 'Anonymous session limit exceeded'
     | 'Anonymous message limit exceeded';
+  errorCode?: 'ANONYMOUS_LIMIT_EXCEEDED';
   message: string;
   limitType?: string;
   limit?: number;

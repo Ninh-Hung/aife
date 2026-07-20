@@ -1,0 +1,502 @@
+{
+  "app": {
+    "loading": "Loading...",
+    "loginRequired": "Please log in"
+  },
+  "common": {
+    "default": "Default",
+    "settings": "Settings",
+    "logout": "Logout",
+    "trial": "Trial",
+    "comingSoon": "Coming Soon"
+  },
+  "language": {
+    "label": "Language",
+    "switchTo": "Switch language to {{language}}",
+    "english": "English",
+    "vietnamese": "Vietnamese"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account preferences",
+    "language": {
+      "title": "Interface Language",
+      "description": "Choose the language used across the app interface and API error messages."
+    }
+  },
+  "theme": {
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "sidebar": {
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar",
+    "newChat": "New Chat",
+    "conversations": "Conversations",
+    "dashboard": "Dashboard",
+    "agents": "My Agents",
+    "knowledge": "Knowledge",
+    "apiKeys": "API Keys",
+    "subscription": "Subscription",
+    "multilanguage": "Multilanguage"
+  },
+  "header": {
+    "translationAgent": "Translation Agent",
+    "translate": {
+      "title": "AI Translation",
+      "subtitle": "Powered by Advanced Neural Networks"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Overview of your activity"
+    },
+    "agents": {
+      "title": "My Agents",
+      "subtitle": "Manage your AI agents"
+    },
+    "knowledge": {
+      "title": "Knowledge",
+      "subtitle": "Manage persistent RAG sources"
+    },
+    "subscription": {
+      "title": "Subscription",
+      "subtitle": "Manage your plan and billing"
+    },
+    "code": {
+      "title": "Generate Code",
+      "subtitle": "AI-powered code generation"
+    },
+    "image": {
+      "title": "Generate Picture",
+      "subtitle": "AI image creation"
+    },
+    "apiKeys": {
+      "title": "API Keys",
+      "subtitle": "Manage your API authentication tokens"
+    }
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "subtitle": "Manage persistent sources used by your agents for RAG.",
+    "sectionTitle": "Knowledge & Context",
+    "sectionSubtitle": "Attach contextual data your agent can reference",
+    "create": "Create Knowledge",
+    "createNew": "Create New Knowledge",
+    "refresh": "Refresh",
+    "empty": "No knowledge sources found.",
+    "emptyWithAction": "No knowledge sources found. Create one to get started!",
+    "filters": {
+      "scope": "Scope",
+      "type": "Type"
+    },
+    "columns": {
+      "name": "Name",
+      "source": "Source",
+      "scope": "Scope",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "scope": {
+      "all": "All",
+      "system": "System",
+      "user": "My Knowledge",
+      "project": "Project",
+      "SYSTEM": "System",
+      "USER": "Mine",
+      "PROJECT": "Project"
+    },
+    "sourceTypes": {
+      "all": "All Types",
+      "text": "Text",
+      "file": "File",
+      "url": "URL"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "success": "Ready",
+      "partial": "Partial",
+      "failed": "Failed",
+      "deleting": "Deleting"
+    },
+    "metrics": {
+      "chunks": "{{count}} chunks",
+      "vectors": "{{count}} vectors",
+      "files": "{{count}} files",
+      "synced": "synced {{date}}"
+    },
+    "actions": {
+      "resync": "Resync",
+      "resyncKnowledge": "Resync knowledge",
+      "delete": "Delete",
+      "deleteKnowledge": "Delete knowledge",
+      "systemCannotResync": "System knowledge cannot be resynced here",
+      "systemCannotDelete": "System knowledge cannot be deleted here"
+    },
+    "errors": {
+      "loadFailed": "Failed to load knowledge",
+      "resyncFailed": "Failed to resync knowledge",
+      "deleteFailed": "Failed to delete knowledge",
+      "createFailed": "Failed to create knowledge"
+    },
+    "deleteDialog": {
+      "title": "Delete Knowledge?",
+      "beforeName": "This will delete",
+      "afterName": "and its indexed artifacts. This action cannot be undone.",
+      "afterNameDetailed": "and its indexed knowledge artifacts. This action cannot be undone."
+    },
+    "form": {
+      "title": "Create New Knowledge",
+      "name": "Name",
+      "nameHelper": "e.g., Product Documentation, API Reference",
+      "description": "Description",
+      "descriptionHelper": "Brief description of this knowledge source (optional)",
+      "sourceType": "Source Type",
+      "content": "Content",
+      "contentHelper": "Paste the text content that the agent should reference",
+      "contentPlaceholder": "Enter text content for this knowledge source",
+      "sourceUrl": "Source URL",
+      "selectFiles": "Select Files",
+      "supportedFormats": "Supported formats: text, PDF, Office/ODF spreadsheets and docs, HTML/XML, CSV, Numbers, and images",
+      "image": "Image",
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "success": "Knowledge created successfully!"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "contentRequired": "Content is required",
+      "sourceUrlRequired": "Source URL is required",
+      "invalidUrl": "URL must start with http:// or https://",
+      "fileRequired": "Please select at least one file"
+    }
+  },
+  "agents": {
+    "title": "My Agents",
+    "subtitle": "Create and manage your custom AI personas for different tasks",
+    "createNew": "Create New Agent",
+    "loading": "Loading agents...",
+    "chatSessionTitle": "Chat with {{name}}",
+    "empty": {
+      "title": "No agents found",
+      "description": "Get started by creating your first AI agent. Customize its behavior, creativity level, and personality to suit your needs.",
+      "createFirst": "Create Your First Agent"
+    },
+    "stats": {
+      "totalAgents": "Total Agents",
+      "customAgents": "Custom Agents",
+      "totalKnowledge": "Total Knowledge"
+    },
+    "messages": {
+      "deleted": "Agent deleted successfully",
+      "defaultUpdated": "Default agent updated successfully"
+    },
+    "errors": {
+      "editOwnOnly": "Only your own agents can be edited",
+      "deleteOwnOnly": "Only your own agents can be deleted",
+      "defaultOwnOnly": "Only your own agents can be selected as default",
+      "deleteFailed": "Failed to delete agent",
+      "createChatFailed": "Failed to create chat session",
+      "setDefaultFailed": "Failed to set default agent"
+    },
+    "card": {
+      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
+      "inactive": "Inactive",
+      "system": "System",
+      "behaviors": "Behaviors",
+      "knowledge": "Knowledge",
+      "chatNow": "Chat Now",
+      "avatarAlt": "{{name}} avatar"
+    },
+    "drawer": {
+      "createTitle": "Create New Agent",
+      "editTitle": "Edit Agent",
+      "loadingDetails": "Loading agent details...",
+      "cancel": "Cancel",
+      "save": "Save Agent",
+      "update": "Update Agent",
+      "saving": "Saving...",
+      "advancedDescription": "Future options: default language, output format, agent visibility, scheduling hints",
+      "sections": {
+        "basic": "1. Basic Information",
+        "behavior": "2. Behavior & Persona",
+        "knowledge": "3. Knowledge & Context",
+        "advanced": "4. Advanced Settings (Coming Soon)"
+      },
+      "fields": {
+        "nameRequired": "Agent Name *",
+        "namePlaceholder": "e.g., Professional Translator",
+        "description": "Description",
+        "descriptionPlaceholder": "Describe what this agent does and its personality...",
+        "descriptionHelper": "Optional: Metadata describing this agent (not used as system prompt)"
+      },
+      "avatar": {
+        "upload": "Upload avatar",
+        "supportedFormats": "JPG, PNG, SVG, GIF, WebP - max {{size}} MB",
+        "defaultAvatars": "Default Avatars",
+        "noDefaultAvatars": "No default avatars available.",
+        "remove": "Remove avatar",
+        "setup": "Setup avatar",
+        "helper": "Upload or choose a default",
+        "alt": "Agent avatar"
+      },
+      "messages": {
+        "avatarUploaded": "Avatar uploaded successfully",
+        "created": "Agent created successfully!",
+        "updated": "Agent updated successfully!"
+      },
+      "errors": {
+        "unsupportedAvatarType": "Unsupported file type. Please upload JPG, PNG, SVG, GIF, or WebP.",
+        "avatarTooLarge": "File is too large. Maximum size is {{size}} MB.",
+        "uploadFailed": "Failed to upload avatar",
+        "saveFailed": "Failed to save agent"
+      },
+      "validation": {
+        "nameRequired": "Agent name is required"
+      }
+    },
+    "characteristics": {
+      "title": "Behavior & Persona",
+      "subtitle": "Define how your agent behaves using reusable characteristics",
+      "system": "System",
+      "mine": "Mine",
+      "code": "Code: {{code}}",
+      "createNew": "Create New Characteristic",
+      "tabs": {
+        "system": "System ({{count}})",
+        "mine": "My Characteristics ({{count}})"
+      },
+      "empty": {
+        "system": "No system characteristics available",
+        "mine": "No custom characteristics yet. Create one to get started!"
+      },
+      "errors": {
+        "loadFailed": "Failed to load characteristics"
+      },
+      "layers": {
+        "identity": "Identity",
+        "tone_style": "Tone & Style",
+        "values": "Values",
+        "behavior": "Behavior",
+        "constraints": "Constraints",
+        "domain": "Domain"
+      }
+    },
+    "characteristicForm": {
+      "title": "Create New Characteristic",
+      "description": "Create one reusable prompt layer. You can combine identity, tone, values, and rules when building an agent.",
+      "create": "Create Characteristic",
+      "creating": "Creating...",
+      "cancel": "Cancel",
+      "fields": {
+        "name": "Name",
+        "nameHelper": "e.g., Friendly Tone, Risk-Aware Advisor",
+        "layer": "Layer",
+        "code": "Code",
+        "codeHelper": "Unique identifier, auto-generated from name",
+        "description": "Description",
+        "descriptionHelper": "Short note shown when selecting characteristics",
+        "prompt": "Prompt",
+        "promptHelper": "This prompt block will be injected under the selected layer"
+      },
+      "layerHelpers": {
+        "identity": "Who the agent is and what role it should play",
+        "tone_style": "How the agent should sound when responding",
+        "values": "What the agent should optimize for",
+        "behavior": "Reusable rules for how the agent should behave",
+        "constraints": "Boundaries, refusals, and things the agent should avoid",
+        "domain": "Domain-specific behavior or expertise style"
+      },
+      "layerPlaceholders": {
+        "identity": "Example: You are a senior product advisor for early-stage SaaS founders...",
+        "tone_style": "Example: Use concise, direct language. Avoid hype. Keep responses practical...",
+        "values": "Example: Prioritize accuracy, user safety, explicit tradeoffs, and practical next steps...",
+        "behavior": "Example: Ask one clarifying question when the request lacks enough context...",
+        "constraints": "Example: Do not invent facts. Say when information is uncertain or unavailable...",
+        "domain": "Example: When discussing legal topics, explain risk categories and recommend professional review..."
+      },
+      "messages": {
+        "created": "Characteristic created successfully!"
+      },
+      "errors": {
+        "createFailed": "Failed to create characteristic"
+      },
+      "validation": {
+        "nameRequired": "Name is required",
+        "codeRequired": "Code is required",
+        "codeInvalid": "Code must contain lowercase letters, numbers, dots, hyphens, or underscores",
+        "layerRequired": "Layer is required",
+        "promptRequired": "Behavior definition is required",
+        "promptTooShort": "Behavior definition must be at least 20 characters"
+      }
+    },
+    "capabilities": {
+      "title": "Capabilities",
+      "subtitle": "Select at least one capability to define what your agent can do",
+      "empty": "No capabilities available",
+      "errors": {
+        "loadFailed": "Failed to load capabilities"
+      }
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {{name}}!",
+    "userFallback": "there",
+    "subtitle": "Here's what's happening with your AI agents today.",
+    "stats": {
+      "totalAgents": "Total Agents",
+      "agentsCreated": "Agents Created",
+      "subscriptionPlan": "Subscription Plan",
+      "usageQuota": "Usage Quota",
+      "charactersUsed": "Characters used",
+      "percentUsed": "{{percent}}% used"
+    },
+    "subscription": {
+      "free": "Free",
+      "planLabel": "{{name}} Plan",
+      "proDescription": "Advanced features enabled",
+      "enterpriseDescription": "Full access to all features",
+      "freeDescription": "Upgrade for more features"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "knowledgeSources": "{{count}} knowledge sources",
+      "empty": "No agents created yet. Create your first agent to get started!"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "createAgent": {
+        "title": "Create New Agent",
+        "description": "Set up a new AI agent with custom configurations"
+      },
+      "upgradePlan": {
+        "title": "Upgrade Plan",
+        "description": "Unlock more features with a premium subscription"
+      },
+      "usageHistory": {
+        "title": "View Usage History",
+        "description": "Track your API usage and performance metrics"
+      }
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "subtitle": "Manage authentication tokens scoped to specific capabilities",
+    "create": "Create API Key",
+    "empty": {
+      "title": "No API keys yet",
+      "description": "Create your first API key and assign capabilities to it"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "REVOKED": "Revoked"
+    },
+    "actions": {
+      "canExecute": "Execute",
+      "canCreate": "Create",
+      "canDelete": "Delete",
+      "none": "No actions"
+    },
+    "card": {
+      "noCapabilities": "No capabilities",
+      "created": "Created: {{date}}"
+    },
+    "modal": {
+      "createTitle": "Create API Key",
+      "capabilities": "Capabilities",
+      "capabilitiesHelper": "Select the capabilities this key is allowed to use.",
+      "loadingCapabilities": "Loading capabilities...",
+      "noCapabilities": "No capabilities available.",
+      "capabilitySelected": "{{count}} capability selected",
+      "capabilitiesSelected": "{{count}} capabilities selected",
+      "metadata": "Metadata",
+      "optional": "(optional)",
+      "appName": "App Name",
+      "appNamePlaceholder": "My App",
+      "environment": "Environment",
+      "environmentPlaceholder": "production, staging, development",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of this key's purpose",
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "createKey": "Create Key"
+    },
+    "oneTime": {
+      "title": "Save Your API Key",
+      "warningStrong": "This API key will only be shown once.",
+      "warning": "Please copy and store it securely. You will not be able to retrieve it again.",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "capabilitiesGranted": "Capabilities granted:",
+      "securityTip": "Store this key in a secure location such as a password manager or environment variables. Never commit it to version control.",
+      "saved": "I've Saved My Key"
+    },
+    "revoke": {
+      "title": "Revoke API Key",
+      "warningBefore": "This action is",
+      "irreversible": "irreversible",
+      "warningAfter": "The API key will be permanently disabled.",
+      "confirm": "Are you sure you want to revoke: {{name}}?",
+      "accessTo": "This key has access to:",
+      "cancel": "Cancel",
+      "revokeKey": "Revoke Key"
+    },
+    "messages": {
+      "copied": "API key copied to clipboard",
+      "revoked": "API key revoked successfully"
+    },
+    "errors": {
+      "loadFailed": "Failed to load API keys",
+      "copyFailed": "Failed to copy API key",
+      "revokeFailed": "Failed to revoke API key",
+      "loadCapabilitiesFailed": "Failed to load capabilities",
+      "createFailed": "Failed to create API key"
+    }
+  },
+  "translate": {
+    "source": {
+      "title": "Source",
+      "voiceInput": "Voice input",
+      "placeholder": "Enter text to translate",
+      "uploadFile": "Upload File",
+      "paste": "Paste",
+      "characterCount": "{{count}} / {{limit}} characters"
+    },
+    "actions": {
+      "translate": "Translate",
+      "translating": "Translating..."
+    },
+    "response": {
+      "title": "Response",
+      "empty": "Translation results will appear here."
+    },
+    "targets": {
+      "title": "Target Languages",
+      "selected": "{{count}} selected"
+    },
+    "result": {
+      "copy": "Copy translation",
+      "listen": "Listen to translation",
+      "failed": "Translation failed. Please try again.",
+      "pending": "Waiting to translate..."
+    },
+    "errors": {
+      "failed": "Translation failed"
+    }
+  },
+  "quota": {
+    "quotaExceededTitle": "Quota Exceeded",
+    "rateLimitTitle": "Rate Limit Exceeded",
+    "guestLimitTitle": "Guest Limit Reached",
+    "retryInSeconds": "{{message}} Please retry in {{seconds}} seconds."
+  },
+  "anonymousMerge": {
+    "title": "Keep this chat?",
+    "message": "Do you want to add your current guest conversation to this account?",
+    "confirm": "Keep Chat",
+    "cancel": "Skip",
+    "error": "Failed to merge anonymous chat session"
+  }
+}

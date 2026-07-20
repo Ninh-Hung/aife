@@ -23,13 +23,12 @@ export interface ErrorHandlerResult {
 /**
  * Check if error is a quota exceeded error
  */
-export function isQuotaExceededError(
-  error: unknown
-): error is AxiosError<QuotaExceededError> {
+export function isQuotaExceededError(error: unknown): error is AxiosError<QuotaExceededError> {
   const axiosError = error as AxiosError;
   return (
     axiosError?.response?.status === 429 &&
-    (axiosError.response.data as any)?.error === 'Quota exceeded'
+    ((axiosError.response.data as any)?.errorCode === 'QUOTA_EXCEEDED' ||
+      (axiosError.response.data as any)?.error === 'Quota exceeded')
   );
 }
 
@@ -40,20 +39,20 @@ export function isRateLimitError(error: unknown): error is AxiosError<RateLimitE
   const axiosError = error as AxiosError;
   return (
     axiosError?.response?.status === 429 &&
-    (axiosError.response.data as any)?.error === 'Rate limit exceeded'
+    ((axiosError.response.data as any)?.errorCode === 'RATE_LIMIT_EXCEEDED' ||
+      (axiosError.response.data as any)?.error === 'Rate limit exceeded')
   );
 }
 
 /**
  * Check if error is an anonymous limit error
  */
-export function isAnonymousLimitError(
-  error: unknown
-): error is AxiosError<AnonymousLimitError> {
+export function isAnonymousLimitError(error: unknown): error is AxiosError<AnonymousLimitError> {
   const axiosError = error as AxiosError;
   return (
     axiosError?.response?.status === 429 &&
-    ((axiosError.response.data as any)?.error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+    ((axiosError.response.data as any)?.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+      (axiosError.response.data as any)?.error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
       (axiosError.response.data as any)?.error === 'Anonymous session limit exceeded' ||
       (axiosError.response.data as any)?.error === 'Anonymous message limit exceeded')
   );

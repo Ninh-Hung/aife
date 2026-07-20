@@ -31,12 +31,7 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import {
-  createApiKey,
-  listApiKeys,
-  listCapabilities,
-  revokeApiKey,
-} from '../services/api';
+import { createApiKey, listApiKeys, listCapabilities, revokeApiKey } from '../services/api';
 import type {
   ApiKey,
   ApiKeyScopeInput,
@@ -45,23 +40,20 @@ import type {
   CreateApiKeyResponse,
 } from '../types';
 import { useNotification } from '../hooks/useNotification';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Helpers
 // ============================================
 
-const ACTION_LABELS: Record<'canExecute' | 'canCreate' | 'canDelete', string> = {
-  canExecute: 'Execute',
-  canCreate: 'Create',
-  canDelete: 'Delete',
-};
+const API_KEY_ACTIONS = ['canExecute', 'canCreate', 'canDelete'] as const;
 
 function displayName(apiKey: ApiKey): string {
   return apiKey.metadata?.appName || apiKey.publicId;
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
+function formatDate(dateString: string, locale: string): string {
+  return new Date(dateString).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -73,6 +65,7 @@ function formatDate(dateString: string): string {
 // ============================================
 
 export const ApiKeyManagement: React.FC = () => {
+  const { t } = useTranslation();
   const { success, error } = useNotification();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +90,7 @@ export const ApiKeyManagement: React.FC = () => {
     if (response.success && response.data) {
       setApiKeys(response.data);
     } else {
-      error(response.error || 'Failed to load API keys');
+      error(response.error || t('apiKeys.errors.loadFailed'));
     }
     setLoading(false);
   };
@@ -105,9 +98,9 @@ export const ApiKeyManagement: React.FC = () => {
   const handleCopyKey = async (key: string) => {
     try {
       await navigator.clipboard.writeText(key);
-      success('API key copied to clipboard');
+      success(t('apiKeys.messages.copied'));
     } catch {
-      error('Failed to copy API key');
+      error(t('apiKeys.errors.copyFailed'));
     }
   };
 
@@ -129,10 +122,10 @@ export const ApiKeyManagement: React.FC = () => {
       <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 md:text-3xl">
-            API Keys
+            {t('apiKeys.title')}
           </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-slate-400 md:text-base">
-            Manage authentication tokens scoped to specific capabilities
+            {t('apiKeys.subtitle')}
           </p>
         </div>
         <Button
@@ -141,7 +134,7 @@ export const ApiKeyManagement: React.FC = () => {
           onClick={() => setCreateModalOpen(true)}
           sx={{ minHeight: 44 }}
         >
-          Create API Key
+          {t('apiKeys.create')}
         </Button>
       </div>
 
@@ -151,17 +144,17 @@ export const ApiKeyManagement: React.FC = () => {
           <div className="rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-slate-700 dark:bg-slate-800">
             <Key className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-slate-500" />
             <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-slate-100">
-              No API keys yet
+              {t('apiKeys.empty.title')}
             </h3>
             <p className="mb-6 text-gray-600 dark:text-slate-400">
-              Create your first API key and assign capabilities to it
+              {t('apiKeys.empty.description')}
             </p>
             <Button
               variant="contained"
               startIcon={<Plus size={20} />}
               onClick={() => setCreateModalOpen(true)}
             >
-              Create API Key
+              {t('apiKeys.create')}
             </Button>
           </div>
         ) : (
@@ -204,10 +197,10 @@ export const ApiKeyManagement: React.FC = () => {
           if (revokeDialog.apiKey) {
             const response = await revokeApiKey(revokeDialog.apiKey.publicId);
             if (response.success) {
-              success('API key revoked successfully');
+              success(t('apiKeys.messages.revoked'));
               loadApiKeys();
             } else {
-              error(response.error || 'Failed to revoke API key');
+              error(response.error || t('apiKeys.errors.revokeFailed'));
             }
           }
           setRevokeDialog({ open: false, apiKey: null });
@@ -228,8 +221,10 @@ interface ApiKeyCardProps {
 }
 
 const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
+  const { t, i18n } = useTranslation();
   const name = displayName(apiKey);
   const isActive = apiKey.status === 'ACTIVE';
+  const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
   return (
     <div className="group rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600">
@@ -244,9 +239,7 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
 
         {/* Name + publicId */}
         <div className="w-44 shrink-0">
-          <h3 className="truncate text-base font-bold text-blue-600 dark:text-blue-400">
-            {name}
-          </h3>
+          <h3 className="truncate text-base font-bold text-blue-600 dark:text-blue-400">{name}</h3>
           <span className="font-mono text-xs text-gray-400 dark:text-slate-500">
             {apiKey.publicId}
           </span>
@@ -255,7 +248,9 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
         {/* Capabilities */}
         <div className="flex flex-1 flex-wrap gap-1.5">
           {apiKey.capabilities.length === 0 ? (
-            <span className="text-sm text-gray-400 dark:text-slate-500">No capabilities</span>
+            <span className="text-sm text-gray-400 dark:text-slate-500">
+              {t('apiKeys.card.noCapabilities')}
+            </span>
           ) : (
             apiKey.capabilities.map((cap) => (
               <CapabilityBadge key={cap.capabilityCode} scope={cap} />
@@ -266,7 +261,7 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
         {/* Status */}
         <div className="w-28 shrink-0">
           <Chip
-            label={apiKey.status}
+            label={t(`apiKeys.status.${apiKey.status}`, { defaultValue: apiKey.status })}
             size="small"
             color={isActive ? 'success' : 'default'}
             icon={isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
@@ -275,7 +270,7 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
 
         {/* Created At */}
         <div className="w-32 shrink-0 text-sm text-gray-600 dark:text-slate-400">
-          {formatDate(apiKey.createdAt)}
+          {formatDate(apiKey.createdAt, dateLocale)}
         </div>
 
         {/* Action */}
@@ -295,7 +290,7 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
           <span className="text-sm font-medium text-gray-500 dark:text-slate-400">
             {String(index + 1).padStart(2, '0')}
           </span>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <h3 className="truncate text-base font-bold text-blue-600 dark:text-blue-400">
               {name}
             </h3>
@@ -304,7 +299,7 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
             </span>
           </div>
           <Chip
-            label={apiKey.status}
+            label={t(`apiKeys.status.${apiKey.status}`, { defaultValue: apiKey.status })}
             size="small"
             color={isActive ? 'success' : 'default'}
             icon={isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
@@ -323,7 +318,7 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
         {/* Row 3: Date + Delete */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600 dark:text-slate-400">
-            Created: {formatDate(apiKey.createdAt)}
+            {t('apiKeys.card.created', { date: formatDate(apiKey.createdAt, dateLocale) })}
           </span>
           {isActive && (
             <IconButton onClick={onRevoke} color="error" size="small">
@@ -345,21 +340,19 @@ interface CapabilityBadgeProps {
 }
 
 const CapabilityBadge: React.FC<CapabilityBadgeProps> = ({ scope }) => {
-  const actions = (
-    Object.keys(ACTION_LABELS) as Array<keyof typeof ACTION_LABELS>
-  )
-    .filter((k) => scope[k])
-    .map((k) => ACTION_LABELS[k])
+  const { t } = useTranslation();
+  const actions = API_KEY_ACTIONS.filter((k) => scope[k])
+    .map((k) => t(`apiKeys.actions.${k}`))
     .join(' · ');
 
   return (
-    <Tooltip title={actions || 'No actions'} arrow placement="top">
+    <Tooltip title={actions || t('apiKeys.actions.none')} arrow placement="top">
       <Chip
         icon={<Zap size={12} />}
         label={scope.capabilityName}
         size="small"
         variant="outlined"
-        className="!text-xs !border-blue-300 !text-blue-700 dark:!border-blue-700 dark:!text-blue-300"
+        className="!border-blue-300 !text-xs !text-blue-700 dark:!border-blue-700 dark:!text-blue-300"
       />
     </Tooltip>
   );
@@ -376,6 +369,7 @@ interface CreateApiKeyModalProps {
 }
 
 const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const { error } = useNotification();
 
   // Available capabilities from the server
@@ -404,7 +398,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
       if (res.success && res.data) {
         setCapabilities(res.data);
       } else {
-        error(res.error || 'Failed to load capabilities');
+        error(res.error || t('apiKeys.errors.loadCapabilitiesFailed'));
       }
       setCapsLoading(false);
     });
@@ -422,10 +416,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     });
   };
 
-  const toggleAction = (
-    code: string,
-    action: 'canExecute' | 'canCreate' | 'canDelete'
-  ) => {
+  const toggleAction = (code: string, action: 'canExecute' | 'canCreate' | 'canDelete') => {
     setSelectedScopes((prev) => ({
       ...prev,
       [code]: { ...prev[code], [action]: !prev[code][action] },
@@ -460,7 +451,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
       onSuccess(response.data);
       resetForm();
     } else {
-      error(response.error || 'Failed to create API key');
+      error(response.error || t('apiKeys.errors.createFailed'));
     }
 
     setSubmitting(false);
@@ -480,28 +471,27 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>Create API Key</DialogTitle>
+        <DialogTitle>{t('apiKeys.modal.createTitle')}</DialogTitle>
         <DialogContent className="space-y-5 !pt-3">
-
           {/* ── Capabilities Section ── */}
           <div>
             <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
-              Capabilities <span className="text-red-500">*</span>
+              {t('apiKeys.modal.capabilities')} <span className="text-red-500">*</span>
             </p>
             <p className="mb-3 text-xs text-gray-500 dark:text-slate-400">
-              Select the capabilities this key is allowed to use.
+              {t('apiKeys.modal.capabilitiesHelper')}
             </p>
 
             {capsLoading ? (
               <div className="flex items-center gap-2 py-4">
                 <CircularProgress size={18} />
                 <span className="text-sm text-gray-500 dark:text-slate-400">
-                  Loading capabilities…
+                  {t('apiKeys.modal.loadingCapabilities')}
                 </span>
               </div>
             ) : capabilities.length === 0 ? (
               <p className="text-sm text-gray-400 dark:text-slate-500">
-                No capabilities available.
+                {t('apiKeys.modal.noCapabilities')}
               </p>
             ) : (
               <div className="space-y-2">
@@ -526,7 +516,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
                           size="small"
                           sx={{ padding: 0 }}
                         />
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <Shield size={14} className="shrink-0 text-blue-500" />
                             <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
@@ -547,9 +537,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
                       {/* Action Permissions (only when selected) */}
                       {isSelected && (
                         <div className="mt-2 flex flex-wrap gap-3 pl-7">
-                          {(
-                            ['canExecute', 'canCreate', 'canDelete'] as const
-                          ).map((action) => (
+                          {API_KEY_ACTIONS.map((action) => (
                             <FormControlLabel
                               key={action}
                               control={
@@ -562,7 +550,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
                               }
                               label={
                                 <span className="text-xs text-gray-700 dark:text-slate-300">
-                                  {ACTION_LABELS[action]}
+                                  {t(`apiKeys.actions.${action}`)}
                                 </span>
                               }
                             />
@@ -577,7 +565,9 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
 
             {selectedCount > 0 && (
               <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
-                {selectedCount} capability{selectedCount !== 1 ? 'ies' : ''} selected
+                {selectedCount === 1
+                  ? t('apiKeys.modal.capabilitySelected', { count: selectedCount })
+                  : t('apiKeys.modal.capabilitiesSelected', { count: selectedCount })}
               </p>
             )}
           </div>
@@ -585,54 +575,59 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
           {/* ── Metadata Section ── */}
           <div>
             <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
-              Metadata <span className="text-gray-400 font-normal">(optional)</span>
+              {t('apiKeys.modal.metadata')}{' '}
+              <span className="font-normal text-gray-400">{t('apiKeys.modal.optional')}</span>
             </p>
 
             <TextField
               fullWidth
-              label="App Name"
+              label={t('apiKeys.modal.appName')}
               value={metadata.appName}
               onChange={(e) => setMetadata({ ...metadata, appName: e.target.value })}
               size="small"
               margin="dense"
-              placeholder="My App"
+              placeholder={t('apiKeys.modal.appNamePlaceholder')}
             />
             <TextField
               fullWidth
-              label="Environment"
+              label={t('apiKeys.modal.environment')}
               value={metadata.environment}
               onChange={(e) => setMetadata({ ...metadata, environment: e.target.value })}
               size="small"
               margin="dense"
-              placeholder="production, staging, development"
+              placeholder={t('apiKeys.modal.environmentPlaceholder')}
             />
             <TextField
               fullWidth
-              label="Description"
+              label={t('apiKeys.modal.description')}
               value={metadata.description}
               onChange={(e) => setMetadata({ ...metadata, description: e.target.value })}
               size="small"
               margin="dense"
               multiline
               rows={2}
-              placeholder="Brief description of this key's purpose"
+              placeholder={t('apiKeys.modal.descriptionPlaceholder')}
             />
           </div>
         </DialogContent>
 
         <DialogActions>
           <Button onClick={handleClose} disabled={submitting}>
-            Cancel
+            {t('apiKeys.modal.cancel')}
           </Button>
           <Button
             type="submit"
             variant="contained"
             disabled={!canSubmit}
             startIcon={
-              submitting ? <CircularProgress size={16} color="inherit" /> : <ShieldCheck size={16} />
+              submitting ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <ShieldCheck size={16} />
+              )
             }
           >
-            {submitting ? 'Creating…' : 'Create Key'}
+            {submitting ? t('apiKeys.modal.creating') : t('apiKeys.modal.createKey')}
           </Button>
         </DialogActions>
       </form>
@@ -653,6 +648,7 @@ interface OneTimeKeyModalProps {
 }
 
 const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, onCopy }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -666,14 +662,13 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth disableEscapeKeyDown>
       <DialogTitle className="text-amber-600 dark:text-amber-500">
-        Save Your API Key
+        {t('apiKeys.oneTime.title')}
       </DialogTitle>
       <DialogContent>
         {/* Warning */}
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            <strong>This API key will only be shown once.</strong> Please copy and store it
-            securely. You will not be able to retrieve it again.
+            <strong>{t('apiKeys.oneTime.warningStrong')}</strong> {t('apiKeys.oneTime.warning')}
           </p>
         </div>
 
@@ -689,7 +684,7 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
               onClick={handleCopy}
               size="small"
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? t('apiKeys.oneTime.copied') : t('apiKeys.oneTime.copy')}
             </Button>
           </div>
         </div>
@@ -698,7 +693,7 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
         {data?.capabilities && data.capabilities.length > 0 && (
           <div className="mt-4">
             <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-slate-300">
-              Capabilities granted:
+              {t('apiKeys.oneTime.capabilitiesGranted')}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {data.capabilities.map((cap) => (
@@ -711,14 +706,13 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
         {/* Security tip */}
         <div className="mt-4 rounded-lg border border-blue-300 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/20">
           <p className="text-sm text-blue-800 dark:text-blue-200">
-            Store this key in a secure location such as a password manager or environment
-            variables. Never commit it to version control.
+            {t('apiKeys.oneTime.securityTip')}
           </p>
         </div>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} variant="contained">
-          I've Saved My Key
+          {t('apiKeys.oneTime.saved')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -742,26 +736,27 @@ const RevokeConfirmationDialog: React.FC<RevokeConfirmationDialogProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Revoke API Key</DialogTitle>
+      <DialogTitle>{t('apiKeys.revoke.title')}</DialogTitle>
       <DialogContent>
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-700 dark:bg-red-900/20">
           <p className="text-sm text-red-800 dark:text-red-200">
-            This action is <strong>irreversible</strong>. The API key will be permanently disabled.
+            {t('apiKeys.revoke.warningBefore')} <strong>{t('apiKeys.revoke.irreversible')}</strong>.{' '}
+            {t('apiKeys.revoke.warningAfter')}
           </p>
         </div>
 
         <p className="text-gray-700 dark:text-slate-300">
-          Are you sure you want to revoke:{' '}
-          <strong>{apiKey ? displayName(apiKey) : ''}</strong>?
+          {t('apiKeys.revoke.confirm', { name: apiKey ? displayName(apiKey) : '' })}
         </p>
 
         {/* Show capabilities being lost */}
         {apiKey && apiKey.capabilities.length > 0 && (
           <div className="mt-3">
             <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">
-              This key has access to:
+              {t('apiKeys.revoke.accessTo')}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {apiKey.capabilities.map((cap) => (
@@ -778,9 +773,9 @@ const RevokeConfirmationDialog: React.FC<RevokeConfirmationDialogProps> = ({
         </div>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('apiKeys.revoke.cancel')}</Button>
         <Button onClick={onConfirm} color="error" variant="contained">
-          Revoke Key
+          {t('apiKeys.revoke.revokeKey')}
         </Button>
       </DialogActions>
     </Dialog>

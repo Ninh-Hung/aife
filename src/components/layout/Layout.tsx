@@ -11,6 +11,7 @@ import { MobileHeader } from './MobileHeader';
 import { useAuth } from '../../contexts/AuthContext';
 import TrialBanner from '../subscription/TrialBanner';
 import { SidebarConversationsProvider } from './SidebarConversationsProvider';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Props Interface
@@ -26,6 +27,7 @@ interface LayoutProps {
 // ============================================
 
 export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg')); // < 1024px
@@ -48,7 +50,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
     // In production, show login page or redirect
     return (
       <Box className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
-        <div>Please log in</div>
+        <div>{t('app.loginRequired')}</div>
       </Box>
     );
   }

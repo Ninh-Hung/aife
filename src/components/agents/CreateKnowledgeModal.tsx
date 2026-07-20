@@ -25,6 +25,7 @@ import { X, Save, Upload, FileText } from 'lucide-react';
 import { Knowledge, KnowledgeSourceType } from '../../types';
 import { createKnowledge } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Props Interface
@@ -106,6 +107,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
   // ============================================
 
   const { success, error: showError } = useNotification();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<FormState>(initialFormState);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -119,23 +121,23 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
 
     // Name validation
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = t('knowledge.validation.nameRequired');
     }
 
     // Source-specific validation
     if (formData.sourceType === 'text') {
       if (!formData.content.trim()) {
-        newErrors.content = 'Content is required';
+        newErrors.content = t('knowledge.validation.contentRequired');
       }
     } else if (formData.sourceType === 'url') {
       if (!formData.content.trim()) {
-        newErrors.content = 'Source URL is required';
+        newErrors.content = t('knowledge.validation.sourceUrlRequired');
       } else if (!isValidUrl(formData.content)) {
-        newErrors.content = 'URL must start with http:// or https://';
+        newErrors.content = t('knowledge.validation.invalidUrl');
       }
     } else if (formData.sourceType === 'file') {
       if (formData.files.length === 0) {
-        newErrors.files = 'Please select at least one file';
+        newErrors.files = t('knowledge.validation.fileRequired');
       }
     }
 
@@ -261,15 +263,15 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
       const response = await createKnowledge(payload);
 
       if (response.success && response.data) {
-        success('Knowledge created successfully!');
+        success(t('knowledge.form.success'));
         onCreated(response.data);
         setFormData(initialFormState);
         setErrors({});
       } else {
-        showError(response.message || response.error || 'Failed to create knowledge');
+        showError(response.message || response.error || t('knowledge.errors.createFailed'));
       }
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to create knowledge');
+      showError(err instanceof Error ? err.message : t('knowledge.errors.createFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -299,7 +301,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
     >
       <DialogTitle className="border-b border-gray-200 dark:border-slate-700">
         <Box className="flex items-center justify-between">
-          <span className="text-gray-900 dark:text-slate-100">Create New Knowledge</span>
+          <span className="text-gray-900 dark:text-slate-100">{t('knowledge.form.title')}</span>
           <IconButton
             onClick={handleClose}
             disabled={isSaving}
@@ -315,23 +317,23 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
         <Box className="space-y-4">
           {/* Name Field */}
           <TextField
-            label="Name"
+            label={t('knowledge.form.name')}
             fullWidth
             value={formData.name}
             onChange={handleNameChange}
             error={!!errors.name}
-            helperText={errors.name || 'e.g., Product Documentation, API Reference'}
+            helperText={errors.name || t('knowledge.form.nameHelper')}
             disabled={isSaving}
             required
           />
 
           {/* Description Field */}
           <TextField
-            label="Description"
+            label={t('knowledge.form.description')}
             fullWidth
             value={formData.description}
             onChange={handleDescriptionChange}
-            helperText="Brief description of this knowledge source (optional)"
+            helperText={t('knowledge.form.descriptionHelper')}
             disabled={isSaving}
             multiline
             rows={2}
@@ -339,16 +341,16 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
 
           {/* Source Type Selector */}
           <FormControl fullWidth>
-            <InputLabel>Source Type</InputLabel>
+            <InputLabel>{t('knowledge.form.sourceType')}</InputLabel>
             <Select
               value={formData.sourceType}
               onChange={handleSourceTypeChange}
-              label="Source Type"
+              label={t('knowledge.form.sourceType')}
               disabled={isSaving}
             >
-              <MenuItem value="text">Text</MenuItem>
-              <MenuItem value="file">File</MenuItem>
-              <MenuItem value="url">URL</MenuItem>
+              <MenuItem value="text">{t('knowledge.sourceTypes.text')}</MenuItem>
+              <MenuItem value="file">{t('knowledge.sourceTypes.file')}</MenuItem>
+              <MenuItem value="url">{t('knowledge.sourceTypes.url')}</MenuItem>
             </Select>
           </FormControl>
 
@@ -357,26 +359,24 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
           {/* Text Source Type */}
           {formData.sourceType === 'text' && (
             <TextField
-              label="Content"
+              label={t('knowledge.form.content')}
               fullWidth
               multiline
               rows={8}
               value={formData.content}
               onChange={handleContentChange}
               error={!!errors.content}
-              helperText={
-                errors.content || 'Paste the text content that the agent should reference'
-              }
+              helperText={errors.content || t('knowledge.form.contentHelper')}
               disabled={isSaving}
               required
-              placeholder="Enter text content for this knowledge source"
+              placeholder={t('knowledge.form.contentPlaceholder')}
             />
           )}
 
           {/* URL Source Type */}
           {formData.sourceType === 'url' && (
             <TextField
-              label="Source URL"
+              label={t('knowledge.form.sourceUrl')}
               fullWidth
               value={formData.content}
               onChange={handleContentChange}
@@ -400,7 +400,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
                 className="border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
                 disabled={isSaving}
               >
-                Select Files
+                {t('knowledge.form.selectFiles')}
                 <input
                   type="file"
                   hidden
@@ -411,8 +411,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
               </Button>
 
               <FormHelperText error={!!errors.files}>
-                {errors.files ||
-                  'Supported formats: text, PDF, Office/ODF spreadsheets and docs, HTML/XML, CSV, Numbers, and images'}
+                {errors.files || t('knowledge.form.supportedFormats')}
               </FormHelperText>
 
               {/* Selected Files Display */}
@@ -448,7 +447,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
                             </div>
                             <div className="text-xs text-gray-500 dark:text-slate-400">
                               {formatFileSize(file.size)}
-                              {isImage && ' • Image'}
+                              {isImage && ` • ${t('knowledge.form.image')}`}
                             </div>
                           </Box>
                         </Box>
@@ -477,7 +476,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
           disabled={isSaving}
           className="border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
         >
-          Cancel
+          {t('knowledge.form.cancel')}
         </Button>
         <Button
           variant="contained"
@@ -486,7 +485,7 @@ export const CreateKnowledgeModal: React.FC<CreateKnowledgeModalProps> = ({
           startIcon={isSaving ? <CircularProgress size={18} /> : <Save size={18} />}
           className="bg-[#3B82F6] text-white hover:bg-[#2563EB] disabled:bg-gray-300 dark:disabled:bg-slate-700"
         >
-          {isSaving ? 'Creating...' : 'Create Knowledge'}
+          {isSaving ? t('knowledge.form.creating') : t('knowledge.create')}
         </Button>
       </DialogActions>
     </Dialog>

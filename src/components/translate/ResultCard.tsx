@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Typography, IconButton, Box, Tooltip, CircularProgress } from '@mui/material';
 import { Copy, Check, Volume2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { TranslationResult } from '../../types';
 
 // ============================================
@@ -21,6 +22,7 @@ interface ResultCardProps {
 // ============================================
 
 export const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -77,7 +79,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
         {/* Action Buttons */}
         {result.status === 'completed' && (
           <Box className="flex items-center gap-1">
-            <Tooltip title="Copy translation">
+            <Tooltip title={t('translate.result.copy')}>
               <IconButton
                 onClick={handleCopy}
                 size="small"
@@ -87,7 +89,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                 {copied ? <Check size={18} /> : <Copy size={18} />}
               </IconButton>
             </Tooltip>
-            <Tooltip title="Listen to translation">
+            <Tooltip title={t('translate.result.listen')}>
               <IconButton
                 onClick={handleSpeak}
                 size="small"
@@ -117,13 +119,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
 
         {result.status === 'failed' && (
           <Typography variant="body2" className="text-red-500 dark:text-red-400">
-            Translation failed. Please try again.
+            {t('translate.result.failed')}
           </Typography>
         )}
 
         {result.status === 'pending' && (
           <Typography variant="body2" className="text-gray-500 dark:text-slate-500">
-            Waiting to translate...
+            {t('translate.result.pending')}
           </Typography>
         )}
       </Box>

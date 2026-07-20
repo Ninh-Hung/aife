@@ -6,6 +6,7 @@
 import React from 'react';
 import { Box, Card, Typography, LinearProgress, Chip } from '@mui/material';
 import { Users, CreditCard, Activity } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useAgents } from '../contexts/AgentsContext';
 
@@ -14,10 +15,11 @@ import { useAgents } from '../contexts/AgentsContext';
 // ============================================
 
 export const Dashboard: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { agents } = useAgents();
   const subscriptionCode = user?.subscription?.packageCode.toLowerCase();
-  const subscriptionPlanName = user?.subscription?.packageName || 'Free';
+  const subscriptionPlanName = user?.subscription?.packageName || t('dashboard.subscription.free');
 
   // Mock usage data (in production, this would come from API)
   const usageData = {
@@ -35,10 +37,10 @@ export const Dashboard: React.FC = () => {
           className="font-bold text-gray-900 dark:text-white"
           sx={{ fontSize: { xs: '1.5rem', md: '2rem' } }}
         >
-          Welcome back, {user?.userName}!
+          {t('dashboard.welcome', { name: user?.userName || t('dashboard.userFallback') })}
         </Typography>
         <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
-          Here's what's happening with your AI agents today.
+          {t('dashboard.subtitle')}
         </Typography>
       </Box>
 
@@ -55,13 +57,13 @@ export const Dashboard: React.FC = () => {
                 variant="body2"
                 className="mb-1 font-medium text-gray-500 dark:text-slate-400"
               >
-                Total Agents
+                {t('dashboard.stats.totalAgents')}
               </Typography>
               <Typography variant="h3" className="font-bold text-gray-900 dark:text-white">
                 {agents.length}
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                Agents Created
+                {t('dashboard.stats.agentsCreated')}
               </Typography>
             </Box>
             <Box className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -81,11 +83,11 @@ export const Dashboard: React.FC = () => {
                 variant="body2"
                 className="mb-1 font-medium text-gray-500 dark:text-slate-400"
               >
-                Subscription Plan
+                {t('dashboard.stats.subscriptionPlan')}
               </Typography>
               <Box className="mt-2">
                 <Chip
-                  label={`${subscriptionPlanName} Plan`}
+                  label={t('dashboard.subscription.planLabel', { name: subscriptionPlanName })}
                   className={`font-semibold ${
                     subscriptionCode === 'enterprise'
                       ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
@@ -101,10 +103,10 @@ export const Dashboard: React.FC = () => {
                 className="mt-2 block text-gray-500 dark:text-slate-400"
               >
                 {subscriptionCode === 'pro'
-                  ? 'Advanced features enabled'
+                  ? t('dashboard.subscription.proDescription')
                   : subscriptionCode === 'enterprise'
-                    ? 'Full access to all features'
-                    : 'Upgrade for more features'}
+                    ? t('dashboard.subscription.enterpriseDescription')
+                    : t('dashboard.subscription.freeDescription')}
               </Typography>
             </Box>
             <Box className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -124,13 +126,13 @@ export const Dashboard: React.FC = () => {
                 variant="body2"
                 className="mb-1 font-medium text-gray-500 dark:text-slate-400"
               >
-                Usage Quota
+                {t('dashboard.stats.usageQuota')}
               </Typography>
               <Typography variant="h5" className="font-bold text-gray-900 dark:text-white">
                 {usageData.used.toLocaleString()} / {usageData.total.toLocaleString()}
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                Characters used
+                {t('dashboard.stats.charactersUsed')}
               </Typography>
               {/* Progress Bar */}
               <Box className="mt-3">
@@ -150,7 +152,7 @@ export const Dashboard: React.FC = () => {
                   variant="caption"
                   className="mt-1 block text-right text-gray-500 dark:text-slate-400"
                 >
-                  {usageData.percentage}% used
+                  {t('dashboard.stats.percentUsed', { percent: usageData.percentage })}
                 </Typography>
               </Box>
             </Box>
@@ -169,7 +171,7 @@ export const Dashboard: React.FC = () => {
           elevation={0}
         >
           <Typography variant="h6" className="mb-4 font-semibold text-gray-900 dark:text-white">
-            Recent Activity
+            {t('dashboard.recentActivity.title')}
           </Typography>
           <Box className="space-y-3">
             {agents.slice(0, 5).map((agent) => (
@@ -185,18 +187,25 @@ export const Dashboard: React.FC = () => {
                     {agent.name}
                   </Typography>
                   <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                    {agent.description || `${agent.knowledgeCount ?? 0} knowledge sources`}
+                    {agent.description ||
+                      t('dashboard.recentActivity.knowledgeSources', {
+                        count: agent.knowledgeCount ?? 0,
+                      })}
                   </Typography>
                 </Box>
                 {agent.isDefault && (
-                  <Chip label="Default" size="small" className="bg-blue-100 text-blue-700" />
+                  <Chip
+                    label={t('common.default')}
+                    size="small"
+                    className="bg-blue-100 text-blue-700"
+                  />
                 )}
               </Box>
             ))}
             {agents.length === 0 && (
               <Box className="py-8 text-center">
                 <Typography variant="body2" className="text-gray-500 dark:text-slate-400">
-                  No agents created yet. Create your first agent to get started!
+                  {t('dashboard.recentActivity.empty')}
                 </Typography>
               </Box>
             )}
@@ -209,31 +218,31 @@ export const Dashboard: React.FC = () => {
           elevation={0}
         >
           <Typography variant="h6" className="mb-4 font-semibold text-gray-900 dark:text-white">
-            Quick Actions
+            {t('dashboard.quickActions.title')}
           </Typography>
           <Box className="space-y-3">
             <Box className="cursor-pointer rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/10">
               <Typography variant="body1" className="font-medium text-gray-900 dark:text-white">
-                Create New Agent
+                {t('dashboard.quickActions.createAgent.title')}
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                Set up a new AI agent with custom configurations
+                {t('dashboard.quickActions.createAgent.description')}
               </Typography>
             </Box>
             <Box className="cursor-pointer rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/10">
               <Typography variant="body1" className="font-medium text-gray-900 dark:text-white">
-                Upgrade Plan
+                {t('dashboard.quickActions.upgradePlan.title')}
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                Unlock more features with a premium subscription
+                {t('dashboard.quickActions.upgradePlan.description')}
               </Typography>
             </Box>
             <Box className="cursor-pointer rounded-lg border border-gray-200 p-4 transition-all hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/10">
               <Typography variant="body1" className="font-medium text-gray-900 dark:text-white">
-                View Usage History
+                {t('dashboard.quickActions.usageHistory.title')}
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                Track your API usage and performance metrics
+                {t('dashboard.quickActions.usageHistory.description')}
               </Typography>
             </Box>
           </Box>

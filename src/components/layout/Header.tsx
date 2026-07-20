@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Bot } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Agent } from '../../types';
 import QuotaBadge from '../subscription/QuotaBadge';
 import { useAuth } from '../../contexts/AuthContext';
@@ -44,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAgentChange,
 }) => {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
 
   const handleAgentChange = (event: SelectChangeEvent<string>) => {
     onAgentChange?.(event.target.value);
@@ -99,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <Box className="flex items-center gap-2">
                     <Bot size={16} className="text-blue-500 dark:text-blue-400" />
                     <span className="truncate text-sm md:text-base">
-                      {agent?.name || 'Translation Agent'}
+                      {agent?.name || t('header.translationAgent')}
                     </span>
                   </Box>
                 );
@@ -114,7 +116,9 @@ export const Header: React.FC<HeaderProps> = ({
                   <Box className="flex items-center gap-2">
                     <Bot size={16} className="text-blue-500 dark:text-blue-400" />
                     <span>{agent.name}</span>
-                    {agent.isDefault && <Chip label="Default" size="small" color="primary" />}
+                    {agent.isDefault && (
+                      <Chip label={t('common.default')} size="small" color="primary" />
+                    )}
                   </Box>
                 </MenuItem>
               ))}

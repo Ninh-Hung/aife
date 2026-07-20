@@ -33,6 +33,7 @@ import { useNotification } from '../../hooks/useNotification';
 import { uploadAgentAvatar, getAgent, listDefaultAvatars, DefaultAvatar } from '../../services/api';
 import { CharacteristicsSection } from './CharacteristicsSection';
 import { KnowledgeSection } from './KnowledgeSection';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Constants
@@ -94,6 +95,7 @@ const AvatarSetupMenu: React.FC<AvatarSetupMenuProps> = ({
   onSelectDefault,
   disabled,
 }) => {
+  const { t } = useTranslation();
   const [defaultAvatars, setDefaultAvatars] = useState<DefaultAvatar[]>([]);
   const [isLoadingAvatars, setIsLoadingAvatars] = useState(false);
 
@@ -106,7 +108,9 @@ const AvatarSetupMenu: React.FC<AvatarSetupMenuProps> = ({
             setDefaultAvatars(result.data);
           }
         })
-        .catch(() => {/* ignore — list is simply empty */})
+        .catch(() => {
+          /* ignore — list is simply empty */
+        })
         .finally(() => setIsLoadingAvatars(false));
     }
   }, [open]);
@@ -139,12 +143,12 @@ const AvatarSetupMenu: React.FC<AvatarSetupMenuProps> = ({
           <ListItemText
             primary={
               <Typography variant="body2" className="font-medium text-gray-800 dark:text-slate-200">
-                Upload avatar
+                {t('agents.drawer.avatar.upload')}
               </Typography>
             }
             secondary={
               <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
-                JPG, PNG, SVG, GIF, WebP — max {MAX_AVATAR_SIZE_MB} MB
+                {t('agents.drawer.avatar.supportedFormats', { size: MAX_AVATAR_SIZE_MB })}
               </Typography>
             }
           />
@@ -155,8 +159,11 @@ const AvatarSetupMenu: React.FC<AvatarSetupMenuProps> = ({
       <Divider className="border-gray-200 dark:border-slate-700" />
 
       <Box className="px-3 pb-2 pt-2">
-        <Typography variant="caption" className="font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
-          Default Avatars
+        <Typography
+          variant="caption"
+          className="font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500"
+        >
+          {t('agents.drawer.avatar.defaultAvatars')}
         </Typography>
       </Box>
 
@@ -167,7 +174,7 @@ const AvatarSetupMenu: React.FC<AvatarSetupMenuProps> = ({
       ) : defaultAvatars.length === 0 ? (
         <Box className="px-3 pb-3">
           <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
-            No default avatars available.
+            {t('agents.drawer.avatar.noDefaultAvatars')}
           </Typography>
         </Box>
       ) : (
@@ -222,6 +229,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   agent,
   onUpdate,
 }) => {
+  const { t } = useTranslation();
   const { success, error } = useNotification();
   const [formData, setFormData] = useState<CreateAgentInput>(initialFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof CreateAgentInput, string>>>({});
@@ -328,11 +336,11 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
     // Client-side validation — mirror backend rules
     if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
-      error(`Unsupported file type. Please upload JPG, PNG, SVG, GIF, or WebP.`);
+      error(t('agents.drawer.errors.unsupportedAvatarType'));
       return;
     }
     if (file.size > MAX_AVATAR_SIZE_MB * 1024 * 1024) {
-      error(`File is too large. Maximum size is ${MAX_AVATAR_SIZE_MB} MB.`);
+      error(t('agents.drawer.errors.avatarTooLarge', { size: MAX_AVATAR_SIZE_MB }));
       return;
     }
 
@@ -345,17 +353,17 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     try {
       const result = await uploadAgentAvatar(file);
       if (!result.success || !result.data?.url) {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || t('agents.drawer.errors.uploadFailed'));
       }
       // Replace optimistic preview with the real R2 URL
       URL.revokeObjectURL(localPreview);
       setAvatarPreview(result.data.url);
       setFormData((prev) => ({ ...prev, avatarUrl: result.data!.url }));
-      success('Avatar uploaded successfully');
+      success(t('agents.drawer.messages.avatarUploaded'));
     } catch (err) {
       URL.revokeObjectURL(localPreview);
       setAvatarPreview(formData.avatarUrl ?? null);
-      error(err instanceof Error ? err.message : 'Failed to upload avatar');
+      error(err instanceof Error ? err.message : t('agents.drawer.errors.uploadFailed'));
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -441,7 +449,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     const newErrors: Partial<Record<keyof CreateAgentInput, string>> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Agent name is required';
+      newErrors.name = t('agents.drawer.validation.nameRequired');
     }
 
     setErrors(newErrors);
@@ -458,10 +466,10 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     try {
       if (isEditMode && agent && onUpdate) {
         await onUpdate(agent.publicId, formData);
-        success('Agent updated successfully!');
+        success(t('agents.drawer.messages.updated'));
       } else {
         await onSave(formData);
-        success('Agent created successfully!');
+        success(t('agents.drawer.messages.created'));
       }
       // Reset form and close drawer on success
       setFormData(initialFormState);
@@ -469,7 +477,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       setAvatarType(null);
       onClose();
     } catch (err) {
-      error(err instanceof Error ? err.message : 'Failed to save agent');
+      error(err instanceof Error ? err.message : t('agents.drawer.errors.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -507,7 +515,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
           <Box className="flex items-center gap-2">
             <Sparkles className="text-indigo-600 dark:text-indigo-400" size={24} />
             <Typography variant="h6" className="font-semibold text-gray-900 dark:text-slate-100">
-              {isEditMode ? 'Edit Agent' : 'Create New Agent'}
+              {isEditMode ? t('agents.drawer.editTitle') : t('agents.drawer.createTitle')}
             </Typography>
           </Box>
           <IconButton
@@ -528,208 +536,206 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
               <Box className="flex flex-col items-center gap-3">
                 <CircularProgress size={36} className="text-indigo-500" />
                 <Typography variant="body2" className="text-gray-500 dark:text-slate-400">
-                  Loading agent details...
+                  {t('agents.drawer.loadingDetails')}
                 </Typography>
               </Box>
             </Box>
           )}
 
           {!isLoadingAgent && (
-          <Box className="space-y-6">
-            {/* 1. Basic Information */}
-            <Box>
-              <Typography
-                variant="subtitle1"
-                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
-              >
-                1. Basic Information
-              </Typography>
+            <Box className="space-y-6">
+              {/* 1. Basic Information */}
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+                >
+                  {t('agents.drawer.sections.basic')}
+                </Typography>
 
-              <Box className="space-y-4">
-                {/* Avatar Upload */}
-                <Box className="flex items-start gap-4">
-                  {/* Hidden file input */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept={ALLOWED_AVATAR_TYPES.join(',')}
-                    className="hidden"
-                    onChange={handleAvatarFileChange}
-                    disabled={isSaving || isUploadingAvatar}
-                  />
+                <Box className="space-y-4">
+                  {/* Avatar Upload */}
+                  <Box className="flex items-start gap-4">
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ALLOWED_AVATAR_TYPES.join(',')}
+                      className="hidden"
+                      onChange={handleAvatarFileChange}
+                      disabled={isSaving || isUploadingAvatar}
+                    />
 
-                  {/* Avatar preview / placeholder */}
-                  <Box className="relative shrink-0">
-                    <Box
-                      onClick={handleSetupAvatarClick}
-                      className={[
-                        'flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2',
-                        'border-dashed transition-colors',
-                        avatarPreview
-                          ? 'border-transparent'
-                          : 'border-gray-300 hover:border-indigo-400 dark:border-slate-600 dark:hover:border-indigo-500',
-                        isSaving || isUploadingAvatar ? 'cursor-not-allowed opacity-60' : '',
-                      ].join(' ')}
-                    >
-                      {isUploadingAvatar ? (
-                        <CircularProgress size={28} className="text-indigo-500" />
-                      ) : avatarPreview && avatarType === 'video' ? (
-                        <video
-                          src={avatarPreview}
-                          muted
-                          autoPlay
-                          loop
-                          playsInline
-                          className="h-full w-full object-cover"
-                        />
-                      ) : avatarPreview ? (
-                        <img
-                          src={avatarPreview}
-                          alt="Agent avatar"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <UserCircle
-                          size={36}
-                          className="text-gray-400 dark:text-slate-500"
-                        />
+                    {/* Avatar preview / placeholder */}
+                    <Box className="relative shrink-0">
+                      <Box
+                        onClick={handleSetupAvatarClick}
+                        className={[
+                          'flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2',
+                          'border-dashed transition-colors',
+                          avatarPreview
+                            ? 'border-transparent'
+                            : 'border-gray-300 hover:border-indigo-400 dark:border-slate-600 dark:hover:border-indigo-500',
+                          isSaving || isUploadingAvatar ? 'cursor-not-allowed opacity-60' : '',
+                        ].join(' ')}
+                      >
+                        {isUploadingAvatar ? (
+                          <CircularProgress size={28} className="text-indigo-500" />
+                        ) : avatarPreview && avatarType === 'video' ? (
+                          <video
+                            src={avatarPreview}
+                            muted
+                            autoPlay
+                            loop
+                            playsInline
+                            className="h-full w-full object-cover"
+                          />
+                        ) : avatarPreview ? (
+                          <img
+                            src={avatarPreview}
+                            alt={t('agents.drawer.avatar.alt')}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <UserCircle size={36} className="text-gray-400 dark:text-slate-500" />
+                        )}
+                      </Box>
+
+                      {/* Remove button */}
+                      {avatarPreview && !isUploadingAvatar && (
+                        <Tooltip title={t('agents.drawer.avatar.remove')}>
+                          <IconButton
+                            size="small"
+                            onClick={handleRemoveAvatar}
+                            disabled={isSaving}
+                            className="absolute -right-2 -top-2 bg-white shadow-md dark:bg-slate-700"
+                            sx={{ padding: '2px' }}
+                          >
+                            <Trash2 size={12} className="text-red-500" />
+                          </IconButton>
+                        </Tooltip>
                       )}
                     </Box>
 
-                    {/* Remove button */}
-                    {avatarPreview && !isUploadingAvatar && (
-                      <Tooltip title="Remove avatar">
-                        <IconButton
-                          size="small"
-                          onClick={handleRemoveAvatar}
-                          disabled={isSaving}
-                          className="absolute -right-2 -top-2 bg-white shadow-md dark:bg-slate-700"
-                          sx={{ padding: '2px' }}
-                        >
-                          <Trash2 size={12} className="text-red-500" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                    {/* Setup avatar button */}
+                    <Box className="flex flex-col justify-center gap-1 pt-1">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Settings size={14} />}
+                        onClick={handleSetupAvatarClick}
+                        disabled={isSaving || isUploadingAvatar}
+                        className="w-fit border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
+                      >
+                        {t('agents.drawer.avatar.setup')}
+                      </Button>
+                      <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
+                        {t('agents.drawer.avatar.helper')}
+                      </Typography>
+                    </Box>
                   </Box>
 
-                  {/* Setup avatar button */}
-                  <Box className="flex flex-col justify-center gap-1 pt-1">
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Settings size={14} />}
-                      onClick={handleSetupAvatarClick}
-                      disabled={isSaving || isUploadingAvatar}
-                      className="w-fit border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
-                    >
-                      Setup avatar
-                    </Button>
-                    <Typography variant="caption" className="text-gray-400 dark:text-slate-500">
-                      Upload or choose a default
-                    </Typography>
-                  </Box>
+                  {/* Avatar Setup Menu */}
+                  <AvatarSetupMenu
+                    anchorEl={avatarMenuAnchor}
+                    open={avatarMenuOpen}
+                    onClose={handleAvatarMenuClose}
+                    onUploadClick={handleFileInputClick}
+                    onSelectDefault={handleSelectDefaultAvatar}
+                    disabled={isSaving || isUploadingAvatar}
+                  />
+
+                  {/* Agent Name */}
+                  <FormControl fullWidth error={!!errors.name}>
+                    <InputLabel htmlFor="agent-name">
+                      {t('agents.drawer.fields.nameRequired')}
+                    </InputLabel>
+                    <OutlinedInput
+                      id="agent-name"
+                      label={t('agents.drawer.fields.nameRequired')}
+                      value={formData.name}
+                      onChange={handleChange('name')}
+                      placeholder={t('agents.drawer.fields.namePlaceholder')}
+                      disabled={isSaving}
+                    />
+                    {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
+                  </FormControl>
+
+                  {/* Description */}
+                  <FormControl fullWidth>
+                    <TextField
+                      label={t('agents.drawer.fields.description')}
+                      multiline
+                      rows={3}
+                      value={formData.description}
+                      onChange={handleChange('description')}
+                      placeholder={t('agents.drawer.fields.descriptionPlaceholder')}
+                      disabled={isSaving}
+                      helperText={t('agents.drawer.fields.descriptionHelper')}
+                    />
+                  </FormControl>
                 </Box>
-
-                {/* Avatar Setup Menu */}
-                <AvatarSetupMenu
-                  anchorEl={avatarMenuAnchor}
-                  open={avatarMenuOpen}
-                  onClose={handleAvatarMenuClose}
-                  onUploadClick={handleFileInputClick}
-                  onSelectDefault={handleSelectDefaultAvatar}
-                  disabled={isSaving || isUploadingAvatar}
-                />
-
-                {/* Agent Name */}
-                <FormControl fullWidth error={!!errors.name}>
-                  <InputLabel htmlFor="agent-name">Agent Name *</InputLabel>
-                  <OutlinedInput
-                    id="agent-name"
-                    label="Agent Name *"
-                    value={formData.name}
-                    onChange={handleChange('name')}
-                    placeholder="e.g., Professional Translator"
-                    disabled={isSaving}
-                  />
-                  {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
-                </FormControl>
-
-                {/* Description */}
-                <FormControl fullWidth>
-                  <TextField
-                    label="Description"
-                    multiline
-                    rows={3}
-                    value={formData.description}
-                    onChange={handleChange('description')}
-                    placeholder="Describe what this agent does and its personality..."
-                    disabled={isSaving}
-                    helperText="Optional: Metadata describing this agent (not used as system prompt)"
-                  />
-                </FormControl>
               </Box>
-            </Box>
 
-            <Divider />
+              <Divider />
 
-            {/* 2. Characteristics */}
-            <Box>
-              <Typography
-                variant="subtitle1"
-                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
-              >
-                2. Behavior & Persona
-              </Typography>
-              <CharacteristicsSection
-                selectedCharacteristicIds={formData.characteristicIds}
-                onCharacteristicToggle={handleCharacteristicToggle}
-                onCharacteristicCreated={handleCharacteristicCreated}
-              />
-            </Box>
-
-            <Divider />
-
-            {/* 3. Knowledge */}
-            <Box>
-              <Typography
-                variant="subtitle1"
-                className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
-              >
-                3. Knowledge & Context
-              </Typography>
-              <KnowledgeSection
-                selectedKnowledgeIds={formData.knowledgeIds}
-                onKnowledgeToggle={handleKnowledgeToggle}
-                onKnowledgeCreated={handleKnowledgeCreated}
-              />
-            </Box>
-
-            <Divider />
-
-            {/* 4. Advanced (Placeholder) */}
-            <Accordion
-              className="border border-gray-200 dark:border-slate-700"
-              sx={{ boxShadow: 'none' }}
-            >
-              <AccordionSummary
-                expandIcon={<ChevronDown size={20} />}
-                className="bg-gray-50 dark:bg-slate-800/50"
-              >
+              {/* 2. Characteristics */}
+              <Box>
                 <Typography
                   variant="subtitle1"
-                  className="font-semibold text-gray-900 dark:text-slate-100"
+                  className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
                 >
-                  4. Advanced Settings (Coming Soon)
+                  {t('agents.drawer.sections.behavior')}
                 </Typography>
-              </AccordionSummary>
-              <AccordionDetails className="bg-gray-50 dark:bg-slate-800/50">
-                <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
-                  Future options: Default language, output format, agent visibility, scheduling
-                  hints
+                <CharacteristicsSection
+                  selectedCharacteristicIds={formData.characteristicIds}
+                  onCharacteristicToggle={handleCharacteristicToggle}
+                  onCharacteristicCreated={handleCharacteristicCreated}
+                />
+              </Box>
+
+              <Divider />
+
+              {/* 3. Knowledge */}
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+                >
+                  {t('agents.drawer.sections.knowledge')}
                 </Typography>
-              </AccordionDetails>
-            </Accordion>
-          </Box>
+                <KnowledgeSection
+                  selectedKnowledgeIds={formData.knowledgeIds}
+                  onKnowledgeToggle={handleKnowledgeToggle}
+                  onKnowledgeCreated={handleKnowledgeCreated}
+                />
+              </Box>
+
+              <Divider />
+
+              {/* 4. Advanced (Placeholder) */}
+              <Accordion
+                className="border border-gray-200 dark:border-slate-700"
+                sx={{ boxShadow: 'none' }}
+              >
+                <AccordionSummary
+                  expandIcon={<ChevronDown size={20} />}
+                  className="bg-gray-50 dark:bg-slate-800/50"
+                >
+                  <Typography
+                    variant="subtitle1"
+                    className="font-semibold text-gray-900 dark:text-slate-100"
+                  >
+                    {t('agents.drawer.sections.advanced')}
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails className="bg-gray-50 dark:bg-slate-800/50">
+                  <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
+                    {t('agents.drawer.advancedDescription')}
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+            </Box>
           )}
         </Box>
 
@@ -742,7 +748,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             disabled={isSaving || isUploadingAvatar || isLoadingAgent}
             className="border-gray-300 text-gray-700 dark:border-slate-600 dark:text-slate-300"
           >
-            Cancel
+            {t('agents.drawer.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -752,7 +758,11 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
             startIcon={<Save size={18} />}
             className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-slate-700"
           >
-            {isSaving ? 'Saving...' : isEditMode ? 'Update Agent' : 'Save Agent'}
+            {isSaving
+              ? t('agents.drawer.saving')
+              : isEditMode
+                ? t('agents.drawer.update')
+                : t('agents.drawer.save')}
           </Button>
         </Box>
       </Box>

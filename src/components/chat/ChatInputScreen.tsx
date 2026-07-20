@@ -181,7 +181,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     // For anonymous users, enforce image-only + 5 MB limit
     if (isAnonymous) {
       if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-        setUploadError('Only image files are supported (PNG, JPG, GIF, WebP, etc.).');
+        setUploadError('Only image files are supported (PNG, JPG, GIF, WebP, etc.) in anonymous mode.');
         return;
       }
       if (file.size > MAX_ANON_FILE_SIZE) {

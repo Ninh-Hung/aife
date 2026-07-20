@@ -20,7 +20,7 @@ const AxiosToastSetup: React.FC = () => {
 
   useEffect(() => {
     // Setup axios interceptor for automatic error toasts
-    setupAxiosToast(axiosInstance, enqueueSnackbar);
+    return setupAxiosToast(axiosInstance, enqueueSnackbar);
   }, [enqueueSnackbar]);
 
   return null;

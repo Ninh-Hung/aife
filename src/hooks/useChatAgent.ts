@@ -3,6 +3,7 @@ import { useAgentChat } from '@cloudflare/ai-chat/react';
 import type { FileUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnonymousLimitError, ChatMessage, ChatSource } from '../types';
+import { getStoredAppLocale } from '../i18n/types';
 
 export type ChatExecutionMode = 'cheap' | 'normal' | 'expensive';
 
@@ -291,23 +292,24 @@ export function useChatAgent({
     return typeof raw.metadata?.sessionId === 'number' ? raw.metadata.sessionId : null;
   }, []);
 
-  const extractAnonymousLimit = useCallback((message: UIMessage): AnonymousLimitError | undefined => {
-    const metadata = (message as unknown as { metadata?: unknown }).metadata;
-    return isAnonymousLimitMetadata(metadata) ? metadata : undefined;
-  }, []);
+  const extractAnonymousLimit = useCallback(
+    (message: UIMessage): AnonymousLimitError | undefined => {
+      const metadata = (message as unknown as { metadata?: unknown }).metadata;
+      return isAnonymousLimitMetadata(metadata) ? metadata : undefined;
+    },
+    []
+  );
 
   useEffect(() => {
-    const latestAnonymousLimitMessage = [...(agentMessages || [])]
-      .reverse()
-      .find((message) => {
-        const metadata = (message as unknown as { metadata?: unknown }).metadata;
-        const content = extractText(message).trim().toLowerCase();
-        return (
-          isAnonymousLimitMetadata(metadata) ||
-          /^guest .+ limit reached\.?$/i.test(content) ||
-          content.includes('guest daily token limit reached')
-        );
-      });
+    const latestAnonymousLimitMessage = [...(agentMessages || [])].reverse().find((message) => {
+      const metadata = (message as unknown as { metadata?: unknown }).metadata;
+      const content = extractText(message).trim().toLowerCase();
+      return (
+        isAnonymousLimitMetadata(metadata) ||
+        /^guest .+ limit reached\.?$/i.test(content) ||
+        content.includes('guest daily token limit reached')
+      );
+    });
 
     if (!latestAnonymousLimitMessage) {
       return;
@@ -412,6 +414,7 @@ export function useChatAgent({
           agentPublicId,
           sessionId,
           mode,
+          locale: getStoredAppLocale(),
           ...(capability ? { capability } : {}),
         },
       }).catch((error) => {

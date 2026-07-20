@@ -1,0 +1,502 @@
+{
+  "app": {
+    "loading": "Đang tải...",
+    "loginRequired": "Vui lòng đăng nhập"
+  },
+  "common": {
+    "default": "Mặc định",
+    "settings": "Cài đặt",
+    "logout": "Đăng xuất",
+    "trial": "Dùng thử",
+    "comingSoon": "Sắp ra mắt"
+  },
+  "language": {
+    "label": "Ngôn ngữ",
+    "switchTo": "Đổi ngôn ngữ sang {{language}}",
+    "english": "Tiếng Anh",
+    "vietnamese": "Tiếng Việt"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "subtitle": "Quản lý tùy chọn tài khoản",
+    "language": {
+      "title": "Ngôn ngữ giao diện",
+      "description": "Chọn ngôn ngữ dùng cho giao diện ứng dụng và message lỗi API."
+    }
+  },
+  "theme": {
+    "lightMode": "Chế độ sáng",
+    "darkMode": "Chế độ tối",
+    "switchToLight": "Chuyển sang chế độ sáng",
+    "switchToDark": "Chuyển sang chế độ tối"
+  },
+  "sidebar": {
+    "expand": "Mở rộng sidebar",
+    "collapse": "Thu gọn sidebar",
+    "newChat": "Chat mới",
+    "conversations": "Cuộc trò chuyện",
+    "dashboard": "Dashboard",
+    "agents": "Agent của tôi",
+    "knowledge": "Kiến thức",
+    "apiKeys": "API Keys",
+    "subscription": "Gói dịch vụ",
+    "multilanguage": "Đa ngôn ngữ"
+  },
+  "header": {
+    "translationAgent": "Translation Agent",
+    "translate": {
+      "title": "AI Translation",
+      "subtitle": "Được hỗ trợ bởi neural network nâng cao"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Tổng quan hoạt động của bạn"
+    },
+    "agents": {
+      "title": "Agent của tôi",
+      "subtitle": "Quản lý AI agent"
+    },
+    "knowledge": {
+      "title": "Kiến thức",
+      "subtitle": "Quản lý nguồn RAG bền vững"
+    },
+    "subscription": {
+      "title": "Gói dịch vụ",
+      "subtitle": "Quản lý gói và thanh toán"
+    },
+    "code": {
+      "title": "Tạo code",
+      "subtitle": "Tạo code bằng AI"
+    },
+    "image": {
+      "title": "Tạo hình ảnh",
+      "subtitle": "Tạo hình ảnh bằng AI"
+    },
+    "apiKeys": {
+      "title": "API Keys",
+      "subtitle": "Quản lý token xác thực API"
+    }
+  },
+  "knowledge": {
+    "title": "Kiến thức",
+    "subtitle": "Quản lý nguồn dữ liệu bền vững dùng cho RAG của agent.",
+    "sectionTitle": "Kiến thức & ngữ cảnh",
+    "sectionSubtitle": "Gắn dữ liệu ngữ cảnh để agent có thể tham chiếu",
+    "create": "Tạo kiến thức",
+    "createNew": "Tạo kiến thức mới",
+    "refresh": "Làm mới",
+    "empty": "Không tìm thấy nguồn knowledge.",
+    "emptyWithAction": "Không tìm thấy nguồn knowledge. Hãy tạo nguồn đầu tiên để bắt đầu!",
+    "filters": {
+      "scope": "Phạm vi",
+      "type": "Loại"
+    },
+    "columns": {
+      "name": "Tên",
+      "source": "Nguồn",
+      "scope": "Phạm vi",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    },
+    "scope": {
+      "all": "Tất cả",
+      "system": "Hệ thống",
+      "user": "Kiến thức của tôi",
+      "project": "Dự án",
+      "SYSTEM": "Hệ thống",
+      "USER": "Của tôi",
+      "PROJECT": "Dự án"
+    },
+    "sourceTypes": {
+      "all": "Tất cả loại",
+      "text": "Văn bản",
+      "file": "Tệp",
+      "url": "URL"
+    },
+    "status": {
+      "pending": "Đang chờ",
+      "processing": "Đang xử lý",
+      "success": "Sẵn sàng",
+      "partial": "Một phần",
+      "failed": "Thất bại",
+      "deleting": "Đang xóa"
+    },
+    "metrics": {
+      "chunks": "{{count}} chunks",
+      "vectors": "{{count}} vectors",
+      "files": "{{count}} tệp",
+      "synced": "đã sync {{date}}"
+    },
+    "actions": {
+      "resync": "Sync lại",
+      "resyncKnowledge": "Sync lại kiến thức",
+      "delete": "Xóa",
+      "deleteKnowledge": "Xóa kiến thức",
+      "systemCannotResync": "Không thể sync lại kiến thức hệ thống tại đây",
+      "systemCannotDelete": "Không thể xóa kiến thức hệ thống tại đây"
+    },
+    "errors": {
+      "loadFailed": "Không thể tải kiến thức",
+      "resyncFailed": "Không thể sync lại kiến thức",
+      "deleteFailed": "Không thể xóa kiến thức",
+      "createFailed": "Không thể tạo kiến thức"
+    },
+    "deleteDialog": {
+      "title": "Xóa Knowledge?",
+      "beforeName": "Thao tác này sẽ xóa",
+      "afterName": "và các artifact đã index. Thao tác này không thể hoàn tác.",
+      "afterNameDetailed": "và các artifact kiến thức đã index. Thao tác này không thể hoàn tác."
+    },
+    "form": {
+      "title": "Tạo kiến thức mới",
+      "name": "Tên",
+      "nameHelper": "Ví dụ: Product Documentation, API Reference",
+      "description": "Mô tả",
+      "descriptionHelper": "Mô tả ngắn về nguồn kiến thức này (không bắt buộc)",
+      "sourceType": "Loại nguồn",
+      "content": "Nội dung",
+      "contentHelper": "Dán nội dung văn bản mà agent cần tham chiếu",
+      "contentPlaceholder": "Nhập nội dung văn bản cho nguồn kiến thức này",
+      "sourceUrl": "URL nguồn",
+      "selectFiles": "Chọn tệp",
+      "supportedFormats": "Định dạng hỗ trợ: text, PDF, Office/ODF spreadsheets và docs, HTML/XML, CSV, Numbers, và hình ảnh",
+      "image": "Hình ảnh",
+      "cancel": "Hủy",
+      "creating": "Đang tạo...",
+      "success": "Tạo kiến thức thành công!"
+    },
+    "validation": {
+      "nameRequired": "Tên là bắt buộc",
+      "contentRequired": "Nội dung là bắt buộc",
+      "sourceUrlRequired": "URL nguồn là bắt buộc",
+      "invalidUrl": "URL phải bắt đầu bằng http:// hoặc https://",
+      "fileRequired": "Vui lòng chọn ít nhất một tệp"
+    }
+  },
+  "agents": {
+    "title": "Agent của tôi",
+    "subtitle": "Tạo và quản lý các AI persona tùy chỉnh cho từng tác vụ",
+    "createNew": "Tạo agent mới",
+    "loading": "Đang tải agent...",
+    "chatSessionTitle": "Chat với {{name}}",
+    "empty": {
+      "title": "Không tìm thấy agent",
+      "description": "Bắt đầu bằng cách tạo AI agent đầu tiên. Bạn có thể tùy chỉnh hành vi, mức sáng tạo và phong cách để phù hợp nhu cầu.",
+      "createFirst": "Tạo agent đầu tiên"
+    },
+    "stats": {
+      "totalAgents": "Tổng agent",
+      "customAgents": "Agent tùy chỉnh",
+      "totalKnowledge": "Tổng kiến thức"
+    },
+    "messages": {
+      "deleted": "Đã xóa agent thành công",
+      "defaultUpdated": "Đã cập nhật agent mặc định"
+    },
+    "errors": {
+      "editOwnOnly": "Chỉ có thể chỉnh sửa agent của bạn",
+      "deleteOwnOnly": "Chỉ có thể xóa agent của bạn",
+      "defaultOwnOnly": "Chỉ có thể chọn agent của bạn làm mặc định",
+      "deleteFailed": "Không thể xóa agent",
+      "createChatFailed": "Không thể tạo phiên chat",
+      "setDefaultFailed": "Không thể đặt agent mặc định"
+    },
+    "card": {
+      "deleteConfirm": "Bạn có chắc muốn xóa \"{{name}}\"?",
+      "inactive": "Không hoạt động",
+      "system": "Hệ thống",
+      "behaviors": "Hành vi",
+      "knowledge": "Kiến thức",
+      "chatNow": "Chat ngay",
+      "avatarAlt": "Avatar của {{name}}"
+    },
+    "drawer": {
+      "createTitle": "Tạo agent mới",
+      "editTitle": "Chỉnh sửa agent",
+      "loadingDetails": "Đang tải chi tiết agent...",
+      "cancel": "Hủy",
+      "save": "Lưu agent",
+      "update": "Cập nhật agent",
+      "saving": "Đang lưu...",
+      "advancedDescription": "Tùy chọn sau này: ngôn ngữ mặc định, định dạng đầu ra, hiển thị agent, gợi ý lịch chạy",
+      "sections": {
+        "basic": "1. Thông tin cơ bản",
+        "behavior": "2. Hành vi & persona",
+        "knowledge": "3. Kiến thức & ngữ cảnh",
+        "advanced": "4. Cài đặt nâng cao (sắp ra mắt)"
+      },
+      "fields": {
+        "nameRequired": "Tên agent *",
+        "namePlaceholder": "Ví dụ: Biên dịch viên chuyên nghiệp",
+        "description": "Mô tả",
+        "descriptionPlaceholder": "Mô tả agent này làm gì và tính cách của nó...",
+        "descriptionHelper": "Không bắt buộc: Metadata mô tả agent này (không dùng làm system prompt)"
+      },
+      "avatar": {
+        "upload": "Tải avatar lên",
+        "supportedFormats": "JPG, PNG, SVG, GIF, WebP - tối đa {{size}} MB",
+        "defaultAvatars": "Avatar mặc định",
+        "noDefaultAvatars": "Không có avatar mặc định.",
+        "remove": "Xóa avatar",
+        "setup": "Thiết lập avatar",
+        "helper": "Tải lên hoặc chọn avatar mặc định",
+        "alt": "Avatar agent"
+      },
+      "messages": {
+        "avatarUploaded": "Tải avatar lên thành công",
+        "created": "Tạo agent thành công!",
+        "updated": "Cập nhật agent thành công!"
+      },
+      "errors": {
+        "unsupportedAvatarType": "Định dạng tệp không được hỗ trợ. Vui lòng tải lên JPG, PNG, SVG, GIF hoặc WebP.",
+        "avatarTooLarge": "Tệp quá lớn. Kích thước tối đa là {{size}} MB.",
+        "uploadFailed": "Không thể tải avatar lên",
+        "saveFailed": "Không thể lưu agent"
+      },
+      "validation": {
+        "nameRequired": "Tên agent là bắt buộc"
+      }
+    },
+    "characteristics": {
+      "title": "Hành vi & persona",
+      "subtitle": "Định nghĩa cách agent hoạt động bằng các characteristic tái sử dụng",
+      "system": "Hệ thống",
+      "mine": "Của tôi",
+      "code": "Mã: {{code}}",
+      "createNew": "Tạo characteristic mới",
+      "tabs": {
+        "system": "Hệ thống ({{count}})",
+        "mine": "Characteristic của tôi ({{count}})"
+      },
+      "empty": {
+        "system": "Không có characteristic hệ thống",
+        "mine": "Chưa có characteristic tùy chỉnh. Hãy tạo một mục để bắt đầu!"
+      },
+      "errors": {
+        "loadFailed": "Không thể tải characteristic"
+      },
+      "layers": {
+        "identity": "Danh tính",
+        "tone_style": "Giọng điệu & phong cách",
+        "values": "Giá trị",
+        "behavior": "Hành vi",
+        "constraints": "Ràng buộc",
+        "domain": "Lĩnh vực"
+      }
+    },
+    "characteristicForm": {
+      "title": "Tạo characteristic mới",
+      "description": "Tạo một lớp prompt có thể tái sử dụng. Bạn có thể kết hợp danh tính, giọng điệu, giá trị và quy tắc khi xây dựng agent.",
+      "create": "Tạo characteristic",
+      "creating": "Đang tạo...",
+      "cancel": "Hủy",
+      "fields": {
+        "name": "Tên",
+        "nameHelper": "Ví dụ: Giọng điệu thân thiện, Cố vấn chú trọng rủi ro",
+        "layer": "Lớp",
+        "code": "Mã",
+        "codeHelper": "Định danh duy nhất, tự sinh từ tên",
+        "description": "Mô tả",
+        "descriptionHelper": "Ghi chú ngắn hiển thị khi chọn characteristic",
+        "prompt": "Prompt",
+        "promptHelper": "Khối prompt này sẽ được chèn vào lớp đã chọn"
+      },
+      "layerHelpers": {
+        "identity": "Agent là ai và nên đóng vai trò gì",
+        "tone_style": "Agent nên phản hồi với giọng điệu như thế nào",
+        "values": "Agent nên tối ưu theo điều gì",
+        "behavior": "Các quy tắc tái sử dụng cho cách agent hoạt động",
+        "constraints": "Ranh giới, từ chối và những điều agent nên tránh",
+        "domain": "Hành vi hoặc phong cách chuyên môn theo lĩnh vực"
+      },
+      "layerPlaceholders": {
+        "identity": "Ví dụ: Bạn là cố vấn sản phẩm senior cho founder SaaS giai đoạn đầu...",
+        "tone_style": "Ví dụ: Dùng ngôn ngữ ngắn gọn, trực tiếp. Tránh cường điệu. Giữ phản hồi thực tế...",
+        "values": "Ví dụ: Ưu tiên độ chính xác, an toàn người dùng, tradeoff rõ ràng và bước tiếp theo thực tế...",
+        "behavior": "Ví dụ: Hỏi một câu làm rõ khi yêu cầu thiếu đủ ngữ cảnh...",
+        "constraints": "Ví dụ: Không bịa dữ kiện. Nói rõ khi thông tin chưa chắc chắn hoặc không có sẵn...",
+        "domain": "Ví dụ: Khi trao đổi về pháp lý, hãy giải thích nhóm rủi ro và khuyến nghị review chuyên môn..."
+      },
+      "messages": {
+        "created": "Tạo characteristic thành công!"
+      },
+      "errors": {
+        "createFailed": "Không thể tạo characteristic"
+      },
+      "validation": {
+        "nameRequired": "Tên là bắt buộc",
+        "codeRequired": "Mã là bắt buộc",
+        "codeInvalid": "Mã chỉ được chứa chữ thường, số, dấu chấm, gạch nối hoặc gạch dưới",
+        "layerRequired": "Lớp là bắt buộc",
+        "promptRequired": "Định nghĩa hành vi là bắt buộc",
+        "promptTooShort": "Định nghĩa hành vi phải có ít nhất 20 ký tự"
+      }
+    },
+    "capabilities": {
+      "title": "Khả năng",
+      "subtitle": "Chọn ít nhất một khả năng để định nghĩa agent có thể làm gì",
+      "empty": "Không có khả năng nào",
+      "errors": {
+        "loadFailed": "Không thể tải khả năng"
+      }
+    }
+  },
+  "dashboard": {
+    "welcome": "Chào mừng trở lại, {{name}}!",
+    "userFallback": "bạn",
+    "subtitle": "Đây là tổng quan hoạt động AI agent của bạn hôm nay.",
+    "stats": {
+      "totalAgents": "Tổng agent",
+      "agentsCreated": "Agent đã tạo",
+      "subscriptionPlan": "Gói dịch vụ",
+      "usageQuota": "Hạn mức sử dụng",
+      "charactersUsed": "Ký tự đã dùng",
+      "percentUsed": "Đã dùng {{percent}}%"
+    },
+    "subscription": {
+      "free": "Miễn phí",
+      "planLabel": "Gói {{name}}",
+      "proDescription": "Đã bật tính năng nâng cao",
+      "enterpriseDescription": "Truy cập đầy đủ mọi tính năng",
+      "freeDescription": "Nâng cấp để mở thêm tính năng"
+    },
+    "recentActivity": {
+      "title": "Hoạt động gần đây",
+      "knowledgeSources": "{{count}} nguồn kiến thức",
+      "empty": "Chưa có agent nào. Hãy tạo agent đầu tiên để bắt đầu!"
+    },
+    "quickActions": {
+      "title": "Thao tác nhanh",
+      "createAgent": {
+        "title": "Tạo agent mới",
+        "description": "Thiết lập AI agent mới với cấu hình tùy chỉnh"
+      },
+      "upgradePlan": {
+        "title": "Nâng cấp gói",
+        "description": "Mở khóa thêm tính năng với gói trả phí"
+      },
+      "usageHistory": {
+        "title": "Xem lịch sử sử dụng",
+        "description": "Theo dõi mức sử dụng API và chỉ số hiệu năng"
+      }
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "subtitle": "Quản lý token xác thực được giới hạn theo từng khả năng",
+    "create": "Tạo API Key",
+    "empty": {
+      "title": "Chưa có API key",
+      "description": "Tạo API key đầu tiên và gán khả năng cho key"
+    },
+    "status": {
+      "ACTIVE": "Đang hoạt động",
+      "REVOKED": "Đã thu hồi"
+    },
+    "actions": {
+      "canExecute": "Thực thi",
+      "canCreate": "Tạo",
+      "canDelete": "Xóa",
+      "none": "Không có thao tác"
+    },
+    "card": {
+      "noCapabilities": "Không có khả năng",
+      "created": "Đã tạo: {{date}}"
+    },
+    "modal": {
+      "createTitle": "Tạo API Key",
+      "capabilities": "Khả năng",
+      "capabilitiesHelper": "Chọn các khả năng mà key này được phép sử dụng.",
+      "loadingCapabilities": "Đang tải khả năng...",
+      "noCapabilities": "Không có khả năng nào.",
+      "capabilitySelected": "Đã chọn {{count}} khả năng",
+      "capabilitiesSelected": "Đã chọn {{count}} khả năng",
+      "metadata": "Metadata",
+      "optional": "(không bắt buộc)",
+      "appName": "Tên app",
+      "appNamePlaceholder": "App của tôi",
+      "environment": "Môi trường",
+      "environmentPlaceholder": "production, staging, development",
+      "description": "Mô tả",
+      "descriptionPlaceholder": "Mô tả ngắn mục đích của key này",
+      "cancel": "Hủy",
+      "creating": "Đang tạo...",
+      "createKey": "Tạo key"
+    },
+    "oneTime": {
+      "title": "Lưu API Key của bạn",
+      "warningStrong": "API key này chỉ hiển thị một lần.",
+      "warning": "Vui lòng copy và lưu trữ an toàn. Bạn sẽ không thể xem lại key này.",
+      "copy": "Copy",
+      "copied": "Đã copy!",
+      "capabilitiesGranted": "Khả năng đã cấp:",
+      "securityTip": "Hãy lưu key ở nơi an toàn như password manager hoặc biến môi trường. Không commit key vào version control.",
+      "saved": "Tôi đã lưu key"
+    },
+    "revoke": {
+      "title": "Thu hồi API Key",
+      "warningBefore": "Thao tác này",
+      "irreversible": "không thể hoàn tác",
+      "warningAfter": "API key sẽ bị vô hiệu hóa vĩnh viễn.",
+      "confirm": "Bạn có chắc muốn thu hồi: {{name}}?",
+      "accessTo": "Key này có quyền truy cập:",
+      "cancel": "Hủy",
+      "revokeKey": "Thu hồi key"
+    },
+    "messages": {
+      "copied": "Đã copy API key vào clipboard",
+      "revoked": "Đã thu hồi API key thành công"
+    },
+    "errors": {
+      "loadFailed": "Không thể tải API keys",
+      "copyFailed": "Không thể copy API key",
+      "revokeFailed": "Không thể thu hồi API key",
+      "loadCapabilitiesFailed": "Không thể tải khả năng",
+      "createFailed": "Không thể tạo API key"
+    }
+  },
+  "translate": {
+    "source": {
+      "title": "Nguồn",
+      "voiceInput": "Nhập bằng giọng nói",
+      "placeholder": "Nhập nội dung cần dịch",
+      "uploadFile": "Tải tệp lên",
+      "paste": "Dán",
+      "characterCount": "{{count}} / {{limit}} ký tự"
+    },
+    "actions": {
+      "translate": "Dịch",
+      "translating": "Đang dịch..."
+    },
+    "response": {
+      "title": "Kết quả",
+      "empty": "Kết quả dịch sẽ hiển thị tại đây."
+    },
+    "targets": {
+      "title": "Ngôn ngữ đích",
+      "selected": "Đã chọn {{count}}"
+    },
+    "result": {
+      "copy": "Copy bản dịch",
+      "listen": "Nghe bản dịch",
+      "failed": "Dịch thất bại. Vui lòng thử lại.",
+      "pending": "Đang chờ dịch..."
+    },
+    "errors": {
+      "failed": "Dịch thất bại"
+    }
+  },
+  "quota": {
+    "quotaExceededTitle": "Đã hết hạn mức",
+    "rateLimitTitle": "Vượt giới hạn tần suất",
+    "guestLimitTitle": "Đã đạt giới hạn khách",
+    "retryInSeconds": "{{message}} Vui lòng thử lại sau {{seconds}} giây."
+  },
+  "anonymousMerge": {
+    "title": "Giữ lại cuộc trò chuyện này?",
+    "message": "Bạn có muốn thêm cuộc trò chuyện khách hiện tại vào tài khoản này không?",
+    "confirm": "Giữ chat",
+    "cancel": "Bỏ qua",
+    "error": "Không thể gộp cuộc trò chuyện khách"
+  }
+}

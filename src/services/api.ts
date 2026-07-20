@@ -16,6 +16,7 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   message?: string;
   error?: string;
+  errorCode?: string;
 }
 
 export interface TranslateTextInput {
@@ -281,8 +282,8 @@ export const getCurrentSubscription = async (): Promise<ApiResponse<CurrentSubsc
     return {
       success: false,
       error:
-        axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
         'Failed to load current subscription',
     };
   }
@@ -785,13 +786,18 @@ export const createChatSession = async (
     };
   } catch (error) {
     console.error('Create chat session error:', error);
-    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    const axiosError = error as AxiosError<{
+      message?: string;
+      error?: string;
+      errorCode?: string;
+    }>;
 
     return {
       success: false,
+      errorCode: axiosError.response?.data?.errorCode,
       error:
-        axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
         'Failed to create chat session',
     };
   }
@@ -960,14 +966,15 @@ export const mergeAnonymousSession = async (
 
 import type { Agent, CreateAgentInput } from '../types';
 
-const normalizeAgent = (item: Record<string, unknown>): Agent => ({
-  ...item,
-  id: (item.publicId || item.id) as string,
-  publicId: (item.publicId || item.id) as string,
-  ownerType: String(item.ownerType || 'USER').toUpperCase() as Agent['ownerType'],
-  characteristicIds: (item.characteristicIds as string[] | undefined) || [],
-  knowledgeIds: (item.knowledgeIds as string[] | undefined) || [],
-}) as Agent;
+const normalizeAgent = (item: Record<string, unknown>): Agent =>
+  ({
+    ...item,
+    id: (item.publicId || item.id) as string,
+    publicId: (item.publicId || item.id) as string,
+    ownerType: String(item.ownerType || 'USER').toUpperCase() as Agent['ownerType'],
+    characteristicIds: (item.characteristicIds as string[] | undefined) || [],
+    knowledgeIds: (item.knowledgeIds as string[] | undefined) || [],
+  }) as Agent;
 
 /**
  * Fetches all agents for the current user

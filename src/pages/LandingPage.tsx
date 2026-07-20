@@ -13,6 +13,7 @@ import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
+import { isAnonymousLimitError } from '../utils/error-handler';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
 
 // ============================================
@@ -25,6 +26,13 @@ const SUGGESTIONS = [
   'Help me write an email',
   'Explain a concept',
 ];
+
+const isAnonymousLimitResponse = (response: { error?: string; errorCode?: string }) =>
+  response.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+  response.error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+  response.error === 'Anonymous session limit exceeded' ||
+  response.error === 'Anonymous message limit exceeded' ||
+  response.error?.toLowerCase().startsWith('guest ');
 
 // ============================================
 // Main Landing Page Component
@@ -76,6 +84,10 @@ const LandingPage: React.FC = () => {
 
       if (!sessionResponse.success || !sessionResponse.data) {
         console.error('Failed to create session:', sessionResponse.error);
+        if (isAnonymousLimitResponse(sessionResponse)) {
+          return;
+        }
+
         openSignInModal();
         return;
       }
@@ -86,6 +98,10 @@ const LandingPage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error starting anonymous chat:', error);
+      if (isAnonymousLimitError(error)) {
+        return;
+      }
+
       openSignInModal();
     }
   };

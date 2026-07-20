@@ -15,6 +15,10 @@ import { createChatSession, listAgents } from '../services/api';
 import type { Agent, ChatSession } from '../types';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
 
+const isAnonymousLimitResponse = (response: { errorCode?: string; error?: string }) =>
+  response.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+  response.error === 'ANONYMOUS_LIMIT_EXCEEDED';
+
 const NewChatPage: React.FC = () => {
   const navigate = useNavigate();
   const { agents, loading } = useAgents();
@@ -59,6 +63,9 @@ const NewChatPage: React.FC = () => {
         const sessionResponse = await createChatSession(null, 'New Chat');
 
         if (!sessionResponse.success || !sessionResponse.data) {
+          if (isAnonymousLimitResponse(sessionResponse)) {
+            return;
+          }
           throw new Error(sessionResponse.error || 'Failed to create chat session');
         }
 
@@ -73,6 +80,9 @@ const NewChatPage: React.FC = () => {
       const sessionResponse = await createChatSession(agent.publicId, `Chat with ${agent.name}`);
 
       if (!sessionResponse.success || !sessionResponse.data) {
+        if (isAnonymousLimitResponse(sessionResponse)) {
+          return;
+        }
         throw new Error(sessionResponse.error || 'Failed to create chat session');
       }
 

@@ -30,6 +30,7 @@ import { ApiKeyManagement } from './pages/ApiKeyManagement';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
 import { KnowledgeManagement } from './pages/KnowledgeManagement';
+import { SettingsPage } from './pages/SettingsPage';
 import { ChatScreen } from './pages/ChatScreen';
 import NewChatPage from './pages/NewChatPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -42,6 +43,7 @@ import {
   Image as ImageIcon,
   KeyRound,
   BookOpen,
+  Settings,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
 import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
@@ -49,6 +51,7 @@ import { UpgradeModal } from './components/subscription';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { mergeAnonymousSession } from './services/api';
 import { ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY } from './contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Root Route: redirects authenticated users to /new-chat
@@ -56,13 +59,14 @@ import { ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY } from './contexts/AuthCont
 
 const RootRoute: React.FC = () => {
   const { isAuthenticated, isAnonymous, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900">
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-teal-500 border-r-transparent"></div>
-          <p className="text-gray-600 dark:text-slate-400">Loading...</p>
+          <p className="text-gray-600 dark:text-slate-400">{t('app.loading')}</p>
         </div>
       </div>
     );
@@ -85,6 +89,7 @@ const ChatScreenRoute: React.FC = () => {
 // ============================================
 
 const AppContent: React.FC = () => {
+  const { t } = useTranslation();
   const { agents, createAgent } = useAgents();
   const { user, isAnonymous } = useAuth();
   const [isAgentDrawerOpen, setIsAgentDrawerOpen] = useState(false);
@@ -164,14 +169,14 @@ const AppContent: React.FC = () => {
     try {
       const response = await mergeAnonymousSession(pendingMergeSessionId);
       if (!response.success || !response.data) {
-        throw new Error(response.error || 'Failed to merge anonymous chat session');
+        throw new Error(response.error || t('anonymousMerge.error'));
       }
 
       window.sessionStorage.removeItem(ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY);
       setPendingMergeSessionId(null);
       navigate(`/chat/${response.data.id}`, { replace: true });
     } catch (error) {
-      console.error('Failed to merge anonymous chat session:', error);
+      console.error(t('anonymousMerge.error'), error);
     } finally {
       setIsMergingAnonymousSession(false);
     }
@@ -194,8 +199,8 @@ const AppContent: React.FC = () => {
       case '/translate':
         return (
           <Header
-            title="AI Translation"
-            subtitle="Powered by Advanced Neural Networks"
+            title={t('header.translate.title')}
+            subtitle={t('header.translate.subtitle')}
             icon={<Bot className="text-white" size={24} />}
             agents={agents}
             selectedAgentId={selectedAgentId}
@@ -205,57 +210,65 @@ const AppContent: React.FC = () => {
       case '/dashboard':
         return (
           <Header
-            title="Dashboard"
-            subtitle="Overview of your activity"
+            title={t('header.dashboard.title')}
+            subtitle={t('header.dashboard.subtitle')}
             icon={<LayoutDashboard className="text-white" size={24} />}
           />
         );
       case '/agents':
         return (
           <Header
-            title="My Agents"
-            subtitle="Manage your AI agents"
+            title={t('header.agents.title')}
+            subtitle={t('header.agents.subtitle')}
             icon={<Users className="text-white" size={24} />}
           />
         );
       case '/knowledge':
         return (
           <Header
-            title="Knowledge"
-            subtitle="Manage persistent RAG sources"
+            title={t('header.knowledge.title')}
+            subtitle={t('header.knowledge.subtitle')}
             icon={<BookOpen className="text-white" size={24} />}
           />
         );
       case '/subscription':
         return (
           <Header
-            title="Subscription"
-            subtitle="Manage your plan and billing"
+            title={t('header.subscription.title')}
+            subtitle={t('header.subscription.subtitle')}
             icon={<CreditCard className="text-white" size={24} />}
           />
         );
       case '/code':
         return (
           <Header
-            title="Generate Code"
-            subtitle="AI-powered code generation"
+            title={t('header.code.title')}
+            subtitle={t('header.code.subtitle')}
             icon={<Code className="text-white" size={24} />}
           />
         );
       case '/image':
         return (
           <Header
-            title="Generate Picture"
-            subtitle="AI image creation"
+            title={t('header.image.title')}
+            subtitle={t('header.image.subtitle')}
             icon={<ImageIcon className="text-white" size={24} />}
           />
         );
       case '/api-keys':
         return (
           <Header
-            title="API Keys"
-            subtitle="Manage your API authentication tokens"
+            title={t('header.apiKeys.title')}
+            subtitle={t('header.apiKeys.subtitle')}
             icon={<KeyRound className="text-white" size={24} />}
+          />
+        );
+      case '/settings':
+        return (
+          <Header
+            title={t('settings.title')}
+            subtitle={t('settings.subtitle')}
+            icon={<Settings className="text-white" size={24} />}
           />
         );
       default:
@@ -309,13 +322,14 @@ const AppContent: React.FC = () => {
 
                   <Route path="/agents" element={<AgentManagement />} />
                   <Route path="/knowledge" element={<KnowledgeManagement />} />
+                  <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/chat/:sessionId" element={<ChatScreenRoute />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
                     path="/code"
                     element={
                       <div className="p-8 text-gray-900 dark:text-slate-100">
-                        Generate Code - Coming Soon
+                        {t('header.code.title')} - {t('common.comingSoon')}
                       </div>
                     }
                   />
@@ -323,7 +337,7 @@ const AppContent: React.FC = () => {
                     path="/image"
                     element={
                       <div className="p-8 text-gray-900 dark:text-slate-100">
-                        Generate Picture - Coming Soon
+                        {t('header.image.title')} - {t('common.comingSoon')}
                       </div>
                     }
                   />
@@ -357,10 +371,10 @@ const AppContent: React.FC = () => {
       />
       <ConfirmDialog
         open={Boolean(pendingMergeSessionId) && Boolean(user) && !isAnonymous}
-        title="Keep this chat?"
-        message="Do you want to add your current guest conversation to this account?"
-        confirmText="Keep Chat"
-        cancelText="Skip"
+        title={t('anonymousMerge.title')}
+        message={t('anonymousMerge.message')}
+        confirmText={t('anonymousMerge.confirm')}
+        cancelText={t('anonymousMerge.cancel')}
         loading={isMergingAnonymousSession}
         onClose={handleSkipAnonymousMerge}
         onConfirm={() => void handleConfirmAnonymousMerge()}

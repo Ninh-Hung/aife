@@ -13,24 +13,12 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import {
-  BookOpen,
-  FileText,
-  Globe,
-  RefreshCw,
-  Trash2,
-  Upload,
-  Plus,
-} from 'lucide-react';
+import { BookOpen, FileText, Globe, RefreshCw, Trash2, Upload, Plus } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { CreateKnowledgeModal } from '../components/agents/CreateKnowledgeModal';
 import type { Knowledge, KnowledgeScope, KnowledgeSourceType } from '../types';
-import {
-  deleteKnowledge,
-  getKnowledge,
-  listKnowledge,
-  resyncKnowledge,
-} from '../services/api';
+import { deleteKnowledge, getKnowledge, listKnowledge, resyncKnowledge } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 const getStatusColor = (status?: string | null) => {
   switch (status) {
@@ -77,6 +65,7 @@ const isSyncInProgress = (knowledge: Knowledge): boolean => {
 };
 
 export const KnowledgeManagement: React.FC = () => {
+  const { t } = useTranslation();
   const [knowledgeList, setKnowledgeList] = useState<Knowledge[]>([]);
   const [scopeFilter, setScopeFilter] = useState<KnowledgeScope>('all');
   const [typeFilter, setTypeFilter] = useState<KnowledgeSourceType | 'all'>('all');
@@ -94,7 +83,7 @@ export const KnowledgeManagement: React.FC = () => {
         .map((knowledge) => knowledge.publicId)
         .sort()
         .join('|'),
-    [knowledgeList],
+    [knowledgeList]
   );
 
   const loadKnowledge = async () => {
@@ -103,13 +92,13 @@ export const KnowledgeManagement: React.FC = () => {
 
     const response = await listKnowledge(
       scopeFilter,
-      typeFilter === 'all' ? undefined : typeFilter,
+      typeFilter === 'all' ? undefined : typeFilter
     );
 
     if (response.success && response.data) {
       setKnowledgeList(response.data);
     } else {
-      setError(response.error || 'Failed to load knowledge');
+      setError(response.error || t('knowledge.errors.loadFailed'));
     }
 
     setIsLoading(false);
@@ -133,14 +122,14 @@ export const KnowledgeManagement: React.FC = () => {
       const updatedById = new Map(
         responses
           .filter((response): response is typeof response & { data: Knowledge } =>
-            Boolean(response.success && response.data),
+            Boolean(response.success && response.data)
           )
-          .map((response) => [response.data.publicId, response.data]),
+          .map((response) => [response.data.publicId, response.data])
       );
 
       if (updatedById.size > 0) {
         setKnowledgeList((current) =>
-          current.map((knowledge) => updatedById.get(knowledge.publicId) ?? knowledge),
+          current.map((knowledge) => updatedById.get(knowledge.publicId) ?? knowledge)
         );
       }
     };
@@ -165,10 +154,10 @@ export const KnowledgeManagement: React.FC = () => {
 
     if (response.success && response.data) {
       setKnowledgeList((current) =>
-        current.map((item) => (item.publicId === knowledge.publicId ? response.data! : item)),
+        current.map((item) => (item.publicId === knowledge.publicId ? response.data! : item))
       );
     } else {
-      setError(response.error || 'Failed to resync knowledge');
+      setError(response.error || t('knowledge.errors.resyncFailed'));
     }
 
     setResyncingIds((current) => {
@@ -195,12 +184,10 @@ export const KnowledgeManagement: React.FC = () => {
     const response = await deleteKnowledge(knowledge.publicId);
 
     if (response.success) {
-      setKnowledgeList((current) =>
-        current.filter((item) => item.publicId !== knowledge.publicId),
-      );
+      setKnowledgeList((current) => current.filter((item) => item.publicId !== knowledge.publicId));
       setKnowledgeToDelete(null);
     } else {
-      setError(response.error || 'Failed to delete knowledge');
+      setError(response.error || t('knowledge.errors.deleteFailed'));
     }
 
     setDeletingIds((current) => {
@@ -217,11 +204,11 @@ export const KnowledgeManagement: React.FC = () => {
           <Box className="mb-1 flex items-center gap-2">
             <BookOpen size={22} className="text-blue-600 dark:text-blue-400" />
             <Typography variant="h5" className="font-semibold text-gray-900 dark:text-slate-100">
-              Knowledge
+              {t('knowledge.title')}
             </Typography>
           </Box>
           <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
-            Manage persistent sources used by your agents for RAG.
+            {t('knowledge.subtitle')}
           </Typography>
         </Box>
 
@@ -230,43 +217,43 @@ export const KnowledgeManagement: React.FC = () => {
           startIcon={<Plus size={18} />}
           onClick={() => setIsCreateOpen(true)}
         >
-          Create Knowledge
+          {t('knowledge.create')}
         </Button>
       </Box>
 
       <Box className="mb-4 flex flex-col gap-3 md:flex-row">
         <FormControl size="small" className="min-w-[180px]">
-          <InputLabel>Scope</InputLabel>
+          <InputLabel>{t('knowledge.filters.scope')}</InputLabel>
           <Select
             value={scopeFilter}
-            label="Scope"
+            label={t('knowledge.filters.scope')}
             onChange={(event) => setScopeFilter(event.target.value as KnowledgeScope)}
             className="bg-white dark:bg-slate-800"
           >
-            <MenuItem value="all">All</MenuItem>
-            <MenuItem value="system">System</MenuItem>
-            <MenuItem value="user">My Knowledge</MenuItem>
-            <MenuItem value="project">Project</MenuItem>
+            <MenuItem value="all">{t('knowledge.scope.all')}</MenuItem>
+            <MenuItem value="system">{t('knowledge.scope.system')}</MenuItem>
+            <MenuItem value="user">{t('knowledge.scope.user')}</MenuItem>
+            <MenuItem value="project">{t('knowledge.scope.project')}</MenuItem>
           </Select>
         </FormControl>
 
         <FormControl size="small" className="min-w-[180px]">
-          <InputLabel>Type</InputLabel>
+          <InputLabel>{t('knowledge.filters.type')}</InputLabel>
           <Select
             value={typeFilter}
-            label="Type"
+            label={t('knowledge.filters.type')}
             onChange={(event) => setTypeFilter(event.target.value as KnowledgeSourceType | 'all')}
             className="bg-white dark:bg-slate-800"
           >
-            <MenuItem value="all">All Types</MenuItem>
-            <MenuItem value="text">Text</MenuItem>
-            <MenuItem value="file">File</MenuItem>
-            <MenuItem value="url">URL</MenuItem>
+            <MenuItem value="all">{t('knowledge.sourceTypes.all')}</MenuItem>
+            <MenuItem value="text">{t('knowledge.sourceTypes.text')}</MenuItem>
+            <MenuItem value="file">{t('knowledge.sourceTypes.file')}</MenuItem>
+            <MenuItem value="url">{t('knowledge.sourceTypes.url')}</MenuItem>
           </Select>
         </FormControl>
 
         <Button variant="outlined" onClick={() => void loadKnowledge()}>
-          Refresh
+          {t('knowledge.refresh')}
         </Button>
       </Box>
 
@@ -278,11 +265,11 @@ export const KnowledgeManagement: React.FC = () => {
 
       <Box className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <Box className="grid grid-cols-[1.4fr_120px_120px_160px_120px] gap-4 border-b border-gray-200 px-4 py-3 text-xs font-semibold uppercase text-gray-500 dark:border-slate-700 dark:text-slate-400">
-          <span>Name</span>
-          <span>Source</span>
-          <span>Scope</span>
-          <span>Status</span>
-          <span className="text-right">Actions</span>
+          <span>{t('knowledge.columns.name')}</span>
+          <span>{t('knowledge.columns.source')}</span>
+          <span>{t('knowledge.columns.scope')}</span>
+          <span>{t('knowledge.columns.status')}</span>
+          <span className="text-right">{t('knowledge.columns.actions')}</span>
         </Box>
 
         {isLoading ? (
@@ -292,7 +279,7 @@ export const KnowledgeManagement: React.FC = () => {
         ) : knowledgeList.length === 0 ? (
           <Box className="px-4 py-12 text-center">
             <Typography className="text-gray-600 dark:text-slate-400">
-              No knowledge sources found.
+              {t('knowledge.empty')}
             </Typography>
           </Box>
         ) : (
@@ -313,11 +300,17 @@ export const KnowledgeManagement: React.FC = () => {
                     {knowledge.name}
                   </Typography>
                   <Typography variant="caption" className="text-gray-500 dark:text-slate-500">
-                    {knowledge.chunkCount ?? 0} chunks · {knowledge.vectorCount ?? 0} vectors
-                    {knowledge.files?.length ? ` · ${knowledge.files.length} files` : ''}
+                    {t('knowledge.metrics.chunks', { count: knowledge.chunkCount ?? 0 })} ·{' '}
+                    {t('knowledge.metrics.vectors', { count: knowledge.vectorCount ?? 0 })}
+                    {knowledge.files?.length
+                      ? ` · ${t('knowledge.metrics.files', { count: knowledge.files.length })}`
+                      : ''}
                   </Typography>
                   {syncError && (status === 'failed' || status === 'partial') && (
-                    <Typography variant="caption" className="block truncate text-red-600 dark:text-red-300">
+                    <Typography
+                      variant="caption"
+                      className="block truncate text-red-600 dark:text-red-300"
+                    >
                       {syncError}
                     </Typography>
                   )}
@@ -326,32 +319,45 @@ export const KnowledgeManagement: React.FC = () => {
                 <Box>
                   <Chip
                     icon={getSourceIcon(knowledge.sourceType)}
-                    label={knowledge.sourceType.toUpperCase()}
+                    label={t(`knowledge.sourceTypes.${knowledge.sourceType}`)}
                     size="small"
                     variant="outlined"
                   />
                 </Box>
 
                 <Box>
-                  <Chip label={knowledge.ownerType} size="small" variant="outlined" />
+                  <Chip
+                    label={t(`knowledge.scope.${knowledge.ownerType}`)}
+                    size="small"
+                    variant="outlined"
+                  />
                 </Box>
 
                 <Box>
                   <Chip
-                    label={status.toUpperCase()}
+                    label={t(`knowledge.status.${status}`, { defaultValue: status })}
                     size="small"
                     color={getStatusColor(status)}
                     variant={status === 'pending' ? 'outlined' : 'filled'}
                   />
                   {knowledge.syncedAt && (
-                    <Typography variant="caption" className="mt-1 block text-gray-500 dark:text-slate-500">
+                    <Typography
+                      variant="caption"
+                      className="mt-1 block text-gray-500 dark:text-slate-500"
+                    >
                       {new Date(knowledge.syncedAt).toLocaleString()}
                     </Typography>
                   )}
                 </Box>
 
                 <Box className="flex justify-end gap-1">
-                  <Tooltip title={knowledge.ownerType === 'SYSTEM' ? 'System knowledge cannot be resynced here' : 'Resync'}>
+                  <Tooltip
+                    title={
+                      knowledge.ownerType === 'SYSTEM'
+                        ? t('knowledge.actions.systemCannotResync')
+                        : t('knowledge.actions.resync')
+                    }
+                  >
                     <span>
                       <IconButton
                         size="small"
@@ -362,7 +368,13 @@ export const KnowledgeManagement: React.FC = () => {
                       </IconButton>
                     </span>
                   </Tooltip>
-                  <Tooltip title={knowledge.ownerType === 'SYSTEM' ? 'System knowledge cannot be deleted here' : 'Delete'}>
+                  <Tooltip
+                    title={
+                      knowledge.ownerType === 'SYSTEM'
+                        ? t('knowledge.actions.systemCannotDelete')
+                        : t('knowledge.actions.delete')
+                    }
+                  >
                     <span>
                       <IconButton
                         size="small"
@@ -387,17 +399,17 @@ export const KnowledgeManagement: React.FC = () => {
       />
       <ConfirmDialog
         open={Boolean(knowledgeToDelete)}
-        title="Delete Knowledge?"
+        title={t('knowledge.deleteDialog.title')}
         message={
           <>
-            This will delete{' '}
+            {t('knowledge.deleteDialog.beforeName')}{' '}
             <span className="font-medium text-gray-900 dark:text-slate-100">
               {knowledgeToDelete?.name}
             </span>{' '}
-            and its indexed artifacts. This action cannot be undone.
+            {t('knowledge.deleteDialog.afterName')}
           </>
         }
-        confirmText="Delete"
+        confirmText={t('knowledge.actions.delete')}
         confirmColor="error"
         loading={Boolean(knowledgeToDelete && deletingIds.has(knowledgeToDelete.publicId))}
         onClose={handleCloseDeleteDialog}

@@ -8,6 +8,7 @@ import React from 'react';
 import { Bot, Sparkles, Brain, Settings, MessageCircle, Trash2 } from 'lucide-react';
 import { Agent } from '../../types';
 import { IconButton, Chip, Switch, FormControlLabel } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Props Interface
@@ -58,7 +59,14 @@ const getAgentIcon = (description?: string) => {
 // AgentCard Component
 // ============================================
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, onChat, onSetDefault }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({
+  agent,
+  onEdit,
+  onDelete,
+  onChat,
+  onSetDefault,
+}) => {
+  const { t } = useTranslation();
   const isSystemAgent = agent.ownerType === 'SYSTEM';
   const canManageAgent = !agent.ownerType || agent.ownerType === 'USER';
 
@@ -71,7 +79,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!canManageAgent) return;
-    if (window.confirm(`Are you sure you want to delete "${agent.name}"?`)) {
+    if (window.confirm(t('agents.card.deleteConfirm', { name: agent.name }))) {
       onDelete(agent.publicId);
     }
   };
@@ -113,7 +121,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
             }
             label={
               <span className="text-xs font-medium text-gray-700 dark:text-slate-300">
-                Default
+                {t('common.default')}
               </span>
             }
             labelPlacement="start"
@@ -148,7 +156,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
           ) : (
             <img
               src={agent.avatarUrl}
-              alt={`${agent.name} avatar`}
+              alt={t('agents.card.avatarAlt', { name: agent.name })}
               className="h-full w-full object-cover"
             />
           )
@@ -171,7 +179,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
         <div className="mb-2 flex flex-wrap gap-1.5">
           {agent.isActive === false && (
             <Chip
-              label="Inactive"
+              label={t('agents.card.inactive')}
               size="small"
               className="bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400"
               sx={{ height: '22px', fontSize: '0.7rem' }}
@@ -179,7 +187,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
           )}
           {isSystemAgent && (
             <Chip
-              label="System"
+              label={t('agents.card.system')}
               size="small"
               className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
               sx={{ height: '22px', fontSize: '0.7rem' }}
@@ -191,14 +199,14 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
       {/* Stats */}
       <div className="mb-4 flex items-center gap-4 border-t border-gray-100 pt-4 dark:border-slate-700">
         <div className="flex-1">
-          <p className="text-xs text-gray-500 dark:text-slate-500">Behaviors</p>
+          <p className="text-xs text-gray-500 dark:text-slate-500">{t('agents.card.behaviors')}</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
             {agent.characteristicCount ?? agent.characteristicIds?.length ?? 0}
           </p>
         </div>
         <div className="h-8 w-px bg-gray-200 dark:bg-slate-700"></div>
         <div className="flex-1">
-          <p className="text-xs text-gray-500 dark:text-slate-500">Knowledge</p>
+          <p className="text-xs text-gray-500 dark:text-slate-500">{t('agents.card.knowledge')}</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
             {agent.knowledgeCount ?? agent.knowledgeIds?.length ?? 0}
           </p>
@@ -213,7 +221,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onEdit, onDelete, o
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#2563EB]"
           >
             <MessageCircle size={16} />
-            Chat Now
+            {t('agents.card.chatNow')}
           </button>
         )}
         <IconButton

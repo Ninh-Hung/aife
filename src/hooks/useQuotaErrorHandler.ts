@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { QuotaExceededError, RateLimitError, AnonymousLimitError } from '../types';
 
 interface QuotaErrorState {
@@ -18,6 +19,7 @@ interface QuotaErrorState {
 }
 
 export function useQuotaErrorHandler() {
+  const { t } = useTranslation();
   const [errorState, setErrorState] = useState<QuotaErrorState>({
     isOpen: false,
     title: '',
@@ -31,7 +33,7 @@ export function useQuotaErrorHandler() {
       const data = event.detail;
       setErrorState({
         isOpen: true,
-        title: 'Quota Exceeded',
+        title: t('quota.quotaExceededTitle'),
         message: data.message,
         upgradeUrl: data.upgradeUrl,
         remainingTokens: data.remainingTokens,
@@ -45,8 +47,8 @@ export function useQuotaErrorHandler() {
       const data = event.detail;
       setErrorState({
         isOpen: true,
-        title: 'Rate Limit Exceeded',
-        message: `${data.message} Please retry in ${data.retryAfter} seconds.`,
+        title: t('quota.rateLimitTitle'),
+        message: t('quota.retryInSeconds', { message: data.message, seconds: data.retryAfter }),
         isAnonymousLimit: false,
       });
     };
@@ -56,7 +58,7 @@ export function useQuotaErrorHandler() {
       const data = event.detail;
       setErrorState({
         isOpen: true,
-        title: 'Guest Limit Reached',
+        title: t('quota.guestLimitTitle'),
         message: data.message,
         upgradeUrl: data.upgradeUrl,
         isAnonymousLimit: true,
@@ -74,7 +76,7 @@ export function useQuotaErrorHandler() {
       window.removeEventListener('quota:rate-limit', handleRateLimit as EventListener);
       window.removeEventListener('quota:anonymous-limit', handleAnonymousLimit as EventListener);
     };
-  }, []);
+  }, [t]);
 
   const closeModal = () => {
     setErrorState((prev) => ({ ...prev, isOpen: false }));

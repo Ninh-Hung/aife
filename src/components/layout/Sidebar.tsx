@@ -31,6 +31,7 @@ import {
   SquarePen,
   BookOpen,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
@@ -54,14 +55,14 @@ interface SidebarProps {
 // ============================================
 
 const profileMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard },
-  { id: 'agents', label: 'My Agents', path: '/agents', Icon: Users },
-  { id: 'knowledge', label: 'Knowledge', path: '/knowledge', Icon: BookOpen },
-  { id: 'api-keys', label: 'API Keys', path: '/api-keys', Icon: KeyRound },
-  { id: 'subscription', label: 'Subscription', path: '/subscription', Icon: CreditCard },
+  { id: 'dashboard', labelKey: 'sidebar.dashboard', path: '/dashboard', Icon: LayoutDashboard },
+  { id: 'agents', labelKey: 'sidebar.agents', path: '/agents', Icon: Users },
+  { id: 'knowledge', labelKey: 'sidebar.knowledge', path: '/knowledge', Icon: BookOpen },
+  { id: 'api-keys', labelKey: 'sidebar.apiKeys', path: '/api-keys', Icon: KeyRound },
+  { id: 'subscription', labelKey: 'sidebar.subscription', path: '/subscription', Icon: CreditCard },
   {
     id: 'translate',
-    label: 'Multilanguage',
+    labelKey: 'sidebar.multilanguage',
     path: '/translate',
     Icon: Languages,
   },
@@ -80,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { mode, toggleTheme } = useTheme();
   const { logout, isAnonymous } = useAuth();
   const { sessions, isLoading, renameConversation, archiveConversation, deleteConversation } =
@@ -144,8 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleUserSettings = () => {
     handleMenuClose();
     handleNavigation();
-    // TODO: Navigate to settings page or open modal
-    console.log('Navigate to user settings');
+    navigate('/settings');
   };
 
   const handleLogout = async () => {
@@ -189,7 +190,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
         {/* Hide collapse button in mobile drawer mode */}
         {!isMobileDrawer && (
-          <Tooltip title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
+          <Tooltip
+            title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+            placement="right"
+          >
             <IconButton
               onClick={onToggleCollapse}
               size="small"
@@ -203,7 +207,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {!isAnonymous && (
         <Box className={`px-3 pt-3 ${isCollapsed && !isMobileDrawer ? 'flex justify-center' : ''}`}>
-          <Tooltip title={isCollapsed && !isMobileDrawer ? 'New Chat' : ''} placement="right" arrow>
+          <Tooltip
+            title={isCollapsed && !isMobileDrawer ? t('sidebar.newChat') : ''}
+            placement="right"
+            arrow
+          >
             <ListItemButton
               component={Link}
               to="/new-chat"
@@ -220,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <SquarePen size={17} className="shrink-0" />
               {(!isCollapsed || isMobileDrawer) && (
                 <Typography variant="body2" className="font-semibold">
-                  New Chat
+                  {t('sidebar.newChat')}
                 </Typography>
               )}
             </ListItemButton>
@@ -237,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               variant="caption"
               className="px-7 py-2 font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400"
             >
-              Conversations
+              {t('sidebar.conversations')}
             </Typography>
             <Box className="mt-2">
               <ChatSessionsList
@@ -264,10 +272,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {(!isCollapsed || isMobileDrawer) && (
             <Typography variant="body2" className="font-medium text-gray-700 dark:text-slate-300">
-              {mode === 'light' ? 'Light Mode' : 'Dark Mode'}
+              {mode === 'light' ? t('theme.lightMode') : t('theme.darkMode')}
             </Typography>
           )}
-          <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
+          <Tooltip title={mode === 'light' ? t('theme.switchToDark') : t('theme.switchToLight')}>
             <IconButton
               onClick={toggleTheme}
               className="text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700"
@@ -344,7 +352,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       }`}
                     >
                       {user.subscription.packageName}
-                      {user.subscription.isTrialing && ' (Trial)'}
+                      {user.subscription.isTrialing && ` (${t('common.trial')})`}
                     </Typography>
                   </Box>
                 )}
@@ -373,7 +381,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               },
             }}
           >
-            {profileMenuItems.map(({ id, label, path, Icon }) => (
+            {profileMenuItems.map(({ id, labelKey, path, Icon }) => (
               <MenuItem
                 key={id}
                 component={Link}
@@ -383,7 +391,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
               >
                 <Icon size={18} className="text-gray-500 dark:text-slate-400" />
-                <Typography variant="body2">{label}</Typography>
+                <Typography variant="body2">{t(labelKey)}</Typography>
               </MenuItem>
             ))}
             <MenuItem
@@ -391,7 +399,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               <Settings size={18} className="text-gray-500 dark:text-slate-400" />
-              <Typography variant="body2">Settings</Typography>
+              <Typography variant="body2">{t('common.settings')}</Typography>
             </MenuItem>
             <Divider className="my-1" />
             <MenuItem
@@ -399,7 +407,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
             >
               <LogOut size={18} />
-              <Typography variant="body2">Logout</Typography>
+              <Typography variant="body2">{t('common.logout')}</Typography>
             </MenuItem>
           </Menu>
         )}

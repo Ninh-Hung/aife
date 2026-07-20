@@ -24,6 +24,7 @@ import { Knowledge, KnowledgeScope, KnowledgeSourceType } from '../../types';
 import { deleteKnowledge, getKnowledge, listKnowledge, resyncKnowledge } from '../../services/api';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { CreateKnowledgeModal } from './CreateKnowledgeModal';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Props Interface
@@ -130,6 +131,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
   onKnowledgeToggle,
   onKnowledgeCreated,
 }) => {
+  const { t } = useTranslation();
   const [knowledgeList, setKnowledgeList] = useState<Knowledge[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -159,9 +161,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
     let cancelled = false;
 
     const pollKnowledgeStatus = async () => {
-      const responses = await Promise.all(
-        pollingIds.map((publicId) => getKnowledge(publicId))
-      );
+      const responses = await Promise.all(pollingIds.map((publicId) => getKnowledge(publicId)));
 
       if (cancelled) {
         return;
@@ -205,7 +205,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
     if (response.success && response.data) {
       setKnowledgeList(response.data);
     } else {
-      setFetchError(response.error || 'Failed to load knowledge');
+      setFetchError(response.error || t('knowledge.errors.loadFailed'));
     }
 
     setLoading(false);
@@ -228,12 +228,10 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
     const response = await resyncKnowledge(knowledge.publicId);
     if (response.success && response.data) {
       setKnowledgeList((prev) =>
-        prev.map((item) =>
-          item.publicId === knowledge.publicId ? response.data! : item
-        )
+        prev.map((item) => (item.publicId === knowledge.publicId ? response.data! : item))
       );
     } else {
-      setFetchError(response.error || 'Failed to resync knowledge');
+      setFetchError(response.error || t('knowledge.errors.resyncFailed'));
     }
 
     setResyncingIds((prev) => {
@@ -261,15 +259,13 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
 
     const response = await deleteKnowledge(knowledge.publicId);
     if (response.success) {
-      setKnowledgeList((prev) =>
-        prev.filter((item) => item.publicId !== knowledge.publicId)
-      );
+      setKnowledgeList((prev) => prev.filter((item) => item.publicId !== knowledge.publicId));
       if (isSelected(knowledge)) {
         onKnowledgeToggle(knowledge.publicId);
       }
       setKnowledgeToDelete(null);
     } else {
-      setFetchError(response.error || 'Failed to delete knowledge');
+      setFetchError(response.error || t('knowledge.errors.deleteFailed'));
     }
 
     setDeletingIds((prev) => {
@@ -286,6 +282,15 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
     const isDeleting = deletingIds.has(knowledge.publicId) || syncStatus === 'deleting';
     const actionDisabled = isResyncing || isDeleting;
     const syncErrorMessage = getKnowledgeErrorMessage(knowledge.errorSummary);
+    const metrics = [
+      t('knowledge.metrics.chunks', { count: knowledge.chunkCount ?? 0 }),
+      t('knowledge.metrics.vectors', { count: knowledge.vectorCount ?? 0 }),
+      knowledge.syncedAt
+        ? t('knowledge.metrics.synced', { date: new Date(knowledge.syncedAt).toLocaleString() })
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
 
     return (
       <Box
@@ -320,17 +325,17 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
               </Typography>
               <Chip
                 icon={getSourceTypeIcon(knowledge.sourceType)}
-                label={knowledge.sourceType.toUpperCase()}
+                label={t(`knowledge.sourceTypes.${knowledge.sourceType}`)}
                 size="small"
                 className={getSourceTypeColor(knowledge.sourceType)}
               />
               <Chip
-                label={knowledge.ownerType}
+                label={t(`knowledge.scope.${knowledge.ownerType}`)}
                 size="small"
                 className={getScopeColor(knowledge.ownerType)}
               />
               <Chip
-                label={syncStatus.toUpperCase()}
+                label={t(`knowledge.status.${syncStatus}`)}
                 size="small"
                 className={getSyncStatusColor(syncStatus)}
               />
@@ -341,8 +346,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
               </Typography>
             )}
             <Typography variant="caption" className="mt-1 block text-gray-500 dark:text-slate-500">
-              {knowledge.chunkCount ?? 0} chunks · {knowledge.vectorCount ?? 0} vectors
-              {knowledge.syncedAt ? ` · synced ${new Date(knowledge.syncedAt).toLocaleString()}` : ''}
+              {metrics}
             </Typography>
             {(syncStatus === 'failed' || syncStatus === 'partial') && syncErrorMessage && (
               <Typography variant="caption" className="mt-1 block text-red-600 dark:text-red-300">
@@ -352,7 +356,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
           </Box>
           {knowledge.ownerType !== 'SYSTEM' && (
             <Box className="flex items-center gap-1">
-              <Tooltip title="Resync knowledge">
+              <Tooltip title={t('knowledge.actions.resyncKnowledge')}>
                 <span>
                   <IconButton
                     size="small"
@@ -360,15 +364,11 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
                     onClick={(event) => handleResync(event, knowledge)}
                     className="text-gray-500 hover:text-[#3B82F6] dark:text-slate-400"
                   >
-                    {isResyncing ? (
-                      <CircularProgress size={16} />
-                    ) : (
-                      <RefreshCw size={16} />
-                    )}
+                    {isResyncing ? <CircularProgress size={16} /> : <RefreshCw size={16} />}
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title="Delete knowledge">
+              <Tooltip title={t('knowledge.actions.deleteKnowledge')}>
                 <span>
                   <IconButton
                     size="small"
@@ -376,11 +376,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
                     onClick={(event) => handleDelete(event, knowledge)}
                     className="text-gray-500 hover:text-red-600 dark:text-slate-400"
                   >
-                    {isDeleting ? (
-                      <CircularProgress size={16} />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
+                    {isDeleting ? <CircularProgress size={16} /> : <Trash2 size={16} />}
                   </IconButton>
                 </span>
               </Tooltip>
@@ -395,41 +391,41 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
     <Box className="space-y-4">
       <Box className="mb-4">
         <Typography variant="h6" className="mb-1 font-semibold text-gray-900 dark:text-slate-100">
-          Knowledge & Context
+          {t('knowledge.sectionTitle')}
         </Typography>
         <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
-          Attach contextual data your agent can reference
+          {t('knowledge.sectionSubtitle')}
         </Typography>
       </Box>
 
       <Box className="flex gap-3">
         <FormControl size="small" className="flex-1">
-          <InputLabel>Scope</InputLabel>
+          <InputLabel>{t('knowledge.filters.scope')}</InputLabel>
           <Select
             value={scopeFilter}
             onChange={(e) => setScopeFilter(e.target.value as KnowledgeScope)}
-            label="Scope"
+            label={t('knowledge.filters.scope')}
             className="bg-white dark:bg-slate-800"
           >
-            <MenuItem value="all">All</MenuItem>
-            <MenuItem value="system">System</MenuItem>
-            <MenuItem value="user">My Knowledge</MenuItem>
-            <MenuItem value="project">Project</MenuItem>
+            <MenuItem value="all">{t('knowledge.scope.all')}</MenuItem>
+            <MenuItem value="system">{t('knowledge.scope.system')}</MenuItem>
+            <MenuItem value="user">{t('knowledge.scope.user')}</MenuItem>
+            <MenuItem value="project">{t('knowledge.scope.project')}</MenuItem>
           </Select>
         </FormControl>
 
         <FormControl size="small" className="flex-1">
-          <InputLabel>Type</InputLabel>
+          <InputLabel>{t('knowledge.filters.type')}</InputLabel>
           <Select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as KnowledgeSourceType | 'all')}
-            label="Type"
+            label={t('knowledge.filters.type')}
             className="bg-white dark:bg-slate-800"
           >
-            <MenuItem value="all">All Types</MenuItem>
-            <MenuItem value="text">Text</MenuItem>
-            <MenuItem value="file">File</MenuItem>
-            <MenuItem value="url">URL</MenuItem>
+            <MenuItem value="all">{t('knowledge.sourceTypes.all')}</MenuItem>
+            <MenuItem value="text">{t('knowledge.sourceTypes.text')}</MenuItem>
+            <MenuItem value="file">{t('knowledge.sourceTypes.file')}</MenuItem>
+            <MenuItem value="url">{t('knowledge.sourceTypes.url')}</MenuItem>
           </Select>
         </FormControl>
       </Box>
@@ -441,7 +437,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
         onClick={() => setIsModalOpen(true)}
         className="border-dashed border-gray-300 text-gray-700 hover:border-[#3B82F6] hover:text-[#3B82F6] dark:border-slate-600 dark:text-slate-300"
       >
-        Create New Knowledge
+        {t('knowledge.createNew')}
       </Button>
 
       {loading ? (
@@ -457,7 +453,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
           {knowledgeList.length === 0 && (
             <Box className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800/50">
               <Typography className="text-gray-600 dark:text-slate-400">
-                No knowledge sources found. Create one to get started!
+                {t('knowledge.emptyWithAction')}
               </Typography>
             </Box>
           )}
@@ -471,17 +467,17 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({
       />
       <ConfirmDialog
         open={Boolean(knowledgeToDelete)}
-        title="Delete Knowledge?"
+        title={t('knowledge.deleteDialog.title')}
         message={
           <>
-            This will delete{' '}
+            {t('knowledge.deleteDialog.beforeName')}{' '}
             <span className="font-medium text-gray-900 dark:text-slate-100">
               {knowledgeToDelete?.name}
             </span>{' '}
-            and its indexed knowledge artifacts. This action cannot be undone.
+            {t('knowledge.deleteDialog.afterNameDetailed')}
           </>
         }
-        confirmText="Delete"
+        confirmText={t('knowledge.actions.delete')}
         confirmColor="error"
         loading={Boolean(knowledgeToDelete && deletingIds.has(knowledgeToDelete.publicId))}
         onClose={handleCloseDeleteDialog}

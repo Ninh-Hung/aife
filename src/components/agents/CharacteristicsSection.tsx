@@ -19,15 +19,7 @@ import { Plus, Sparkles } from 'lucide-react';
 import { Characteristic } from '../../types';
 import { listCharacteristics } from '../../services/api';
 import { CreateCharacteristicModal } from './CreateCharacteristicModal';
-
-const LAYER_LABELS: Record<string, string> = {
-  identity: 'Identity',
-  tone_style: 'Tone & Style',
-  values: 'Values',
-  behavior: 'Behavior',
-  constraints: 'Constraints',
-  domain: 'Domain',
-};
+import { useTranslation } from 'react-i18next';
 
 const LAYER_STYLES: Record<string, string> = {
   identity: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -57,6 +49,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
   onCharacteristicToggle,
   onCharacteristicCreated,
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState(0);
   const [systemChars, setSystemChars] = useState<Characteristic[]>([]);
   const [userChars, setUserChars] = useState<Characteristic[]>([]);
@@ -87,7 +80,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
     }
 
     if (!systemResponse.success && !userResponse.success) {
-      setFetchError('Failed to load characteristics');
+      setFetchError(t('agents.characteristics.errors.loadFailed'));
     }
 
     setLoading(false);
@@ -143,12 +136,16 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
                 {characteristic.name}
               </Typography>
               <Chip
-                label={LAYER_LABELS[layer] || layer}
+                label={t(`agents.characteristics.layers.${layer}`, { defaultValue: layer })}
                 size="small"
                 className={LAYER_STYLES[layer] || LAYER_STYLES.domain}
               />
               <Chip
-                label={characteristic.isSystem ? 'System' : 'Mine'}
+                label={
+                  characteristic.isSystem
+                    ? t('agents.characteristics.system')
+                    : t('agents.characteristics.mine')
+                }
                 size="small"
                 className={
                   characteristic.isSystem
@@ -158,7 +155,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
               />
             </Box>
             <Typography variant="caption" className="mt-1 text-gray-500 dark:text-slate-500">
-              Code: {characteristic.code}
+              {t('agents.characteristics.code', { code: characteristic.code })}
             </Typography>
             {(characteristic.description || characteristic.prompt) && (
               <Typography
@@ -202,10 +199,10 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
     <Box className="space-y-4">
       <Box className="mb-4">
         <Typography variant="h6" className="mb-1 font-semibold text-gray-900 dark:text-slate-100">
-          Behavior & Persona
+          {t('agents.characteristics.title')}
         </Typography>
         <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
-          Define how your agent behaves using reusable characteristics
+          {t('agents.characteristics.subtitle')}
         </Typography>
       </Box>
 
@@ -222,12 +219,12 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
           }}
         >
           <Tab
-            label={`System (${systemChars.length})`}
+            label={t('agents.characteristics.tabs.system', { count: systemChars.length })}
             icon={<Sparkles size={16} />}
             iconPosition="start"
           />
           <Tab
-            label={`My Characteristics (${userChars.length})`}
+            label={t('agents.characteristics.tabs.mine', { count: userChars.length })}
             icon={<Plus size={16} />}
             iconPosition="start"
           />
@@ -242,7 +239,7 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
           onClick={() => setIsModalOpen(true)}
           className="mb-4 border-dashed border-gray-300 text-gray-700 hover:border-[#3B82F6] hover:text-[#3B82F6] dark:border-slate-600 dark:text-slate-300"
         >
-          Create New Characteristic
+          {t('agents.characteristics.createNew')}
         </Button>
       )}
 
@@ -253,8 +250,8 @@ export const CharacteristicsSection: React.FC<CharacteristicsSectionProps> = ({
           <Box className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800/50">
             <Typography className="text-gray-600 dark:text-slate-400">
               {activeTab === 0
-                ? 'No system characteristics available'
-                : 'No custom characteristics yet. Create one to get started!'}
+                ? t('agents.characteristics.empty.system')
+                : t('agents.characteristics.empty.mine')}
             </Typography>
           </Box>
         )}

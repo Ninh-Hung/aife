@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosHeaders, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { getStoredAppLocale, LANGUAGE_HEADER } from '../i18n/types';
 
 // ============================================
 // Axios Instance Configuration
@@ -61,6 +62,14 @@ export const clearAccessToken = () => {
 
 let refreshPromise: Promise<string> | null = null;
 
+refreshClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (config.headers) {
+    config.headers[LANGUAGE_HEADER] = getStoredAppLocale();
+  }
+
+  return config;
+});
+
 export const refreshAccessToken = async (): Promise<string> => {
   if (!refreshPromise) {
     refreshPromise = refreshClient
@@ -98,6 +107,10 @@ axiosInstance.interceptors.request.use(
       removeContentTypeHeader(config);
     }
 
+    if (config.headers) {
+      config.headers[LANGUAGE_HEADER] = getStoredAppLocale();
+    }
+
     const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -124,23 +137,31 @@ axiosInstance.interceptors.response.use(
 
     // Handle quota/limit errors (429) - dispatch custom event
     if (error.response?.status === 429) {
-      const responseData = error.response.data as { error?: string; [key: string]: unknown };
+      const responseData = error.response.data as {
+        error?: string;
+        errorCode?: string;
+        [key: string]: unknown;
+      };
+      const errorCode = responseData?.errorCode || responseData?.error;
 
       // Dispatch custom event based on error type
-      if (responseData?.error === 'Quota exceeded') {
+      if (errorCode === 'QUOTA_EXCEEDED' || responseData?.error === 'Quota exceeded') {
         window.dispatchEvent(
           new CustomEvent('quota:exceeded', {
             detail: responseData,
           })
         );
-      } else if (responseData?.error === 'Rate limit exceeded') {
+      } else if (
+        errorCode === 'RATE_LIMIT_EXCEEDED' ||
+        responseData?.error === 'Rate limit exceeded'
+      ) {
         window.dispatchEvent(
           new CustomEvent('quota:rate-limit', {
             detail: responseData,
           })
         );
       } else if (
-        responseData?.error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+        errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
         responseData?.error === 'Anonymous session limit exceeded' ||
         responseData?.error === 'Anonymous message limit exceeded'
       ) {

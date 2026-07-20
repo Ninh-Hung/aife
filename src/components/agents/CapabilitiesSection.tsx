@@ -16,6 +16,7 @@ import {
 import { Zap } from 'lucide-react';
 import { Capability } from '../../types';
 import { listCapabilities } from '../../services/api';
+import { useTranslation } from 'react-i18next';
 
 // ============================================
 // Props Interface
@@ -36,6 +37,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   onCapabilityToggle,
   error,
 }) => {
+  const { t } = useTranslation();
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
     if (response.success && response.data) {
       setCapabilities(response.data);
     } else {
-      setFetchError(response.error || 'Failed to load capabilities');
+      setFetchError(response.error || t('agents.capabilities.errors.loadFailed'));
     }
 
     setLoading(false);
@@ -84,10 +86,10 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
     <Box className="space-y-4">
       <Box className="mb-4">
         <Typography variant="h6" className="mb-1 font-semibold text-gray-900 dark:text-slate-100">
-          Capabilities
+          {t('agents.capabilities.title')}
         </Typography>
         <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
-          Select at least one capability to define what your agent can do
+          {t('agents.capabilities.subtitle')}
         </Typography>
         {error && (
           <Typography variant="caption" className="mt-1 text-red-600 dark:text-red-400">
@@ -124,9 +126,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
                   <Box className="flex items-center gap-2">
                     <Zap
                       size={18}
-                      className={
-                        selected ? 'text-[#3B82F6]' : 'text-gray-500 dark:text-slate-400'
-                      }
+                      className={selected ? 'text-[#3B82F6]' : 'text-gray-500 dark:text-slate-400'}
                     />
                     <Typography
                       variant="subtitle1"
@@ -139,10 +139,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
                       {capability.name}
                     </Typography>
                   </Box>
-                  <Typography
-                    variant="body2"
-                    className="mt-1 text-gray-600 dark:text-slate-400"
-                  >
+                  <Typography variant="body2" className="mt-1 text-gray-600 dark:text-slate-400">
                     {capability.description}
                   </Typography>
                 </Box>
@@ -155,7 +152,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       {capabilities.length === 0 && (
         <Box className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800/50">
           <Typography className="text-gray-600 dark:text-slate-400">
-            No capabilities available
+            {t('agents.capabilities.empty')}
           </Typography>
         </Box>
       )}

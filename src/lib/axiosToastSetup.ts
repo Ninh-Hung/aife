@@ -12,18 +12,39 @@ import type { EnqueueSnackbar } from 'notistack';
  */
 export const setupAxiosToast = (axiosInstance: AxiosInstance, enqueueSnackbar: EnqueueSnackbar) => {
   // Response interceptor for error toasts
-  axiosInstance.interceptors.response.use(
+  const interceptorId = axiosInstance.interceptors.response.use(
     (response) => response,
-    (error: AxiosError<{ message?: string; error?: string }>) => {
+    (error: AxiosError<{ message?: string; error?: string; errorCode?: string }>) => {
       // Don't show toast for 401 errors (handled by auth flow)
       if (error.response?.status === 401) {
         return Promise.reject(error);
       }
 
+      const errorCode = error.response?.data?.errorCode || error.response?.data?.error;
+      const requestUrl = error.config?.url || '';
+
+      // Quota/limit errors are handled by useQuotaErrorHandler via custom events.
+      // Showing a generic toast here creates duplicate UI next to the upgrade modal.
+      if (
+        errorCode === 'QUOTA_EXCEEDED' ||
+        errorCode === 'RATE_LIMIT_EXCEEDED' ||
+        errorCode === 'ANONYMOUS_LIMIT_EXCEEDED'
+      ) {
+        return Promise.reject(error);
+      }
+
+      // No active subscription is an expected state for guests/free users.
+      if (
+        requestUrl.includes('/v1/subscriptions/current') &&
+        (errorCode === 'NO_ACTIVE_SUBSCRIPTION' || errorCode === 'SUBSCRIPTION_REQUIRED')
+      ) {
+        return Promise.reject(error);
+      }
+
       // Extract error message
       const errorMessage =
-        error.response?.data?.error ||
         error.response?.data?.message ||
+        error.response?.data?.error ||
         error.message ||
         'An unexpected error occurred';
 
@@ -36,4 +57,8 @@ export const setupAxiosToast = (axiosInstance: AxiosInstance, enqueueSnackbar: E
       return Promise.reject(error);
     }
   );
+
+  return () => {
+    axiosInstance.interceptors.response.eject(interceptorId);
+  };
 };

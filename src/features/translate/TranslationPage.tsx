@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { ChevronDown, FileText, Languages, Mic, Upload } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ResultCard } from '../../components/translate/ResultCard';
 import { getSupportedLanguages, translateText } from '../../services/api';
 import { Agent, Language, SUPPORTED_LANGUAGES, TranslationResult } from '../../types';
@@ -37,6 +38,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
   onCreateAgent: _onCreateAgent,
   selectedAgentId: propSelectedAgentId,
 }) => {
+  const { t } = useTranslation();
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     propSelectedAgentId || agents.find((agent) => agent.isDefault)?.id || agents[0]?.id || ''
   );
@@ -102,7 +104,10 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
           <Typography variant="body2" className="truncate text-gray-900 dark:text-white">
             {language.name}
           </Typography>
-          <Typography variant="caption" className="block truncate text-gray-500 dark:text-slate-400">
+          <Typography
+            variant="caption"
+            className="block truncate text-gray-500 dark:text-slate-400"
+          >
             {language.nativeName}
           </Typography>
         </Box>
@@ -146,25 +151,27 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
     });
 
     if (!response.success || !response.data) {
-      setErrorMessage(response.error || 'Translation failed');
+      setErrorMessage(response.error || t('translate.errors.failed'));
       setResults((current) => current.map((result) => ({ ...result, status: 'failed' })));
       setIsTranslating(false);
       return;
     }
 
-    const translatedResults: TranslationResult[] = response.data.translations.map((translation) => ({
-      id: `${response.data?.requestId}-${translation.lang}`,
-      targetLanguage: findLanguage(translation.lang),
-      translatedText: translation.text,
-      sourceText: response.data?.source.text || text,
-      sourceLanguage:
-        response.data?.source.lang && response.data.source.lang !== 'auto'
-          ? findLanguage(response.data.source.lang)
-          : findLanguage('en'),
-      agentId: selectedAgentId,
-      status: translation.status === 'failed' ? 'failed' : 'completed',
-      createdAt: new Date(),
-    }));
+    const translatedResults: TranslationResult[] = response.data.translations.map(
+      (translation) => ({
+        id: `${response.data?.requestId}-${translation.lang}`,
+        targetLanguage: findLanguage(translation.lang),
+        translatedText: translation.text,
+        sourceText: response.data?.source.text || text,
+        sourceLanguage:
+          response.data?.source.lang && response.data.source.lang !== 'auto'
+            ? findLanguage(response.data.source.lang)
+            : findLanguage('en'),
+        agentId: selectedAgentId,
+        status: translation.status === 'failed' ? 'failed' : 'completed',
+        createdAt: new Date(),
+      })
+    );
 
     setResults(translatedResults);
     setIsTranslating(false);
@@ -177,8 +184,11 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
           <Box className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-slate-700">
             <Box className="flex items-center gap-2">
               <Languages size={20} className="text-blue-600 dark:text-blue-400" />
-              <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
-                Source
+              <Typography
+                variant="subtitle1"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {t('translate.source.title')}
               </Typography>
             </Box>
 
@@ -197,7 +207,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
                   ))}
                 </Select>
               )}
-              <Tooltip title="Voice input">
+              <Tooltip title={t('translate.source.voiceInput')}>
                 <IconButton
                   size="small"
                   className="text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-slate-700"
@@ -212,7 +222,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             <TextField
               multiline
               fullWidth
-              placeholder="Enter text to translate"
+              placeholder={t('translate.source.placeholder')}
               value={sourceText}
               onChange={(event) => setSourceText(event.target.value)}
               variant="standard"
@@ -238,14 +248,14 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             <Box className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <Box className="flex gap-2">
                 <Button size="small" startIcon={<Upload size={16} />} disabled>
-                  Upload File
+                  {t('translate.source.uploadFile')}
                 </Button>
                 <Button size="small" startIcon={<FileText size={16} />} disabled>
-                  Paste
+                  {t('translate.source.paste')}
                 </Button>
               </Box>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-500">
-                {sourceText.length} / 5000 characters
+                {t('translate.source.characterCount', { count: sourceText.length, limit: 5000 })}
               </Typography>
             </Box>
             <Button
@@ -256,7 +266,9 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
               className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
               size="large"
             >
-              {isTranslating ? 'Translating...' : 'Translate'}
+              {isTranslating
+                ? t('translate.actions.translating')
+                : t('translate.actions.translate')}
             </Button>
           </Box>
         </Box>
@@ -265,8 +277,11 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
           <Box className="flex min-h-[57px] items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
             <Box className="flex min-w-0 items-center gap-2">
               <Languages size={20} className="text-blue-600 dark:text-blue-400" />
-              <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
-                Response
+              <Typography
+                variant="subtitle1"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {t('translate.response.title')}
               </Typography>
             </Box>
           </Box>
@@ -280,11 +295,14 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
               className="min-h-[56px] border-b border-gray-200 px-4 dark:border-slate-700"
             >
               <Box className="min-w-0">
-                <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
-                  Target Languages
+                <Typography
+                  variant="subtitle1"
+                  className="font-semibold text-gray-900 dark:text-white"
+                >
+                  {t('translate.targets.title')}
                 </Typography>
                 <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                  {selectedTargets.length} selected
+                  {t('translate.targets.selected', { count: selectedTargets.length })}
                 </Typography>
               </Box>
             </AccordionSummary>
@@ -330,7 +348,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             {results.length === 0 ? (
               <Box className="flex h-full min-h-[240px] items-center justify-center text-center">
                 <Typography variant="body2" className="text-gray-500 dark:text-slate-500">
-                  Translation results will appear here.
+                  {t('translate.response.empty')}
                 </Typography>
               </Box>
             ) : (

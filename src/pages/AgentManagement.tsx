@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Bot } from 'lucide-react';
 import { Button } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useAgents } from '../contexts/AgentsContext';
 import { AgentCard } from '../components/agents/AgentCard';
 import { AgentDrawer } from '../components/agents/AgentDrawer';
@@ -15,22 +16,27 @@ import { Agent, CreateAgentInput } from '../types';
 import { useNotification } from '../hooks/useNotification';
 import { createChatSession } from '../services/api';
 
+const isAnonymousLimitResponse = (response: { errorCode?: string; error?: string }) =>
+  response.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+  response.error === 'ANONYMOUS_LIMIT_EXCEEDED';
+
 // ============================================
 // Empty State Component
 // ============================================
 
 const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="flex min-h-[400px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 dark:border-slate-700 dark:bg-slate-800/50">
       <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-950/50">
         <Bot className="text-indigo-600 dark:text-indigo-400" size={40} />
       </div>
       <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-slate-100">
-        No agents found
+        {t('agents.empty.title')}
       </h3>
       <p className="mb-6 max-w-md text-center text-gray-600 dark:text-slate-400">
-        Get started by creating your first AI agent. Customize its behavior, creativity level, and
-        personality to suit your needs.
+        {t('agents.empty.description')}
       </p>
       <Button
         variant="contained"
@@ -38,7 +44,7 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
         startIcon={<Plus size={18} />}
         className="bg-[#3B82F6] text-white hover:bg-[#2563EB]"
       >
-        Create Your First Agent
+        {t('agents.empty.createFirst')}
       </Button>
     </div>
   );
@@ -50,8 +56,17 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
 
 export const AgentManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { agents, loading, error, fetchAgents, createAgent, updateAgent, deleteAgent, setDefaultAgent } =
-    useAgents();
+  const { t } = useTranslation();
+  const {
+    agents,
+    loading,
+    error,
+    fetchAgents,
+    createAgent,
+    updateAgent,
+    deleteAgent,
+    setDefaultAgent,
+  } = useAgents();
   const { success, error: showError } = useNotification();
   const { addOrUpdateConversation } = useSidebarConversations();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -68,7 +83,7 @@ export const AgentManagement: React.FC = () => {
 
   const handleEdit = (agent: Agent) => {
     if (agent.ownerType && agent.ownerType !== 'USER') {
-      showError('Only your own agents can be edited');
+      showError(t('agents.errors.editOwnOnly'));
       return;
     }
     setSelectedAgent(agent);
@@ -79,24 +94,29 @@ export const AgentManagement: React.FC = () => {
     try {
       const agent = agents.find((item) => item.publicId === agentId);
       if (agent?.ownerType && agent.ownerType !== 'USER') {
-        showError('Only your own agents can be deleted');
+        showError(t('agents.errors.deleteOwnOnly'));
         return;
       }
       await deleteAgent(agentId);
       await fetchAgents();
-      success('Agent deleted successfully');
+      success(t('agents.messages.deleted'));
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to delete agent');
+      showError(err instanceof Error ? err.message : t('agents.errors.deleteFailed'));
     }
   };
 
   const handleChat = async (agent: Agent) => {
-    const response = await createChatSession(agent.publicId, `Chat with ${agent.name}`);
+    const response = await createChatSession(
+      agent.publicId,
+      t('agents.chatSessionTitle', { name: agent.name })
+    );
     if (response.success && response.data) {
       addOrUpdateConversation(response.data);
       navigate(`/chat/${response.data.id}`);
+    } else if (isAnonymousLimitResponse(response)) {
+      return;
     } else {
-      showError(response.error || 'Failed to create chat session');
+      showError(response.error || t('agents.errors.createChatFailed'));
     }
   };
 
@@ -121,13 +141,13 @@ export const AgentManagement: React.FC = () => {
     try {
       const agent = agents.find((item) => item.publicId === publicId);
       if (agent?.ownerType && agent.ownerType !== 'USER') {
-        showError('Only your own agents can be selected as default');
+        showError(t('agents.errors.defaultOwnOnly'));
         return;
       }
       await setDefaultAgent(publicId);
-      success('Default agent updated successfully');
+      success(t('agents.messages.defaultUpdated'));
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to set default agent');
+      showError(err instanceof Error ? err.message : t('agents.errors.setDefaultFailed'));
     }
   };
 
@@ -141,10 +161,10 @@ export const AgentManagement: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">My Agents</h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-              Create and manage your custom AI personas for different tasks
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+              {t('agents.title')}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">{t('agents.subtitle')}</p>
           </div>
           <Button
             variant="contained"
@@ -158,7 +178,7 @@ export const AgentManagement: React.FC = () => {
               py: 1.5,
             }}
           >
-            Create New Agent
+            {t('agents.createNew')}
           </Button>
         </div>
 
@@ -167,7 +187,7 @@ export const AgentManagement: React.FC = () => {
           <div className="flex min-h-[400px] items-center justify-center">
             <div className="flex flex-col items-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-indigo-600 dark:border-slate-700 dark:border-t-indigo-400"></div>
-              <p className="text-sm text-gray-600 dark:text-slate-400">Loading agents...</p>
+              <p className="text-sm text-gray-600 dark:text-slate-400">{t('agents.loading')}</p>
             </div>
           </div>
         )}
@@ -190,7 +210,7 @@ export const AgentManagement: React.FC = () => {
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
-                  Total Agents
+                  {t('agents.stats.totalAgents')}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
                   {agents.length}
@@ -198,7 +218,7 @@ export const AgentManagement: React.FC = () => {
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
-                  Custom Agents
+                  {t('agents.stats.customAgents')}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
                   {agents.filter((a) => !a.ownerType || a.ownerType === 'USER').length}
@@ -206,7 +226,7 @@ export const AgentManagement: React.FC = () => {
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
-                  Total Knowledge
+                  {t('agents.stats.totalKnowledge')}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
                   {agents.reduce(
