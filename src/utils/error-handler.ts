@@ -53,7 +53,8 @@ export function isAnonymousLimitError(
   const axiosError = error as AxiosError;
   return (
     axiosError?.response?.status === 429 &&
-    ((axiosError.response.data as any)?.error === 'Anonymous session limit exceeded' ||
+    ((axiosError.response.data as any)?.error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+      (axiosError.response.data as any)?.error === 'Anonymous session limit exceeded' ||
       (axiosError.response.data as any)?.error === 'Anonymous message limit exceeded')
   );
 }

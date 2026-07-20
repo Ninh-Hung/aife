@@ -64,8 +64,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   executionMode = 'normal',
   onExecutionModeChange,
 }) => {
-  const { user } = useAuth();
-  const isLoggedIn = !!user;
+  const { user, isAnonymous } = useAuth();
   const { agents } = useAgents();
 
   const [inputValue, setInputValue] = useState('');
@@ -180,7 +179,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     if (!file) return;
 
     // For anonymous users, enforce image-only + 5 MB limit
-    if (!isLoggedIn) {
+    if (isAnonymous) {
       if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
         setUploadError('Only image files are supported (PNG, JPG, GIF, WebP, etc.).');
         return;
@@ -249,8 +248,8 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             </div>
           )}
 
-          {/* Agent Selector — only shown when logged in and at least one agent exists */}
-          {isLoggedIn && agents.length > 0 && (
+          {/* Agent Selector — only shown for registered users with at least one agent */}
+          {!isAnonymous && user && agents.length > 0 && (
             <div ref={agentSelectorRef} className="relative px-3 pt-3">
               <button
                 type="button"
@@ -369,7 +368,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                     onClick={handleImageUploadClick}
                     className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
                   >
-                    {isLoggedIn ? (
+                    {!isAnonymous ? (
                       <>
                         <FileUp className="h-4 w-4 shrink-0 text-teal-400" />
                         Upload image or file
@@ -422,7 +421,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept={isLoggedIn ? '*/*' : 'image/*'}
+          accept={isAnonymous ? 'image/*' : '*/*'}
           className="hidden"
           onChange={handleFileChange}
         />

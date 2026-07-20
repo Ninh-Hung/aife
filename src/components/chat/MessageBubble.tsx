@@ -15,7 +15,9 @@ import {
   ExternalLink,
   File as FileIcon,
   X,
+  UserPlus,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ChatMessage } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
 import { parseAgentResponse } from '../../utils/agentResponse';
@@ -40,6 +42,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   userAvatar,
   userAvatarType,
 }) => {
+  const navigate = useNavigate();
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isReasoningOpen, setIsReasoningOpen] = useState(false);
@@ -65,6 +68,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const reasoning = parsedMessage.reasoning?.trim() || null;
   const sources = isUser ? [] : message.sources || [];
   const attachments = message.attachments || [];
+  const isAnonymousLimitMessage =
+    !isUser &&
+    (Boolean(message.anonymousLimit) ||
+      /^Guest .+ limit reached\.?$/i.test(displayContent.trim()) ||
+      displayContent.trim().toLowerCase().includes('guest daily token limit reached'));
   const attachmentLoadKey = useMemo(
     () =>
       attachments
@@ -122,6 +130,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleSignUp = () => {
+    navigate('/', { state: { authMode: 'signup' } });
   };
 
   const getDisplayUrl = (attachment: MessageAttachment) => {
@@ -257,6 +269,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     />
                   )}
                 </>
+              )}
+
+              {isAnonymousLimitMessage && (
+                <div className="mt-3 border-t border-gray-100 pt-3 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={handleSignUp}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-700"
+                  >
+                    <UserPlus size={14} />
+                    Sign Up Free
+                  </button>
+                </div>
               )}
 
               {attachments.length > 0 && (

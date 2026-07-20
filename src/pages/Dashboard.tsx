@@ -16,6 +16,8 @@ import { useAgents } from '../contexts/AgentsContext';
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { agents } = useAgents();
+  const subscriptionCode = user?.subscription?.packageCode.toLowerCase();
+  const subscriptionPlanName = user?.subscription?.packageName || 'Free';
 
   // Mock usage data (in production, this would come from API)
   const usageData = {
@@ -83,11 +85,11 @@ export const Dashboard: React.FC = () => {
               </Typography>
               <Box className="mt-2">
                 <Chip
-                  label={`${user?.subscription ? user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1) : 'Free'} Plan`}
+                  label={`${subscriptionPlanName} Plan`}
                   className={`font-semibold ${
-                    user?.subscription === 'enterprise'
+                    subscriptionCode === 'enterprise'
                       ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      : user?.subscription === 'pro'
+                      : subscriptionCode === 'pro'
                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                         : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
                   }`}
@@ -98,9 +100,9 @@ export const Dashboard: React.FC = () => {
                 variant="caption"
                 className="mt-2 block text-gray-500 dark:text-slate-400"
               >
-                {user?.subscription === 'pro'
+                {subscriptionCode === 'pro'
                   ? 'Advanced features enabled'
-                  : user?.subscription === 'enterprise'
+                  : subscriptionCode === 'enterprise'
                     ? 'Full access to all features'
                     : 'Upgrade for more features'}
               </Typography>

@@ -415,6 +415,7 @@ export interface ChatMessage {
   sources?: ChatSource[];
   attachments?: ChatMessageAttachment[];
   conversationTitle?: string;
+  anonymousLimit?: AnonymousLimitError;
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
 }
@@ -524,8 +525,15 @@ export interface RateLimitError {
 }
 
 export interface AnonymousLimitError {
-  error: 'Anonymous session limit exceeded' | 'Anonymous message limit exceeded';
+  error:
+    | 'ANONYMOUS_LIMIT_EXCEEDED'
+    | 'Anonymous session limit exceeded'
+    | 'Anonymous message limit exceeded';
   message: string;
+  limitType?: string;
+  limit?: number;
+  used?: number;
+  resetAt?: string;
   sessionsUsed?: number;
   maxSessions?: number;
   upgradeUrl: string;

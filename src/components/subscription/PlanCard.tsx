@@ -46,7 +46,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   // Parse metadata
   const metadata: PackageMetadata = React.useMemo(() => {
     try {
-      return JSON.parse(pkg.metadata) as PackageMetadata;
+      return JSON.parse(pkg.metadata ?? '{}') as PackageMetadata;
     } catch {
       return { color: '#3B82F6', icon: 'Zap' };
     }

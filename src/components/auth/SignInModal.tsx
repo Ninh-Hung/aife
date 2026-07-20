@@ -17,16 +17,21 @@ import axiosInstance from '../../lib/axios';
 interface SignInModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: 'signin' | 'signup';
 }
 
 // ============================================
 // Sign In Modal Component
 // ============================================
 
-export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
+export const SignInModal: React.FC<SignInModalProps> = ({
+  isOpen,
+  onClose,
+  initialMode = 'signin',
+}) => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -43,6 +48,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
 
   useEffect(() => {
     if (isOpen) {
+      setIsSignUp(initialMode === 'signup');
       setIsAnimating(true);
       // Lock body scroll when modal opens
       document.body.style.overflow = 'hidden';
@@ -54,7 +60,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => 
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [initialMode, isOpen]);
 
   // Reset username availability states when toggling between sign in/up
   useEffect(() => {

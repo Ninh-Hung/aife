@@ -48,7 +48,7 @@ const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className =
     return null;
   }
 
-  const { sessionsUsed, maxSessions, totalMessages } = stats;
+  const { sessionsUsed, maxSessions } = stats;
   const sessionPercentage = (sessionsUsed / maxSessions) * 100;
 
   // Find current session message count if sessionId provided
@@ -94,7 +94,7 @@ const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className =
           size="small"
           variant="contained"
           color="primary"
-          onClick={() => navigate('/register')}
+          onClick={() => navigate('/', { state: { authMode: 'signup' } })}
           startIcon={<UserPlus className="w-4 h-4" />}
           className="whitespace-nowrap"
         >

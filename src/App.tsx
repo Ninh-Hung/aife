@@ -4,7 +4,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AgentsProvider, useAgents } from './contexts/AgentsContext';
@@ -38,6 +46,9 @@ import {
 import { CreateAgentInput } from './types';
 import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
 import { UpgradeModal } from './components/subscription';
+import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { mergeAnonymousSession } from './services/api';
+import { ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY } from './contexts/AuthContext';
 
 // ============================================
 // Root Route: redirects authenticated users to /new-chat
@@ -75,12 +86,15 @@ const ChatScreenRoute: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const { agents, createAgent } = useAgents();
-  const { user } = useAuth();
+  const { user, isAnonymous } = useAuth();
   const [isAgentDrawerOpen, setIsAgentDrawerOpen] = useState(false);
+  const [pendingMergeSessionId, setPendingMergeSessionId] = useState<string | null>(null);
+  const [isMergingAnonymousSession, setIsMergingAnonymousSession] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     agents.find((a) => a.isDefault)?.id || agents[0]?.id || ''
   );
   const location = useLocation();
+  const navigate = useNavigate();
   const { errorState, closeModal } = useQuotaErrorHandler();
 
   useEffect(() => {
@@ -110,6 +124,69 @@ const AppContent: React.FC = () => {
   const handleSaveAgent = async (input: CreateAgentInput) => {
     await createAgent(input);
   };
+
+  useEffect(() => {
+    const handlePendingMerge = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId?: string }>).detail;
+      if (detail?.sessionId) {
+        setPendingMergeSessionId(detail.sessionId);
+      }
+    };
+
+    window.addEventListener('anonymous:merge-pending', handlePendingMerge);
+    return () => {
+      window.removeEventListener('anonymous:merge-pending', handlePendingMerge);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user || isAnonymous) {
+      return;
+    }
+
+    const storedSessionId = window.sessionStorage.getItem(
+      ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY
+    );
+    if (storedSessionId) {
+      setPendingMergeSessionId(storedSessionId);
+    }
+  }, [isAnonymous, user]);
+
+  const handleSkipAnonymousMerge = () => {
+    window.sessionStorage.removeItem(ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY);
+    setPendingMergeSessionId(null);
+  };
+
+  const handleConfirmAnonymousMerge = async () => {
+    if (!pendingMergeSessionId) return;
+
+    setIsMergingAnonymousSession(true);
+    try {
+      const response = await mergeAnonymousSession(pendingMergeSessionId);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to merge anonymous chat session');
+      }
+
+      window.sessionStorage.removeItem(ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY);
+      setPendingMergeSessionId(null);
+      navigate(`/chat/${response.data.id}`, { replace: true });
+    } catch (error) {
+      console.error('Failed to merge anonymous chat session:', error);
+    } finally {
+      setIsMergingAnonymousSession(false);
+    }
+  };
+
+  if (
+    user &&
+    isAnonymous &&
+    location.pathname !== '/' &&
+    !location.pathname.startsWith('/chat/') &&
+    location.pathname !== '/email-sent' &&
+    location.pathname !== '/verify-email'
+  ) {
+    return <Navigate to="/" replace />;
+  }
 
   // Determine header content based on route
   const getHeader = () => {
@@ -277,6 +354,16 @@ const AppContent: React.FC = () => {
         remainingTokens={errorState.remainingTokens}
         quotaLimit={errorState.quotaLimit}
         isAnonymousLimit={errorState.isAnonymousLimit}
+      />
+      <ConfirmDialog
+        open={Boolean(pendingMergeSessionId) && Boolean(user) && !isAnonymous}
+        title="Keep this chat?"
+        message="Do you want to add your current guest conversation to this account?"
+        confirmText="Keep Chat"
+        cancelText="Skip"
+        loading={isMergingAnonymousSession}
+        onClose={handleSkipAnonymousMerge}
+        onConfirm={() => void handleConfirmAnonymousMerge()}
       />
     </>
   );

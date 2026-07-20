@@ -8,6 +8,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { Agent, ChatMessage, ChatSource } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
+import { ANONYMOUS_CURRENT_SESSION_STORAGE_KEY, useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent, type ChatExecutionMode } from '../hooks/useChatAgent';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
@@ -129,6 +130,7 @@ export const ChatScreen: React.FC = () => {
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAnonymous } = useAuth();
   const { agents } = useAgents();
   const { error: showError } = useNotification();
   const { sessions, addOrUpdateConversation } = useSidebarConversations();
@@ -144,6 +146,7 @@ export const ChatScreen: React.FC = () => {
   } | null;
   const initialMessage = initialState?.initialMessage;
   const initialFile = initialState?.initialFile ?? null;
+  const allowAnonymousSessionRef = useRef(Boolean(initialMessage));
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -372,6 +375,11 @@ export const ChatScreen: React.FC = () => {
         return;
       }
 
+      if (isAnonymous && !allowAnonymousSessionRef.current) {
+        navigate('/', { replace: true });
+        return;
+      }
+
       const sessionResponse = await getChatSession(routeSessionId);
       if (cancelled) {
         return;
@@ -398,7 +406,8 @@ export const ChatScreen: React.FC = () => {
 
       let resolvedAgent: Agent | null = null;
       const contextAgent = agents.find((item) => item.publicId === currentSession.agentPublicId);
-      const agentResponse = contextAgent ? null : await getAgent(currentSession.agentPublicId);
+      const agentResponse =
+        contextAgent || isAnonymous ? null : await getAgent(currentSession.agentPublicId);
       if (cancelled) {
         return;
       }
@@ -442,7 +451,15 @@ export const ChatScreen: React.FC = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeSessionId, agents]);
+  }, [routeSessionId, agents, isAnonymous]);
+
+  useEffect(() => {
+    if (!isAnonymous || !activeSessionId || visibleMessages.length === 0) {
+      return;
+    }
+
+    window.sessionStorage.setItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY, activeSessionId);
+  }, [activeSessionId, isAnonymous, visibleMessages.length]);
 
   // ============================================
   // Helper Functions

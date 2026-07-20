@@ -1,8 +1,8 @@
 import { useAgent } from 'agents/react';
 import { useAgentChat } from '@cloudflare/ai-chat/react';
 import type { FileUIPart, UIMessage } from 'ai';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ChatMessage, ChatSource } from '../types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AnonymousLimitError, ChatMessage, ChatSource } from '../types';
 
 export type ChatExecutionMode = 'cheap' | 'normal' | 'expensive';
 
@@ -66,6 +66,17 @@ function isAbortOrCancelMessage(content: string): boolean {
   );
 }
 
+function isAnonymousLimitMetadata(metadata: unknown): metadata is AnonymousLimitError {
+  if (!metadata || typeof metadata !== 'object') return false;
+
+  const error = (metadata as { error?: unknown }).error;
+  return (
+    error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
+    error === 'Anonymous session limit exceeded' ||
+    error === 'Anonymous message limit exceeded'
+  );
+}
+
 export function useChatAgent({
   conversationId,
   agentPublicId,
@@ -75,6 +86,7 @@ export function useChatAgent({
   enabled = true,
 }: UseChatAgentOptions) {
   const [isSocketOpen, setIsSocketOpen] = useState(false);
+  const lastAnonymousLimitEventRef = useRef<string | null>(null);
   const shouldConnect =
     enabled && Boolean(conversationId) && Boolean(agentPublicId) && sessionId !== null;
   const serverUrl = import.meta.env.VITE_SERVER_URL || '';
@@ -279,6 +291,50 @@ export function useChatAgent({
     return typeof raw.metadata?.sessionId === 'number' ? raw.metadata.sessionId : null;
   }, []);
 
+  const extractAnonymousLimit = useCallback((message: UIMessage): AnonymousLimitError | undefined => {
+    const metadata = (message as unknown as { metadata?: unknown }).metadata;
+    return isAnonymousLimitMetadata(metadata) ? metadata : undefined;
+  }, []);
+
+  useEffect(() => {
+    const latestAnonymousLimitMessage = [...(agentMessages || [])]
+      .reverse()
+      .find((message) => {
+        const metadata = (message as unknown as { metadata?: unknown }).metadata;
+        const content = extractText(message).trim().toLowerCase();
+        return (
+          isAnonymousLimitMetadata(metadata) ||
+          /^guest .+ limit reached\.?$/i.test(content) ||
+          content.includes('guest daily token limit reached')
+        );
+      });
+
+    if (!latestAnonymousLimitMessage) {
+      return;
+    }
+
+    const eventKey = latestAnonymousLimitMessage.id;
+    if (!eventKey || lastAnonymousLimitEventRef.current === eventKey) {
+      return;
+    }
+
+    lastAnonymousLimitEventRef.current = eventKey;
+    const metadata = (latestAnonymousLimitMessage as unknown as { metadata?: unknown }).metadata;
+    const detail = isAnonymousLimitMetadata(metadata)
+      ? metadata
+      : {
+          error: 'ANONYMOUS_LIMIT_EXCEEDED',
+          message: extractText(latestAnonymousLimitMessage),
+          upgradeUrl: '/signup',
+        };
+
+    window.dispatchEvent(
+      new CustomEvent('quota:anonymous-limit', {
+        detail,
+      })
+    );
+  }, [agentMessages, extractText]);
+
   const messages: ChatMessage[] = useMemo(() => {
     if (!shouldConnect) return [];
 
@@ -293,6 +349,7 @@ export function useChatAgent({
         const sources = extractSources(msg);
         const attachments = extractAttachments(msg);
         const conversationTitle = extractConversationTitle(msg);
+        const anonymousLimit = extractAnonymousLimit(msg);
         const createdAt = (msg as unknown as { createdAt?: string | Date }).createdAt;
 
         return {
@@ -304,6 +361,7 @@ export function useChatAgent({
           sources,
           attachments,
           conversationTitle,
+          anonymousLimit,
           timestamp: createdAt ? new Date(createdAt) : new Date(),
           status: 'sent' as const,
         };
@@ -321,6 +379,7 @@ export function useChatAgent({
       });
   }, [
     agentMessages,
+    extractAnonymousLimit,
     extractConversationTitle,
     extractAttachments,
     extractMessageSessionId,

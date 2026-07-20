@@ -929,6 +929,31 @@ export const updateChatSession = async (
   }
 };
 
+export const mergeAnonymousSession = async (
+  sessionId: string
+): Promise<ApiResponse<ChatSession>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/chat/sessions/${sessionId}/merge-anonymous`);
+
+    return {
+      success: true,
+      data: normalizeChatSession(response.data.data || response.data),
+      message: response.data.message || 'Anonymous chat session merged successfully',
+    };
+  } catch (error) {
+    console.error('Merge anonymous session error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to merge anonymous chat session',
+    };
+  }
+};
+
 // ============================================
 // Agents API
 // ============================================

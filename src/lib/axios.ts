@@ -140,6 +140,7 @@ axiosInstance.interceptors.response.use(
           })
         );
       } else if (
+        responseData?.error === 'ANONYMOUS_LIMIT_EXCEEDED' ||
         responseData?.error === 'Anonymous session limit exceeded' ||
         responseData?.error === 'Anonymous message limit exceeded'
       ) {

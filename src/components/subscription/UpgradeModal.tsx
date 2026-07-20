@@ -34,7 +34,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
   onClose,
   title,
   message,
-  upgradeUrl = '/pricing',
+  upgradeUrl = '/subscription',
   remainingTokens,
   quotaLimit,
   isAnonymousLimit = false,
@@ -43,12 +43,12 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
   const handleUpgrade = () => {
     onClose();
-    navigate(upgradeUrl);
+    navigate(upgradeUrl === '/pricing' ? '/subscription' : upgradeUrl);
   };
 
   const handleRegister = () => {
     onClose();
-    navigate('/register');
+    navigate('/', { state: { authMode: 'signup' } });
   };
 
   return (

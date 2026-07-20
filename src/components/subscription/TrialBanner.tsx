@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Alert, AlertTitle, Button, Box } from '@mui/material';
+import { Alert, AlertTitle, Button } from '@mui/material';
 import { Clock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +23,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({ className = '', onUpgrade }) 
     return null;
   }
 
-  const { trialDaysRemaining, packageName } = subscription;
+  const { trialDaysRemaining } = subscription;
 
   // Only show banner when trial is expiring soon (3 days or less)
   if (trialDaysRemaining === null || trialDaysRemaining > 3) {
@@ -34,7 +34,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({ className = '', onUpgrade }) 
     if (onUpgrade) {
       onUpgrade();
     } else {
-      navigate('/pricing');
+      navigate('/subscription');
     }
   };
 

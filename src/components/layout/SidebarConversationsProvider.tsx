@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNotification } from '../../hooks/useNotification';
 import { listChatSessions, updateChatSession } from '../../services/api';
 import type { ChatSession } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { SidebarConversationsContext } from './sidebarConversationsContext';
 
 const toTimestamp = (value: Date | string | null | undefined) => {
@@ -28,6 +29,7 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
   children,
 }) => {
   const { error: showError } = useNotification();
+  const { isAnonymous, isLoading: authLoading } = useAuth();
   const showErrorRef = useRef(showError);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +39,12 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
   }, [showError]);
 
   const refreshConversations = useCallback(async () => {
+    if (isAnonymous) {
+      setSessions([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await listChatSessions();
@@ -53,11 +61,19 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAnonymous]);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (isAnonymous) {
+      setSessions([]);
+      setIsLoading(false);
+      return;
+    }
+
     void refreshConversations();
-  }, [refreshConversations]);
+  }, [authLoading, isAnonymous, refreshConversations]);
 
   const addOrUpdateConversation = useCallback((session: ChatSession) => {
     if (session.status && session.status !== 'ACTIVE') {

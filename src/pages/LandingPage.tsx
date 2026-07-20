@@ -5,8 +5,8 @@
  * Supports anonymous chat - users can start chatting without signing in.
  */
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
@@ -31,10 +31,28 @@ const SUGGESTIONS = [
 // ============================================
 
 const LandingPage: React.FC = () => {
-  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const location = useLocation();
+  const authMode = (location.state as { authMode?: 'signin' | 'signup' } | null)?.authMode;
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(Boolean(authMode));
   const navigate = useNavigate();
   const { agents } = useAgents();
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode();
+
+  const openSignInModal = () => {
+    navigate('/', { replace: true, state: null });
+    setIsSignInModalOpen(true);
+  };
+
+  const closeSignInModal = () => {
+    navigate('/', { replace: true, state: null });
+    setIsSignInModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (authMode) {
+      setIsSignInModalOpen(true);
+    }
+  }, [authMode]);
 
   // Handle anonymous chat - create session and send first message
   const handleSend = async (
@@ -58,7 +76,7 @@ const LandingPage: React.FC = () => {
 
       if (!sessionResponse.success || !sessionResponse.data) {
         console.error('Failed to create session:', sessionResponse.error);
-        setIsSignInModalOpen(true);
+        openSignInModal();
         return;
       }
 
@@ -68,7 +86,7 @@ const LandingPage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error starting anonymous chat:', error);
-      setIsSignInModalOpen(true);
+      openSignInModal();
     }
   };
 
@@ -86,7 +104,7 @@ const LandingPage: React.FC = () => {
 
         {/* Sign In button */}
         <button
-          onClick={() => setIsSignInModalOpen(true)}
+          onClick={openSignInModal}
           className="rounded-lg border border-slate-600 px-4 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:border-slate-400 hover:text-white"
         >
           Sign in
@@ -106,7 +124,11 @@ const LandingPage: React.FC = () => {
       </main>
 
       {/* ── Sign In Modal ───────────────────────────────────── */}
-      <SignInModal isOpen={isSignInModalOpen} onClose={() => setIsSignInModalOpen(false)} />
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        initialMode={authMode === 'signup' ? 'signup' : 'signin'}
+        onClose={closeSignInModal}
+      />
     </div>
   );
 };

@@ -64,6 +64,8 @@ type AuthUserData = {
 };
 
 const ANONYMOUS_AUTH_PROVIDER = 'ANONYMOUS';
+export const ANONYMOUS_CURRENT_SESSION_STORAGE_KEY = 'anonymousCurrentSessionId';
+export const ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY = 'anonymousPendingMergeSessionId';
 const ENABLE_SUBSCRIPTION_QUOTA_CHECKS = false;
 const PRESERVED_STORAGE_KEYS = new Set(['theme-mode']);
 const USER_SCOPED_STORAGE_KEY_PATTERNS = [
@@ -279,6 +281,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (identifier: string, password: string) => {
     try {
       console.log('[AuthContext] Login attempt for:', identifier);
+      const pendingAnonymousSessionId =
+        typeof window !== 'undefined' && isAnonymousUser(user)
+          ? window.sessionStorage.getItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY)
+          : null;
 
       const response = await axiosInstance.post('/auth/login', {
         identifier, // Can be email or username
@@ -320,6 +326,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         if (userData.subscription) {
           setSubscription(userData.subscription);
+        }
+
+        if (
+          pendingAnonymousSessionId &&
+          !isAnonymousUser(mappedUser) &&
+          typeof window !== 'undefined'
+        ) {
+          window.sessionStorage.setItem(
+            ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY,
+            pendingAnonymousSessionId
+          );
+          window.dispatchEvent(
+            new CustomEvent('anonymous:merge-pending', {
+              detail: {
+                sessionId: pendingAnonymousSessionId,
+              },
+            })
+          );
         }
 
         console.log('[AuthContext] User stored:', mappedUser);

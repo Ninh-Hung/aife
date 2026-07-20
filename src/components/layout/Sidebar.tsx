@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { logout, isAnonymous } = useAuth();
   const { sessions, isLoading, renameConversation, archiveConversation, deleteConversation } =
     useSidebarConversations();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -174,7 +174,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {(!isCollapsed || isMobileDrawer) && (
-          <Link to="/new-chat" className="no-underline" onClick={handleNavigation}>
+          <Link
+            to={isAnonymous ? '/' : '/new-chat'}
+            className="no-underline"
+            onClick={handleNavigation}
+          >
             <Typography
               variant="h6"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"
@@ -197,35 +201,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </Box>
 
-      {/* New Chat Button */}
-      <Box className={`px-3 pt-3 ${isCollapsed && !isMobileDrawer ? 'flex justify-center' : ''}`}>
-        <Tooltip title={isCollapsed && !isMobileDrawer ? 'New Chat' : ''} placement="right" arrow>
-          <ListItemButton
-            component={Link}
-            to="/new-chat"
-            onClick={handleNavigation}
-            className={`rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-600 transition-all hover:border-blue-500/70 hover:bg-blue-500/20 dark:border-blue-400/30 dark:text-blue-400 dark:hover:border-blue-400/60 dark:hover:bg-blue-500/20 ${
-              isCollapsed && !isMobileDrawer ? 'justify-center' : 'gap-2'
-            }`}
-            sx={{
-              py: 1,
-              px: isCollapsed && !isMobileDrawer ? 1 : 2,
-              minHeight: 40,
-            }}
-          >
-            <SquarePen size={17} className="shrink-0" />
-            {(!isCollapsed || isMobileDrawer) && (
-              <Typography variant="body2" className="font-semibold">
-                New Chat
-              </Typography>
-            )}
-          </ListItemButton>
-        </Tooltip>
-      </Box>
+      {!isAnonymous && (
+        <Box className={`px-3 pt-3 ${isCollapsed && !isMobileDrawer ? 'flex justify-center' : ''}`}>
+          <Tooltip title={isCollapsed && !isMobileDrawer ? 'New Chat' : ''} placement="right" arrow>
+            <ListItemButton
+              component={Link}
+              to="/new-chat"
+              onClick={handleNavigation}
+              className={`rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-600 transition-all hover:border-blue-500/70 hover:bg-blue-500/20 dark:border-blue-400/30 dark:text-blue-400 dark:hover:border-blue-400/60 dark:hover:bg-blue-500/20 ${
+                isCollapsed && !isMobileDrawer ? 'justify-center' : 'gap-2'
+              }`}
+              sx={{
+                py: 1,
+                px: isCollapsed && !isMobileDrawer ? 1 : 2,
+                minHeight: 40,
+              }}
+            >
+              <SquarePen size={17} className="shrink-0" />
+              {(!isCollapsed || isMobileDrawer) && (
+                <Typography variant="body2" className="font-semibold">
+                  New Chat
+                </Typography>
+              )}
+            </ListItemButton>
+          </Tooltip>
+        </Box>
+      )}
 
       {/* Conversations */}
       <Box className="flex-1 overflow-y-auto py-4">
-        {(!isCollapsed || isMobileDrawer) && (
+        {!isAnonymous && (!isCollapsed || isMobileDrawer) && (
           <>
             <Divider className="mx-3 mb-4" />
             <Typography
@@ -274,127 +279,130 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </Tooltip>
         </Box>
 
-        {/* User Profile Widget */}
-        <Box
-          className={`cursor-pointer bg-gray-50 py-4 transition-colors hover:bg-gray-100 dark:bg-slate-900/50 dark:hover:bg-slate-900/70 ${isCollapsed && !isMobileDrawer ? 'px-2' : 'px-4'}`}
-          onClick={handleProfileClick}
-          sx={{ minHeight: 44 }} // Touch target optimization
-        >
-          {isCollapsed && !isMobileDrawer ? (
-            <Tooltip
-              title={`${user.userName} (${user.subscription || 'free'})`}
-              placement="right"
-              arrow
-            >
-              <Box className="flex justify-center">
-                <Avatar
-                  src={user.avatar}
-                  alt={user.userName}
-                  className="bg-gradient-to-br from-indigo-500 to-pink-500"
-                  sx={{ width: 32, height: 32 }}
-                >
-                  {user.userName.charAt(0).toUpperCase()}
-                </Avatar>
-              </Box>
-            </Tooltip>
-          ) : (
-            <>
-              <Box className="flex items-center gap-3">
-                <Avatar
-                  src={user.avatar}
-                  alt={user.userName}
-                  className="bg-gradient-to-br from-indigo-500 to-pink-500"
-                  sx={{ width: 40, height: 40 }}
-                >
-                  {user.userName.charAt(0).toUpperCase()}
-                </Avatar>
-                <Box className="min-w-0 flex-1">
-                  <Typography
-                    variant="body2"
-                    className="truncate font-semibold text-gray-900 dark:text-slate-100"
+        {!isAnonymous && (
+          <Box
+            className={`cursor-pointer bg-gray-50 py-4 transition-colors hover:bg-gray-100 dark:bg-slate-900/50 dark:hover:bg-slate-900/70 ${isCollapsed && !isMobileDrawer ? 'px-2' : 'px-4'}`}
+            onClick={handleProfileClick}
+            sx={{ minHeight: 44 }} // Touch target optimization
+          >
+            {isCollapsed && !isMobileDrawer ? (
+              <Tooltip
+                title={`${user.userName} (${user.subscription || 'free'})`}
+                placement="right"
+                arrow
+              >
+                <Box className="flex justify-center">
+                  <Avatar
+                    src={user.avatar}
+                    alt={user.userName}
+                    className="bg-gradient-to-br from-indigo-500 to-pink-500"
+                    sx={{ width: 32, height: 32 }}
                   >
-                    {user.userName}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    className="block truncate text-gray-500 dark:text-slate-400"
-                  >
-                    {user.email}
-                  </Typography>
+                    {user.userName.charAt(0).toUpperCase()}
+                  </Avatar>
                 </Box>
-              </Box>
-              {/* Subscription Badge */}
-              {user.subscription && (
-                <Box className="mt-2">
-                  <Typography
-                    variant="caption"
-                    className={`inline-block rounded-full px-2 py-0.5 font-semibold ${
-                      user.subscription.packageCode === 'ENTERPRISE'
-                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                        : user.subscription.packageCode === 'PRO'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                          : user.subscription.isTrialing
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
-                    }`}
+              </Tooltip>
+            ) : (
+              <>
+                <Box className="flex items-center gap-3">
+                  <Avatar
+                    src={user.avatar}
+                    alt={user.userName}
+                    className="bg-gradient-to-br from-indigo-500 to-pink-500"
+                    sx={{ width: 40, height: 40 }}
                   >
-                    {user.subscription.packageName}
-                    {user.subscription.isTrialing && ' (Trial)'}
-                  </Typography>
+                    {user.userName.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box className="min-w-0 flex-1">
+                    <Typography
+                      variant="body2"
+                      className="truncate font-semibold text-gray-900 dark:text-slate-100"
+                    >
+                      {user.userName}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      className="block truncate text-gray-500 dark:text-slate-400"
+                    >
+                      {user.email}
+                    </Typography>
+                  </Box>
                 </Box>
-              )}
-            </>
-          )}
-        </Box>
+                {/* Subscription Badge */}
+                {user.subscription && (
+                  <Box className="mt-2">
+                    <Typography
+                      variant="caption"
+                      className={`inline-block rounded-full px-2 py-0.5 font-semibold ${
+                        user.subscription.packageCode === 'ENTERPRISE'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                          : user.subscription.packageCode === 'PRO'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : user.subscription.isTrialing
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {user.subscription.packageName}
+                      {user.subscription.isTrialing && ' (Trial)'}
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+        )}
 
         {/* User Profile Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={isMenuOpen}
-          onClose={handleMenuClose}
-          anchorOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'bottom',
-            horizontal: isCollapsed ? 'left' : 'right',
-          }}
-          slotProps={{
-            paper: {
-              className: 'mt-2 min-w-[200px] rounded-lg shadow-lg',
-            },
-          }}
-        >
-          {profileMenuItems.map(({ id, label, path, Icon }) => (
+        {!isAnonymous && (
+          <Menu
+            anchorEl={anchorEl}
+            open={isMenuOpen}
+            onClose={handleMenuClose}
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'bottom',
+              horizontal: isCollapsed ? 'left' : 'right',
+            }}
+            slotProps={{
+              paper: {
+                className: 'mt-2 min-w-[200px] rounded-lg shadow-lg',
+              },
+            }}
+          >
+            {profileMenuItems.map(({ id, label, path, Icon }) => (
+              <MenuItem
+                key={id}
+                component={Link}
+                to={path}
+                onClick={handleMenuNavigation}
+                selected={isActive(path)}
+                className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                <Icon size={18} className="text-gray-500 dark:text-slate-400" />
+                <Typography variant="body2">{label}</Typography>
+              </MenuItem>
+            ))}
             <MenuItem
-              key={id}
-              component={Link}
-              to={path}
-              onClick={handleMenuNavigation}
-              selected={isActive(path)}
+              onClick={handleUserSettings}
               className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              <Icon size={18} className="text-gray-500 dark:text-slate-400" />
-              <Typography variant="body2">{label}</Typography>
+              <Settings size={18} className="text-gray-500 dark:text-slate-400" />
+              <Typography variant="body2">Settings</Typography>
             </MenuItem>
-          ))}
-          <MenuItem
-            onClick={handleUserSettings}
-            className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            <Settings size={18} className="text-gray-500 dark:text-slate-400" />
-            <Typography variant="body2">Settings</Typography>
-          </MenuItem>
-          <Divider className="my-1" />
-          <MenuItem
-            onClick={handleLogout}
-            className="gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-          >
-            <LogOut size={18} />
-            <Typography variant="body2">Logout</Typography>
-          </MenuItem>
-        </Menu>
+            <Divider className="my-1" />
+            <MenuItem
+              onClick={handleLogout}
+              className="gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <LogOut size={18} />
+              <Typography variant="body2">Logout</Typography>
+            </MenuItem>
+          </Menu>
+        )}
       </Box>
     </Box>
   );

@@ -61,7 +61,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   const [agentsOwnerPublicId, setAgentsOwnerPublicId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isAnonymous, isLoading: authLoading } = useAuth();
   const authIdentity = isAuthenticated ? (user?.publicId ?? null) : null;
   const fetchRequestIdRef = useRef(0);
   const scopedAgents = agentsOwnerPublicId === authIdentity ? agents : defaultAgents;
@@ -110,7 +110,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || isAnonymous) {
       fetchRequestIdRef.current += 1;
       setAgents(defaultAgents);
       setAgentsOwnerPublicId(null);
@@ -122,7 +122,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     setAgents(defaultAgents);
     setAgentsOwnerPublicId(authIdentity);
     fetchAgents();
-  }, [authLoading, isAuthenticated, authIdentity]);
+  }, [authLoading, isAuthenticated, isAnonymous, authIdentity]);
 
   // ============================================
   // Agent Operations
