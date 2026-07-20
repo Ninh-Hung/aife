@@ -36,6 +36,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
 import { ChatSessionsList } from '../chat/ChatSessionsList';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useSidebarConversations } from './useSidebarConversations';
 
 // ============================================
@@ -87,6 +88,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { sessions, isLoading, renameConversation, archiveConversation, deleteConversation } =
     useSidebarConversations();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isMenuOpen = Boolean(anchorEl);
   const activeSessionId = location.pathname.startsWith('/chat/')
     ? location.pathname.split('/chat/')[1]?.split('/')[0]
@@ -149,16 +152,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/settings');
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
     handleMenuClose();
+    setIsLogoutDialogOpen(true);
+  };
+
+  const handleLogoutDialogClose = () => {
+    if (!isLoggingOut) {
+      setIsLogoutDialogOpen(false);
+    }
+  };
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
     try {
       // Call logout function from AuthContext
       // This will call POST /auth/logout and clear local state.
       await logout();
+      setIsLogoutDialogOpen(false);
       navigate('/', { replace: true });
     } catch (error) {
       // Error is already handled in AuthContext logout function
       console.error('Logout handler error:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -403,7 +420,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </MenuItem>
             <Divider className="my-1" />
             <MenuItem
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
             >
               <LogOut size={18} />
@@ -412,6 +429,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </Menu>
         )}
       </Box>
+      <ConfirmDialog
+        open={isLogoutDialogOpen}
+        title={t('logoutConfirm.title')}
+        message={t('logoutConfirm.message')}
+        confirmText={t('common.logout')}
+        cancelText={t('logoutConfirm.cancel')}
+        confirmColor="error"
+        loading={isLoggingOut}
+        onClose={handleLogoutDialogClose}
+        onConfirm={() => void handleConfirmLogout()}
+      />
     </Box>
   );
 };

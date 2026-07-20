@@ -6,26 +6,19 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
+import { getRandomChatSuggestions } from '../components/chat/chatInputContent';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { isAnonymousLimitError } from '../utils/error-handler';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
 
-// ============================================
-// Suggestion chips shown below the input
-// ============================================
-
-const SUGGESTIONS = [
-  'Translate a paragraph',
-  'Summarize an article',
-  'Help me write an email',
-  'Explain a concept',
-];
+const SUGGESTION_ROTATION_MS = 6400;
 
 const isAnonymousLimitResponse = (response: { error?: string; errorCode?: string }) =>
   response.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
@@ -39,12 +32,15 @@ const isAnonymousLimitResponse = (response: { error?: string; errorCode?: string
 // ============================================
 
 const LandingPage: React.FC = () => {
+  const { i18n } = useTranslation();
   const location = useLocation();
   const authMode = (location.state as { authMode?: 'signin' | 'signup' } | null)?.authMode;
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(Boolean(authMode));
   const navigate = useNavigate();
   const { agents } = useAgents();
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode();
+  const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
+  const [suggestions, setSuggestions] = useState(() => getRandomChatSuggestions(currentLanguage));
 
   const openSignInModal = () => {
     navigate('/', { replace: true, state: null });
@@ -61,6 +57,20 @@ const LandingPage: React.FC = () => {
       setIsSignInModalOpen(true);
     }
   }, [authMode]);
+
+  useEffect(() => {
+    setSuggestions((currentSuggestions) =>
+      getRandomChatSuggestions(currentLanguage, 4, currentSuggestions)
+    );
+
+    const intervalId = window.setInterval(() => {
+      setSuggestions((currentSuggestions) =>
+        getRandomChatSuggestions(currentLanguage, 4, currentSuggestions)
+      );
+    }, SUGGESTION_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [currentLanguage]);
 
   // Handle anonymous chat - create session and send first message
   const handleSend = async (
@@ -130,10 +140,8 @@ const LandingPage: React.FC = () => {
       {/* ── Main ───────────────────────────────────────────── */}
       <main className="flex flex-1 items-center justify-center pb-16 pt-4">
         <ChatInputScreen
-          heading="What can I help you with?"
-          placeholder="Ask me anything..."
           onSend={handleSend}
-          suggestions={SUGGESTIONS}
+          suggestions={suggestions}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
         />

@@ -4,11 +4,13 @@
  * and as the empty/new-chat state after login.
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, ArrowUp, X, ImageIcon, FileUp, ChevronDown, Bot } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAgents } from '../../contexts/AgentsContext';
 import { AvatarMedia } from './AvatarMedia';
+import { getChatInputContent, getRandomChatHeading } from './chatInputContent';
 import type { Agent } from '../../types';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 
@@ -50,23 +52,31 @@ const ALLOWED_IMAGE_TYPES = new Set([
   'image/tiff',
 ]);
 const MAX_ANON_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const CHAT_HEADING_ROTATION_MS = 4800;
 
 // ============================================
 // ChatInputScreen Component
 // ============================================
 
 export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
-  heading = 'What can I help you with?',
-  placeholder = 'Ask me anything...',
+  heading,
+  placeholder,
   onSend,
   isSubmitting = false,
   suggestions,
   executionMode = 'normal',
   onExecutionModeChange,
 }) => {
+  const { i18n } = useTranslation();
   const { user, isAnonymous } = useAuth();
   const { agents } = useAgents();
+  const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
+  const chatInputContent = useMemo(() => getChatInputContent(currentLanguage), [currentLanguage]);
+  const displayPlaceholder = placeholder ?? chatInputContent.placeholder;
 
+  const [rotatingHeading, setRotatingHeading] = useState(() =>
+    getRandomChatHeading(currentLanguage)
+  );
   const [inputValue, setInputValue] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -83,6 +93,20 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   useEffect(() => {
     setLocalExecutionMode(executionMode);
   }, [executionMode]);
+
+  useEffect(() => {
+    if (heading) {
+      return;
+    }
+
+    setRotatingHeading((currentHeading) => getRandomChatHeading(currentLanguage, currentHeading));
+
+    const intervalId = window.setInterval(() => {
+      setRotatingHeading((currentHeading) => getRandomChatHeading(currentLanguage, currentHeading));
+    }, CHAT_HEADING_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [currentLanguage, heading]);
 
   // Keep selectedAgent scoped to the current user's agent list.
   useEffect(() => {
@@ -181,7 +205,9 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     // For anonymous users, enforce image-only + 5 MB limit
     if (isAnonymous) {
       if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-        setUploadError('Only image files are supported (PNG, JPG, GIF, WebP, etc.) in anonymous mode.');
+        setUploadError(
+          'Only image files are supported (PNG, JPG, GIF, WebP, etc.) in anonymous mode.'
+        );
         return;
       }
       if (file.size > MAX_ANON_FILE_SIZE) {
@@ -211,8 +237,10 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   return (
     <div className="flex w-full flex-col items-center px-4">
       {/* Heading */}
-      <h1 className="mb-8 text-center text-3xl font-semibold text-gray-900 dark:text-white sm:text-4xl">
-        {heading}
+      <h1 className="mb-8 min-h-[2.5rem] overflow-hidden text-center text-3xl font-semibold text-gray-900 dark:text-white sm:min-h-[3rem] sm:text-4xl">
+        <span key={heading ?? rotatingHeading} className="chat-copy-slide inline-block">
+          {heading ?? rotatingHeading}
+        </span>
       </h1>
 
       {/* Input box */}
@@ -332,7 +360,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             value={inputValue}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={displayPlaceholder}
             disabled={isSubmitting}
             rows={1}
             className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none disabled:cursor-wait dark:text-white dark:placeholder-slate-500"
@@ -434,7 +462,10 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
 
       {/* Suggestion chips */}
       {suggestions && suggestions.length > 0 && (
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div
+          key={suggestions.join('|')}
+          className="chat-copy-slide mt-6 flex flex-wrap justify-center gap-2"
+        >
           {suggestions.map((s) => (
             <button
               key={s}

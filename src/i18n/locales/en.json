@@ -10,6 +10,11 @@
     "trial": "Trial",
     "comingSoon": "Coming Soon"
   },
+  "logoutConfirm": {
+    "title": "Confirm logout",
+    "message": "Are you sure you want to log out of the current account?",
+    "cancel": "Cancel"
+  },
   "language": {
     "label": "Language",
     "switchTo": "Switch language to {{language}}",

@@ -10,6 +10,11 @@
     "trial": "Dùng thử",
     "comingSoon": "Sắp ra mắt"
   },
+  "logoutConfirm": {
+    "title": "Xác nhận đăng xuất",
+    "message": "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản hiện tại?",
+    "cancel": "Hủy"
+  },
   "language": {
     "label": "Ngôn ngữ",
     "switchTo": "Đổi ngôn ngữ sang {{language}}",
