@@ -17,6 +17,16 @@ export interface UserQuota {
   totalRemainingTokens?: number;
   packageTokensUsed?: number;
   monthStartDate?: string;
+  walletSourceSummary?: WalletSourceSummary;
+}
+
+export interface WalletSourceSummary {
+  purchased: number;
+  adminGranted: number;
+  carryOver: number;
+  refundAdjustment: number;
+  debited: number;
+  otherCredits: number;
 }
 
 export type TokenUsagePeriod = 'day' | 'month' | 'year';

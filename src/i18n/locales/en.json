@@ -541,7 +541,18 @@
       "usageQuota": "Usage Quota",
       "charactersUsed": "Characters used",
       "tokensUsed": "Tokens used · {{remaining}} remaining",
-      "percentUsed": "{{percent}}% used"
+      "percentUsed": "{{percent}}% used",
+      "packageQuota": "Package quota",
+      "walletToken": "Wallet token",
+      "availableToken": "Available token",
+      "nextReset": "Next package reset: {{date}}",
+      "nextResetUnknown": "Unknown"
+    },
+    "walletSources": {
+      "purchased": "Purchased",
+      "adminGranted": "Admin granted",
+      "carryOver": "Carry-over",
+      "adjustment": "Adjustment"
     },
     "subscription": {
       "free": "Free",

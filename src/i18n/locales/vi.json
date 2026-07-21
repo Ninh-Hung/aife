@@ -541,7 +541,18 @@
       "usageQuota": "Hạn mức sử dụng",
       "charactersUsed": "Ký tự đã dùng",
       "tokensUsed": "Token đã dùng · còn {{remaining}}",
-      "percentUsed": "Đã dùng {{percent}}%"
+      "percentUsed": "Đã dùng {{percent}}%",
+      "packageQuota": "Quota gói",
+      "walletToken": "Token wallet",
+      "availableToken": "Token khả dụng",
+      "nextReset": "Reset quota gói tiếp theo: {{date}}",
+      "nextResetUnknown": "Chưa rõ"
+    },
+    "walletSources": {
+      "purchased": "Đã mua",
+      "adminGranted": "Admin cộng",
+      "carryOver": "Carry-over",
+      "adjustment": "Điều chỉnh"
     },
     "subscription": {
       "free": "Miễn phí",

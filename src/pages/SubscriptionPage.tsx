@@ -93,7 +93,7 @@ export const SubscriptionPage: React.FC = () => {
       const result = await cancelSubscription();
 
       if (result.success) {
-        success('Subscription cancelled successfully');
+        success('Subscription cancelled. You are now on FREE and can keep using wallet tokens.');
         // Refresh data
         await fetchAllData();
       } else {
@@ -255,8 +255,8 @@ export const SubscriptionPage: React.FC = () => {
         <DialogTitle>Cancel Subscription</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to cancel your subscription? You will lose access to premium
-            features at the end of your billing period.
+            Are you sure you want to cancel your subscription? Unused package tokens will move to
+            your wallet, and your active package will switch to FREE.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

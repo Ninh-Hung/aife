@@ -5,7 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Card, Typography, LinearProgress, Chip } from '@mui/material';
-import { Activity, BarChart3, CreditCard, Users } from 'lucide-react';
+import { Activity, BarChart3, Coins, CreditCard, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useAgents } from '../contexts/AgentsContext';
@@ -80,7 +80,17 @@ export const Dashboard: React.FC = () => {
       used,
       total,
       percentage,
-      remaining: currentQuota?.totalRemainingTokens ?? currentQuota?.remainingTokens ?? 0,
+      packageRemaining,
+      walletTokens: currentQuota?.advanceTokens ?? 0,
+      availableTokens: currentQuota?.totalRemainingTokens ?? currentQuota?.remainingTokens ?? 0,
+      nextReset: currentQuota?.monthStartDate
+        ? (() => {
+            const resetDate = new Date(currentQuota.monthStartDate);
+            resetDate.setMonth(resetDate.getMonth() + 1);
+            return resetDate.toLocaleDateString();
+          })()
+        : null,
+      walletSourceSummary: currentQuota?.walletSourceSummary,
     };
   }, [currentQuota]);
 
@@ -288,9 +298,69 @@ export const Dashboard: React.FC = () => {
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
                 {t('dashboard.stats.tokensUsed', {
-                  remaining: usageData.remaining.toLocaleString(),
+                  remaining: usageData.availableTokens.toLocaleString(),
                 })}
               </Typography>
+              <Box className="mt-4 grid grid-cols-1 gap-2 text-sm">
+                <Box className="flex items-center justify-between gap-3">
+                  <span className="text-gray-500 dark:text-slate-400">
+                    {t('dashboard.stats.packageQuota')}
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {usageData.packageRemaining.toLocaleString()}
+                  </span>
+                </Box>
+                <Box className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-1 text-gray-500 dark:text-slate-400">
+                    <Coins size={14} className="text-amber-500" />
+                    {t('dashboard.stats.walletToken')}
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {usageData.walletTokens.toLocaleString()}
+                  </span>
+                </Box>
+                <Box className="flex items-center justify-between gap-3 border-t border-gray-100 pt-2 dark:border-slate-700">
+                  <span className="text-gray-500 dark:text-slate-400">
+                    {t('dashboard.stats.availableToken')}
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {usageData.availableTokens.toLocaleString()}
+                  </span>
+                </Box>
+                <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                  {t('dashboard.stats.nextReset', {
+                    date: usageData.nextReset || t('dashboard.stats.nextResetUnknown'),
+                  })}
+                </Typography>
+                {usageData.walletTokens > 0 && usageData.walletSourceSummary && (
+                  <Box className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 p-2 text-xs dark:bg-slate-900/60">
+                    <span className="text-gray-500 dark:text-slate-400">
+                      {t('dashboard.walletSources.purchased')}
+                    </span>
+                    <span className="text-right text-gray-700 dark:text-slate-200">
+                      {usageData.walletSourceSummary.purchased.toLocaleString()}
+                    </span>
+                    <span className="text-gray-500 dark:text-slate-400">
+                      {t('dashboard.walletSources.adminGranted')}
+                    </span>
+                    <span className="text-right text-gray-700 dark:text-slate-200">
+                      {usageData.walletSourceSummary.adminGranted.toLocaleString()}
+                    </span>
+                    <span className="text-gray-500 dark:text-slate-400">
+                      {t('dashboard.walletSources.carryOver')}
+                    </span>
+                    <span className="text-right text-gray-700 dark:text-slate-200">
+                      {usageData.walletSourceSummary.carryOver.toLocaleString()}
+                    </span>
+                    <span className="text-gray-500 dark:text-slate-400">
+                      {t('dashboard.walletSources.adjustment')}
+                    </span>
+                    <span className="text-right text-gray-700 dark:text-slate-200">
+                      {usageData.walletSourceSummary.refundAdjustment.toLocaleString()}
+                    </span>
+                  </Box>
+                )}
+              </Box>
               {/* Progress Bar */}
               <Box className="mt-3">
                 <LinearProgress
