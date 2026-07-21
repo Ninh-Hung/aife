@@ -17,7 +17,7 @@ export const EmailVerificationPending: React.FC = () => {
   const email = (location.state as { email?: string })?.email || '';
 
   const handleBackToSignIn = () => {
-    navigate('/');
+    navigate('/', { state: { authMode: 'signin' } });
   };
 
   return (

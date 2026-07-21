@@ -16,3 +16,8 @@ export const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
  * Minimum username length
  */
 export const MIN_USERNAME_LENGTH = 3;
+
+/**
+ * Shared translation key for AI-generated content warning
+ */
+export const AI_AGENT_WARNING_MESSAGE_KEY = 'chat.aiAgentWarning';

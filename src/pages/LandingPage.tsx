@@ -16,6 +16,7 @@ import { useAgents } from '../contexts/AgentsContext';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { isAnonymousLimitError } from '../utils/error-handler';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
+import { AI_AGENT_WARNING_MESSAGE_KEY } from '../common/constants';
 
 const SUGGESTION_ROTATION_MS = 6400;
 
@@ -31,7 +32,7 @@ const isAnonymousLimitResponse = (response: { error?: string; errorCode?: string
 // ============================================
 
 const LandingPage: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const location = useLocation();
   const authMode = (location.state as { authMode?: 'signin' | 'signup' } | null)?.authMode;
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(Boolean(authMode));
@@ -143,6 +144,10 @@ const LandingPage: React.FC = () => {
           onExecutionModeChange={setExecutionMode}
         />
       </main>
+
+      <p className="px-6 pb-4 text-center text-xs italic text-slate-400">
+        {t(AI_AGENT_WARNING_MESSAGE_KEY)}
+      </p>
 
       {/* ── Sign In Modal ───────────────────────────────────── */}
       <SignInModal

@@ -12,6 +12,7 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { AvatarMedia } from './AvatarMedia';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
+import { AI_AGENT_WARNING_MESSAGE_KEY } from '../../common/constants';
 
 interface ChatConversationProps {
   agent: Agent;
@@ -181,6 +182,9 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 
       {/* Message Input - Fixed at Bottom */}
       <div className="sticky bottom-0 z-20 flex-shrink-0">
+        <p className="bg-gray-50 px-4 py-2 text-center text-xs italic text-gray-400 dark:bg-slate-900 dark:text-slate-500">
+          {t(AI_AGENT_WARNING_MESSAGE_KEY)}
+        </p>
         <MessageInput
           onSend={onSendMessage}
           onCancel={onCancelResponse}

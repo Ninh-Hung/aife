@@ -184,9 +184,8 @@ export const SignInModal: React.FC<SignInModalProps> = ({
           password,
         });
 
-        // Registration successful - redirect to "check your email" page
-        navigate('/email-sent', { state: { email } });
-        handleClose();
+        // Registration successful - redirect to email verification instructions.
+        navigate('/email-sent', { replace: true, state: { email } });
       } catch (err) {
         const message =
           typeof err === 'object' &&
@@ -216,6 +215,18 @@ export const SignInModal: React.FC<SignInModalProps> = ({
         handleClose();
         navigate('/new-chat');
       } catch (err) {
+        const authError = err as Error & { errorCode?: string; email?: string };
+        if (authError.errorCode === 'EMAIL_NOT_VERIFIED') {
+          navigate('/email-sent', {
+            replace: true,
+            state: {
+              email: authError.email || email,
+              fromLogin: true,
+            },
+          });
+          return;
+        }
+
         setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
       } finally {
         setIsLoading(false);

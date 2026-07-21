@@ -6,13 +6,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react';
-import { verifyEmail } from '../services/api';
+import { verifyEmail, type ApiResponse } from '../services/api';
 
 // ============================================
 // Type Definitions
 // ============================================
 
 type VerificationStatus = 'loading' | 'success' | 'error';
+
+type VerifyEmailData = {
+  email?: string;
+};
 
 // ============================================
 // Email Verification Component
@@ -50,10 +54,19 @@ export const EmailVerification: React.FC = () => {
 
       // Call verification API
       try {
-        const result = await verifyEmail(token);
+        const result = (await verifyEmail(token)) as ApiResponse<VerifyEmailData>;
 
         if (result.success) {
           setStatus('success');
+          window.setTimeout(() => {
+            navigate('/', {
+              replace: true,
+              state: {
+                authMode: 'signin',
+                verifiedEmail: result.data?.email,
+              },
+            });
+          }, 800);
         } else {
           setStatus('error');
           setErrorMessage(result.error || 'Verification failed. Please try again.');
@@ -68,7 +81,7 @@ export const EmailVerification: React.FC = () => {
   }, [token]);
 
   const handleBackToLogin = () => {
-    navigate('/');
+    navigate('/', { state: { authMode: 'signin' } });
   };
 
   // ============================================

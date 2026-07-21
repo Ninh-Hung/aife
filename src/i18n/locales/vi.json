@@ -183,7 +183,8 @@
     }
   },
   "chat": {
-    "thinking": "Đang suy nghĩ..."
+    "thinking": "Đang suy nghĩ...",
+    "aiAgentWarning": "AI agent có thể mắc lỗi, hãy luôn kiểm tra/đối chiếu thông tin quan trọng."
   },
   "feedback": {
     "title": "Feedback",

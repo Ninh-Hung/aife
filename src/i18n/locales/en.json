@@ -183,7 +183,8 @@
     }
   },
   "chat": {
-    "thinking": "Thinking..."
+    "thinking": "Thinking...",
+    "aiAgentWarning": "AI agents can make mistakes. Always check/verify important information."
   },
   "feedback": {
     "title": "Feedback",

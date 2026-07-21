@@ -41,6 +41,10 @@ export const setupAxiosToast = (axiosInstance: AxiosInstance, enqueueSnackbar: E
         return Promise.reject(error);
       }
 
+      if (requestUrl.includes('/auth/login') && errorCode === 'EMAIL_NOT_VERIFIED') {
+        return Promise.reject(error);
+      }
+
       // Extract error message
       const errorMessage =
         error.response?.data?.message ||

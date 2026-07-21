@@ -62,6 +62,20 @@ export const clearAccessToken = () => {
 
 let refreshPromise: Promise<string> | null = null;
 
+const AUTH_REFRESH_EXCLUDED_PATHS = [
+  '/auth/refresh',
+  '/auth/anonymous',
+  '/auth/login',
+  '/auth/register',
+  '/auth/resend-otp',
+  '/auth/verify-email',
+  '/auth/logout',
+];
+
+const shouldSkipRefreshForRequest = (url: string) => {
+  return AUTH_REFRESH_EXCLUDED_PATHS.some((path) => url.includes(path));
+};
+
 refreshClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (config.headers) {
     config.headers[LANGUAGE_HEADER] = getStoredAppLocale();
@@ -181,7 +195,7 @@ axiosInstance.interceptors.response.use(
 
       // Auth bootstrap calls must resolve/reject directly. Retrying refresh from a
       // failed refresh request can leave app initialization waiting forever.
-      if (requestUrl.includes('/auth/refresh') || requestUrl.includes('/auth/anonymous')) {
+      if (shouldSkipRefreshForRequest(requestUrl)) {
         return Promise.reject(error);
       }
 

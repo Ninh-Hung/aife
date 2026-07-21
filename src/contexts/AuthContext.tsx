@@ -356,11 +356,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(response.data.message || 'Login failed');
       }
     } catch (error) {
-      const axiosError = error as AxiosError<{ message?: string }>;
+      const axiosError = error as AxiosError<{
+        message?: string;
+        error?: string;
+        errorCode?: string;
+        data?: { email?: string };
+      }>;
       console.error('[AuthContext] Login failed:', error);
-      throw new Error(
-        axiosError.response?.data?.message || 'Login failed. Please check your credentials.'
-      );
+      const responseData = axiosError.response?.data;
+      const loginError = new Error(
+        responseData?.message || 'Login failed. Please check your credentials.'
+      ) as Error & { errorCode?: string; email?: string };
+      loginError.errorCode = responseData?.errorCode || responseData?.error;
+      loginError.email = responseData?.data?.email || identifier;
+      throw loginError;
     }
   };
 
