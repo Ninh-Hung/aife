@@ -31,6 +31,7 @@ import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
 import { KnowledgeManagement } from './pages/KnowledgeManagement';
 import { SettingsPage } from './pages/SettingsPage';
+import { FeedbackPage } from './pages/FeedbackPage';
 import { ChatScreen } from './pages/ChatScreen';
 import NewChatPage from './pages/NewChatPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -44,11 +45,13 @@ import {
   KeyRound,
   BookOpen,
   Settings,
+  MessageCircleWarning,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
 import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
 import { UpgradeModal } from './components/subscription';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { FeedbackDialog } from './components/feedback/FeedbackDialog';
 import { mergeAnonymousSession } from './services/api';
 import { ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY } from './contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -271,6 +274,14 @@ const AppContent: React.FC = () => {
             icon={<Settings className="text-white" size={24} />}
           />
         );
+      case '/feedback':
+        return (
+          <Header
+            title={t('header.feedback.title')}
+            subtitle={t('header.feedback.subtitle')}
+            icon={<MessageCircleWarning className="text-white" size={24} />}
+          />
+        );
       default:
         // Check if it's a chat route (starts with /chat/)
         if (location.pathname.startsWith('/chat/')) {
@@ -323,6 +334,7 @@ const AppContent: React.FC = () => {
                   <Route path="/agents" element={<AgentManagement />} />
                   <Route path="/knowledge" element={<KnowledgeManagement />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/feedback" element={<FeedbackPage />} />
                   <Route path="/chat/:sessionId" element={<ChatScreenRoute />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
                   <Route
@@ -379,6 +391,7 @@ const AppContent: React.FC = () => {
         onClose={handleSkipAnonymousMerge}
         onConfirm={() => void handleConfirmAnonymousMerge()}
       />
+      <FeedbackDialog />
     </>
   );
 };

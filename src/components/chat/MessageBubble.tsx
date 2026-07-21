@@ -16,8 +16,10 @@ import {
   File as FileIcon,
   X,
   UserPlus,
+  Flag,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChatMessage } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
 import { parseAgentResponse } from '../../utils/agentResponse';
@@ -31,6 +33,7 @@ interface MessageBubbleProps {
   agentAvatarType?: 'image' | 'video';
   userAvatar?: string;
   userAvatarType?: 'image' | 'video';
+  onReport?: (message: ChatMessage) => void;
 }
 
 type MessageAttachment = NonNullable<ChatMessage['attachments']>[number];
@@ -41,8 +44,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   agentAvatarType,
   userAvatar,
   userAvatarType,
+  onReport,
 }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isReasoningOpen, setIsReasoningOpen] = useState(false);
@@ -378,6 +383,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               >
                 {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
               </button>
+              {!isUser && onReport && (
+                <button
+                  onClick={() => onReport(message)}
+                  title={t('feedback.chat.reportResponse')}
+                  className="rounded p-0.5 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+                >
+                  <Flag size={12} />
+                </button>
+              )}
             </div>
           </div>
         </div>

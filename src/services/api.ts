@@ -55,6 +55,58 @@ export interface TranslateTextResponse {
   };
 }
 
+export type FeedbackType = 'FEEDBACK' | 'BUG_REPORT' | 'ABUSE_REPORT' | 'OTHER';
+export type FeedbackTargetType = 'APP' | 'CHAT_SESSION' | 'CHAT_MESSAGE' | 'SHARED_CONVERSATION';
+
+export interface CreateFeedbackInput {
+  type: FeedbackType;
+  title?: string;
+  description: string;
+  evidenceImages?: File[];
+  targetType?: FeedbackTargetType;
+  conversationId?: string;
+  messageId?: string;
+  agentId?: string;
+  reportedMessageSnapshot?: string;
+  previousUserMessageSnapshot?: string;
+  sourceContext?: string;
+  currentPageUrl?: string;
+  browserInfo?: string;
+}
+
+export interface FeedbackAttachment {
+  filePublicId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  url: string;
+}
+
+export interface FeedbackMessage {
+  id: number;
+  senderType: 'USER' | 'ADMIN' | 'SYSTEM' | 'AGENT';
+  senderId?: number | null;
+  content: string;
+  isAiGenerated: boolean;
+  createdAt: string;
+  attachments: FeedbackAttachment[];
+}
+
+export interface FeedbackTicket {
+  publicId: string;
+  title?: string | null;
+  type: FeedbackType | string;
+  priority?: string | null;
+  status: string;
+  source?: string | null;
+  meta: Record<string, unknown>;
+  aiSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string | null;
+  messages: FeedbackMessage[];
+}
+
 export const translateText = async (
   input: TranslateTextInput
 ): Promise<ApiResponse<TranslateTextResponse>> => {
@@ -103,6 +155,83 @@ export const getSupportedLanguages = async (): Promise<ApiResponse<Language[]>> 
       message: axiosError.response?.data?.message,
     };
   }
+};
+
+export const createFeedback = async (input: CreateFeedbackInput): Promise<ApiResponse> => {
+  try {
+    const formData = new FormData();
+    formData.append('type', input.type);
+    formData.append('description', input.description);
+
+    const fields: Array<keyof CreateFeedbackInput> = [
+      'title',
+      'targetType',
+      'conversationId',
+      'messageId',
+      'agentId',
+      'reportedMessageSnapshot',
+      'previousUserMessageSnapshot',
+      'sourceContext',
+      'currentPageUrl',
+      'browserInfo',
+    ];
+
+    fields.forEach((field) => {
+      const value = input[field];
+      if (typeof value === 'string' && value.trim()) {
+        formData.append(field, value);
+      }
+    });
+
+    input.evidenceImages?.forEach((file) => formData.append('evidenceImages', file));
+
+    const response = await axiosInstance.post('/v1/feedback', formData);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Create feedback error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to submit feedback',
+    };
+  }
+};
+
+export const listMyFeedback = async (): Promise<ApiResponse<FeedbackTicket[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/feedback/my');
+
+    return {
+      success: true,
+      data: response.data.data || [],
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('List feedback error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to load feedback',
+    };
+  }
+};
+
+export const getFeedbackEvidenceBlob = async (url: string): Promise<Blob> => {
+  const response = await axiosInstance.get(url, { responseType: 'blob' });
+  return response.data;
 };
 
 // ============================================

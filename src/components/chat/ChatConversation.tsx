@@ -6,6 +6,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Bot, Info, MessageSquare } from 'lucide-react';
 import { IconButton, CircularProgress } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { Agent, ChatMessage } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
@@ -43,6 +44,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   userAvatar,
   userAvatarType,
 }) => {
+  const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -50,10 +52,33 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleReportMessage = (message: ChatMessage) => {
+    const messageIndex = messages.findIndex((item) => item.id === message.id);
+    const previousUserMessage = [...messages.slice(0, messageIndex)]
+      .reverse()
+      .find((item) => item.role === 'user');
+
+    window.dispatchEvent(
+      new CustomEvent('feedback:open', {
+        detail: {
+          type: 'ABUSE_REPORT',
+          title: t('feedback.chat.reportAiResponseTitle'),
+          targetType: 'CHAT_MESSAGE',
+          sourceContext: 'CHAT_MESSAGE_ACTION',
+          conversationId: message.sessionId,
+          messageId: message.id,
+          agentId: agent.publicId || agent.id,
+          reportedMessageSnapshot: message.content,
+          previousUserMessageSnapshot: previousUserMessage?.content,
+        },
+      })
+    );
+  };
+
   const thinkingIndicator = (
     <div className="flex items-center gap-2 rounded-lg bg-white px-4 py-3 dark:bg-slate-800">
       <CircularProgress size={16} className="text-gray-600 dark:text-slate-400" />
-      <span className="text-sm text-gray-600 dark:text-slate-400">thinking...</span>
+      <span className="text-sm text-gray-600 dark:text-slate-400">{t('chat.thinking')}</span>
     </div>
   );
 
@@ -129,6 +154,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
                 agentAvatarType={agent.avatarType}
                 userAvatar={userAvatar}
                 userAvatarType={userAvatarType}
+                onReport={handleReportMessage}
               />
             ))}
 

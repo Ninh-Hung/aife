@@ -45,6 +45,7 @@
     "knowledge": "Knowledge",
     "apiKeys": "API Keys",
     "subscription": "Subscription",
+    "feedback": "Feedback",
     "multilanguage": "Multilanguage"
   },
   "header": {
@@ -80,6 +81,75 @@
     "apiKeys": {
       "title": "API Keys",
       "subtitle": "Manage your API authentication tokens"
+    },
+    "feedback": {
+      "title": "Feedback",
+      "subtitle": "Track feedback and reports sent to the admin team"
+    }
+  },
+  "chat": {
+    "thinking": "Thinking..."
+  },
+  "feedback": {
+    "title": "Feedback",
+    "subtitle": "View your feedback history and send a new report to the admin team.",
+    "actions": {
+      "refresh": "Refresh",
+      "create": "Create feedback",
+      "addImages": "Add images",
+      "cancel": "Cancel",
+      "submit": "Submit",
+      "submitting": "Submitting..."
+    },
+    "empty": {
+      "title": "No feedback yet",
+      "description": "Create feedback when you want to report an issue, share app feedback, or attach evidence."
+    },
+    "ticket": {
+      "untitled": "Untitled feedback",
+      "imageCount": "{{count}} image(s)"
+    },
+    "dialog": {
+      "title": "Feedback",
+      "reportResponseTitle": "Report response",
+      "type": "Type",
+      "feedbackTitle": "Title",
+      "details": "Details",
+      "reportedResponse": "Reported response",
+      "evidenceAlt": "Evidence {{index}}"
+    },
+    "types": {
+      "FEEDBACK": "Feedback",
+      "BUG_REPORT": "Bug report",
+      "ABUSE_REPORT": "Report content",
+      "OTHER": "Other"
+    },
+    "status": {
+      "NEW": "New",
+      "IN_PROGRESS": "In progress",
+      "RESOLVED": "Resolved",
+      "CLOSED": "Closed",
+      "SPAM": "Spam"
+    },
+    "priority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "validation": {
+      "detailsRequired": "Please enter feedback details."
+    },
+    "messages": {
+      "submitted": "Feedback submitted."
+    },
+    "errors": {
+      "loadFailed": "Unable to load feedback.",
+      "submitFailed": "Failed to submit feedback."
+    },
+    "chat": {
+      "reportAiResponseTitle": "Report AI response",
+      "reportResponse": "Report response"
     }
   },
   "knowledge": {

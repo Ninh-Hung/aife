@@ -30,6 +30,7 @@ import {
   KeyRound,
   SquarePen,
   BookOpen,
+  MessageCircleWarning,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -150,6 +151,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     handleMenuClose();
     handleNavigation();
     navigate('/settings');
+  };
+
+  const handleFeedback = () => {
+    handleMenuClose();
+    handleNavigation();
+    navigate('/feedback');
   };
 
   const handleLogoutClick = () => {
@@ -417,6 +424,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <Settings size={18} className="text-gray-500 dark:text-slate-400" />
               <Typography variant="body2">{t('common.settings')}</Typography>
+            </MenuItem>
+            <MenuItem
+              onClick={handleFeedback}
+              className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <MessageCircleWarning size={18} className="text-gray-500 dark:text-slate-400" />
+              <Typography variant="body2">{t('sidebar.feedback')}</Typography>
             </MenuItem>
             <Divider className="my-1" />
             <MenuItem

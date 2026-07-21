@@ -45,6 +45,7 @@
     "knowledge": "Kiến thức",
     "apiKeys": "API Keys",
     "subscription": "Gói dịch vụ",
+    "feedback": "Feedback",
     "multilanguage": "Đa ngôn ngữ"
   },
   "header": {
@@ -80,6 +81,75 @@
     "apiKeys": {
       "title": "API Keys",
       "subtitle": "Quản lý token xác thực API"
+    },
+    "feedback": {
+      "title": "Feedback",
+      "subtitle": "Theo dõi feedback và báo cáo đã gửi cho đội ngũ admin"
+    }
+  },
+  "chat": {
+    "thinking": "Đang suy nghĩ..."
+  },
+  "feedback": {
+    "title": "Feedback",
+    "subtitle": "Xem lịch sử feedback của bạn và gửi báo cáo mới cho đội ngũ admin.",
+    "actions": {
+      "refresh": "Làm mới",
+      "create": "Tạo feedback",
+      "addImages": "Thêm ảnh",
+      "cancel": "Hủy",
+      "submit": "Gửi",
+      "submitting": "Đang gửi..."
+    },
+    "empty": {
+      "title": "Chưa có feedback",
+      "description": "Tạo feedback khi bạn muốn báo lỗi, góp ý cho ứng dụng hoặc đính kèm bằng chứng."
+    },
+    "ticket": {
+      "untitled": "Feedback chưa có tiêu đề",
+      "imageCount": "{{count}} ảnh"
+    },
+    "dialog": {
+      "title": "Feedback",
+      "reportResponseTitle": "Báo cáo phản hồi",
+      "type": "Loại",
+      "feedbackTitle": "Tiêu đề",
+      "details": "Chi tiết",
+      "reportedResponse": "Phản hồi bị báo cáo",
+      "evidenceAlt": "Bằng chứng {{index}}"
+    },
+    "types": {
+      "FEEDBACK": "Góp ý",
+      "BUG_REPORT": "Báo lỗi",
+      "ABUSE_REPORT": "Báo cáo nội dung",
+      "OTHER": "Khác"
+    },
+    "status": {
+      "NEW": "Mới",
+      "IN_PROGRESS": "Đang xử lý",
+      "RESOLVED": "Đã xử lý",
+      "CLOSED": "Đã đóng",
+      "SPAM": "Spam"
+    },
+    "priority": {
+      "LOW": "Thấp",
+      "MEDIUM": "Trung bình",
+      "HIGH": "Cao",
+      "URGENT": "Khẩn cấp"
+    },
+    "validation": {
+      "detailsRequired": "Vui lòng nhập chi tiết feedback."
+    },
+    "messages": {
+      "submitted": "Đã gửi feedback."
+    },
+    "errors": {
+      "loadFailed": "Không thể tải feedback.",
+      "submitFailed": "Không thể gửi feedback."
+    },
+    "chat": {
+      "reportAiResponseTitle": "Báo cáo phản hồi AI",
+      "reportResponse": "Báo cáo phản hồi"
     }
   },
   "knowledge": {
