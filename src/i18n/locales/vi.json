@@ -24,9 +24,104 @@
   "settings": {
     "title": "Cài đặt",
     "subtitle": "Quản lý tùy chọn tài khoản",
+    "profile": {
+      "title": "Hồ sơ cá nhân",
+      "description": "Cập nhật tên hiển thị và ảnh đại diện của bạn.",
+      "fields": {
+        "fullName": "Tên hiển thị"
+      },
+      "actions": {
+        "upload": "Tải ảnh",
+        "uploading": "Đang tải...",
+        "removeAvatar": "Xóa ảnh đại diện",
+        "save": "Lưu thay đổi",
+        "saving": "Đang lưu..."
+      },
+      "messages": {
+        "avatarUploaded": "Tải ảnh đại diện thành công",
+        "updated": "Cập nhật hồ sơ thành công"
+      },
+      "errors": {
+        "invalidAvatarType": "Vui lòng chọn tệp hình ảnh.",
+        "avatarTooLarge": "Tệp quá lớn. Kích thước tối đa là {{size}} MB.",
+        "uploadFailed": "Không thể tải ảnh đại diện",
+        "updateFailed": "Không thể cập nhật hồ sơ"
+      }
+    },
     "language": {
       "title": "Ngôn ngữ giao diện",
       "description": "Chọn ngôn ngữ dùng cho giao diện ứng dụng và message lỗi API."
+    },
+    "memory": {
+      "title": "Memory",
+      "description": "Xem và quản lý các ghi nhớ dài hạn mà AI dùng khi trả lời bạn.",
+      "activeCount": "{{count}} memory đang hiển thị",
+      "empty": "Chưa có memory phù hợp với bộ lọc.",
+      "importance": "Độ quan trọng {{value}}",
+      "useCount": "Đã dùng {{count}} lần",
+      "filters": {
+        "scope": "Phạm vi",
+        "status": "Trạng thái",
+        "search": "Tìm theo key, nội dung hoặc category"
+      },
+      "columns": {
+        "key": "Key",
+        "value": "Nội dung",
+        "scope": "Phạm vi",
+        "meta": "Thông tin",
+        "actions": "Thao tác"
+      },
+      "scope": {
+        "all": "Tất cả",
+        "USER": "User",
+        "AGENT": "Agent",
+        "PROJECT": "Project"
+      },
+      "status": {
+        "ACTIVE": "Đang hoạt động",
+        "SUPERSEDED": "Đã thay thế",
+        "DELETED": "Đã xóa"
+      },
+      "fields": {
+        "category": "Category",
+        "key": "Key",
+        "keyHelp": "Ví dụ: profile.name, preference.language, accounting.vat_rate",
+        "value": "Nội dung memory",
+        "importance": "Độ quan trọng: {{value}}",
+        "confidence": "Độ tin cậy: {{value}}"
+      },
+      "actions": {
+        "create": "Thêm memory",
+        "edit": "Sửa memory",
+        "delete": "Xóa memory",
+        "refresh": "Làm mới",
+        "search": "Tìm",
+        "cancel": "Hủy",
+        "save": "Lưu",
+        "saving": "Đang lưu..."
+      },
+      "dialog": {
+        "title": "Thêm memory",
+        "editTitle": "Sửa memory",
+        "scopedInfo": "Memory này thuộc phạm vi {{scope}}. Bạn có thể sửa nội dung, nhưng phạm vi được giữ nguyên."
+      },
+      "deleteDialog": {
+        "title": "Xóa memory",
+        "beforeKey": "Bạn có chắc muốn xóa memory"
+      },
+      "messages": {
+        "created": "Đã thêm memory",
+        "updated": "Đã cập nhật memory",
+        "deleted": "Đã xóa memory"
+      },
+      "validation": {
+        "required": "Vui lòng nhập đầy đủ category, key và nội dung memory."
+      },
+      "errors": {
+        "loadFailed": "Không thể tải memory",
+        "saveFailed": "Không thể lưu memory",
+        "deleteFailed": "Không thể xóa memory"
+      }
     }
   },
   "theme": {
@@ -99,7 +194,11 @@
       "addImages": "Thêm ảnh",
       "cancel": "Hủy",
       "submit": "Gửi",
-      "submitting": "Đang gửi..."
+      "submitting": "Đang gửi...",
+      "viewDetails": "Xem chi tiết",
+      "close": "Đóng",
+      "sendReply": "Gửi phản hồi",
+      "sendingReply": "Đang gửi..."
     },
     "empty": {
       "title": "Chưa có feedback",
@@ -126,14 +225,16 @@
     },
     "status": {
       "NEW": "Mới",
+      "TRIAGED": "Đã phân loại",
       "IN_PROGRESS": "Đang xử lý",
+      "WAITING_FOR_USER": "Chờ bạn phản hồi",
       "RESOLVED": "Đã xử lý",
       "CLOSED": "Đã đóng",
       "SPAM": "Spam"
     },
     "priority": {
       "LOW": "Thấp",
-      "MEDIUM": "Trung bình",
+      "NORMAL": "Bình thường",
       "HIGH": "Cao",
       "URGENT": "Khẩn cấp"
     },
@@ -141,11 +242,24 @@
       "detailsRequired": "Vui lòng nhập chi tiết feedback."
     },
     "messages": {
-      "submitted": "Đã gửi feedback."
+      "submitted": "Đã gửi feedback.",
+      "replySent": "Đã gửi phản hồi."
     },
     "errors": {
       "loadFailed": "Không thể tải feedback.",
-      "submitFailed": "Không thể gửi feedback."
+      "detailLoadFailed": "Không thể tải chi tiết feedback.",
+      "submitFailed": "Không thể gửi feedback.",
+      "replyFailed": "Không thể gửi phản hồi."
+    },
+    "detail": {
+      "updatedAt": "Cập nhật {{date}}",
+      "replyPlaceholder": "Nhập phản hồi của bạn...",
+      "sender": {
+        "user": "Bạn",
+        "admin": "Admin",
+        "agent": "AI agent",
+        "system": "Hệ thống"
+      }
     },
     "chat": {
       "reportAiResponseTitle": "Báo cáo phản hồi AI",
@@ -426,6 +540,7 @@
       "subscriptionPlan": "Gói dịch vụ",
       "usageQuota": "Hạn mức sử dụng",
       "charactersUsed": "Ký tự đã dùng",
+      "tokensUsed": "Token đã dùng · còn {{remaining}}",
       "percentUsed": "Đã dùng {{percent}}%"
     },
     "subscription": {
@@ -439,6 +554,27 @@
       "title": "Hoạt động gần đây",
       "knowledgeSources": "{{count}} nguồn kiến thức",
       "empty": "Chưa có agent nào. Hãy tạo agent đầu tiên để bắt đầu!"
+    },
+    "tokenUsage": {
+      "title": "Sử dụng token",
+      "subtitle": "{{total}} token trong khoảng đang chọn",
+      "periodLabel": "Khoảng thời gian sử dụng token",
+      "barTitle": "Token theo kỳ",
+      "combinedTitle": "Token và xu hướng",
+      "lineTitle": "Xu hướng sử dụng",
+      "loading": "Đang tải dữ liệu token...",
+      "periods": {
+        "day": "Ngày",
+        "month": "Tháng",
+        "year": "Năm"
+      },
+      "legend": {
+        "bar": "Lượng token",
+        "line": "Đường xu hướng"
+      },
+      "errors": {
+        "loadFailed": "Không thể tải dữ liệu token"
+      }
     },
     "quickActions": {
       "title": "Thao tác nhanh",

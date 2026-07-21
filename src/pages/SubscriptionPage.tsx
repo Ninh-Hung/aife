@@ -22,14 +22,17 @@ import {
   getBillingHistory,
   cancelSubscription,
   subscribe,
+  getTokenPacks,
+  purchaseTokenPack,
 } from '../services/api';
-import type { Package, CurrentSubscription, BillingHistoryItem } from '../types';
+import type { Package, CurrentSubscription, BillingHistoryItem, TokenPack } from '../types';
 import { useNotification } from '../hooks/useNotification';
 
 export const SubscriptionPage: React.FC = () => {
   const { success, error } = useNotification();
   // State management
   const [packages, setPackages] = useState<Package[]>([]);
+  const [tokenPacks, setTokenPacks] = useState<TokenPack[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
   const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,10 +50,11 @@ export const SubscriptionPage: React.FC = () => {
 
     try {
       // Fetch all data in parallel
-      const [packagesRes, subscriptionRes, historyRes] = await Promise.all([
+      const [packagesRes, subscriptionRes, historyRes, tokenPacksRes] = await Promise.all([
         getPackages(),
         getCurrentSubscription(),
         getBillingHistory(),
+        getTokenPacks(),
       ]);
 
       // Handle packages
@@ -67,7 +71,11 @@ export const SubscriptionPage: React.FC = () => {
 
       // Handle billing history (might be empty)
       if (historyRes.success && historyRes.data) {
-        setBillingHistory(historyRes.data);
+        setBillingHistory(Array.isArray(historyRes.data) ? historyRes.data : []);
+      }
+
+      if (tokenPacksRes.success && tokenPacksRes.data) {
+        setTokenPacks(tokenPacksRes.data);
       }
     } catch (err) {
       error(err instanceof Error ? err.message : 'Failed to load data');
@@ -114,6 +122,25 @@ export const SubscriptionPage: React.FC = () => {
       }
     } catch (err) {
       error(err instanceof Error ? err.message : 'Failed to update subscription');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePurchaseTokenPack = async (tokenPackPublicId: string) => {
+    setActionLoading(true);
+
+    try {
+      const result = await purchaseTokenPack(tokenPackPublicId);
+
+      if (result.success) {
+        success('Advance tokens added successfully');
+        await fetchAllData();
+      } else {
+        error(result.error || 'Failed to purchase token pack');
+      }
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Failed to purchase token pack');
     } finally {
       setActionLoading(false);
     }
@@ -174,6 +201,41 @@ export const SubscriptionPage: React.FC = () => {
           />
         ))}
       </div>
+
+      {tokenPacks.length > 0 && (
+        <div className="mb-12">
+          <h2 className="mb-6 text-2xl font-bold text-gray-900 dark:text-slate-100">
+            Advance Tokens
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {tokenPacks.map((tokenPack) => (
+              <div
+                key={tokenPack.publicId}
+                className="rounded-lg border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800"
+              >
+                <div className="mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                    {tokenPack.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
+                    {tokenPack.tokenAmount.toLocaleString()} tokens
+                  </p>
+                </div>
+                <div className="mb-4 text-2xl font-bold text-gray-900 dark:text-slate-100">
+                  {tokenPack.price.toLocaleString()} {tokenPack.currency}
+                </div>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={() => handlePurchaseTokenPack(tokenPack.publicId)}
+                >
+                  Buy Tokens
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Billing History Section */}
       <div className="mt-12">

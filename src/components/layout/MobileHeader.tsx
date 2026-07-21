@@ -24,6 +24,9 @@ interface MobileHeaderProps {
 // ============================================
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ user, onMenuClick }) => {
+  const displayName = user.fullName || user.userName;
+  const avatarInitial = (displayName || user.email || 'U').charAt(0).toUpperCase();
+
   return (
     <Box className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-800 lg:hidden">
       {/* Left Section: Hamburger Menu */}
@@ -49,11 +52,11 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ user, onMenuClick })
       {/* Right Section: User Avatar */}
       <Avatar
         src={user.avatar}
-        alt={user.userName}
+        alt={displayName}
         className="bg-gradient-to-br from-indigo-500 to-pink-500"
         sx={{ width: 36, height: 36 }}
       >
-        {user.userName.charAt(0).toUpperCase()}
+        {avatarInitial}
       </Avatar>
     </Box>
   );

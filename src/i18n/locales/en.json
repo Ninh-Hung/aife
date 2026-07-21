@@ -24,9 +24,104 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account preferences",
+    "profile": {
+      "title": "Profile",
+      "description": "Update your display name and profile picture.",
+      "fields": {
+        "fullName": "Display name"
+      },
+      "actions": {
+        "upload": "Upload",
+        "uploading": "Uploading...",
+        "removeAvatar": "Remove profile picture",
+        "save": "Save changes",
+        "saving": "Saving..."
+      },
+      "messages": {
+        "avatarUploaded": "Profile picture uploaded",
+        "updated": "Profile updated successfully"
+      },
+      "errors": {
+        "invalidAvatarType": "Please choose an image file.",
+        "avatarTooLarge": "File is too large. Maximum size is {{size}} MB.",
+        "uploadFailed": "Failed to upload profile picture",
+        "updateFailed": "Failed to update profile"
+      }
+    },
     "language": {
       "title": "Interface Language",
       "description": "Choose the language used across the app interface and API error messages."
+    },
+    "memory": {
+      "title": "Memory",
+      "description": "View and manage the long-term memories AI can use when responding to you.",
+      "activeCount": "{{count}} memory item(s) shown",
+      "empty": "No memories match the current filters.",
+      "importance": "Importance {{value}}",
+      "useCount": "Used {{count}} time(s)",
+      "filters": {
+        "scope": "Scope",
+        "status": "Status",
+        "search": "Search key, value, or category"
+      },
+      "columns": {
+        "key": "Key",
+        "value": "Value",
+        "scope": "Scope",
+        "meta": "Meta",
+        "actions": "Actions"
+      },
+      "scope": {
+        "all": "All",
+        "USER": "User",
+        "AGENT": "Agent",
+        "PROJECT": "Project"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "SUPERSEDED": "Superseded",
+        "DELETED": "Deleted"
+      },
+      "fields": {
+        "category": "Category",
+        "key": "Key",
+        "keyHelp": "Examples: profile.name, preference.language, accounting.vat_rate",
+        "value": "Memory value",
+        "importance": "Importance: {{value}}",
+        "confidence": "Confidence: {{value}}"
+      },
+      "actions": {
+        "create": "Add memory",
+        "edit": "Edit memory",
+        "delete": "Delete memory",
+        "refresh": "Refresh",
+        "search": "Search",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving..."
+      },
+      "dialog": {
+        "title": "Add memory",
+        "editTitle": "Edit memory",
+        "scopedInfo": "This memory belongs to the {{scope}} scope. You can edit the content while keeping the scope unchanged."
+      },
+      "deleteDialog": {
+        "title": "Delete memory",
+        "beforeKey": "Are you sure you want to delete memory"
+      },
+      "messages": {
+        "created": "Memory added",
+        "updated": "Memory updated",
+        "deleted": "Memory deleted"
+      },
+      "validation": {
+        "required": "Please enter category, key, and memory value."
+      },
+      "errors": {
+        "loadFailed": "Failed to load memories",
+        "saveFailed": "Failed to save memory",
+        "deleteFailed": "Failed to delete memory"
+      }
     }
   },
   "theme": {
@@ -99,7 +194,11 @@
       "addImages": "Add images",
       "cancel": "Cancel",
       "submit": "Submit",
-      "submitting": "Submitting..."
+      "submitting": "Submitting...",
+      "viewDetails": "View details",
+      "close": "Close",
+      "sendReply": "Send reply",
+      "sendingReply": "Sending..."
     },
     "empty": {
       "title": "No feedback yet",
@@ -126,14 +225,16 @@
     },
     "status": {
       "NEW": "New",
+      "TRIAGED": "Triaged",
       "IN_PROGRESS": "In progress",
+      "WAITING_FOR_USER": "Waiting for you",
       "RESOLVED": "Resolved",
       "CLOSED": "Closed",
       "SPAM": "Spam"
     },
     "priority": {
       "LOW": "Low",
-      "MEDIUM": "Medium",
+      "NORMAL": "Normal",
       "HIGH": "High",
       "URGENT": "Urgent"
     },
@@ -141,11 +242,24 @@
       "detailsRequired": "Please enter feedback details."
     },
     "messages": {
-      "submitted": "Feedback submitted."
+      "submitted": "Feedback submitted.",
+      "replySent": "Reply sent."
     },
     "errors": {
       "loadFailed": "Unable to load feedback.",
-      "submitFailed": "Failed to submit feedback."
+      "detailLoadFailed": "Unable to load feedback details.",
+      "submitFailed": "Failed to submit feedback.",
+      "replyFailed": "Failed to send reply."
+    },
+    "detail": {
+      "updatedAt": "Updated {{date}}",
+      "replyPlaceholder": "Write a reply...",
+      "sender": {
+        "user": "You",
+        "admin": "Admin",
+        "agent": "AI agent",
+        "system": "System"
+      }
     },
     "chat": {
       "reportAiResponseTitle": "Report AI response",
@@ -426,6 +540,7 @@
       "subscriptionPlan": "Subscription Plan",
       "usageQuota": "Usage Quota",
       "charactersUsed": "Characters used",
+      "tokensUsed": "Tokens used · {{remaining}} remaining",
       "percentUsed": "{{percent}}% used"
     },
     "subscription": {
@@ -439,6 +554,27 @@
       "title": "Recent Activity",
       "knowledgeSources": "{{count}} knowledge sources",
       "empty": "No agents created yet. Create your first agent to get started!"
+    },
+    "tokenUsage": {
+      "title": "Token Usage",
+      "subtitle": "{{total}} tokens in the selected period",
+      "periodLabel": "Token usage period",
+      "barTitle": "Tokens by period",
+      "combinedTitle": "Tokens and trend",
+      "lineTitle": "Usage trend",
+      "loading": "Loading token usage...",
+      "periods": {
+        "day": "Day",
+        "month": "Month",
+        "year": "Year"
+      },
+      "legend": {
+        "bar": "Token volume",
+        "line": "Trend line"
+      },
+      "errors": {
+        "loadFailed": "Failed to load token usage"
+      }
     },
     "quickActions": {
       "title": "Quick Actions",

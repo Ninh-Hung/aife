@@ -94,6 +94,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [shareSessionId, setShareSessionId] = useState<string | null>(null);
   const isMenuOpen = Boolean(anchorEl);
+  const displayName = user.fullName || user.userName;
+  const avatarInitial = (displayName || user.email || 'U').charAt(0).toUpperCase();
   const activeSessionId = location.pathname.startsWith('/chat/')
     ? location.pathname.split('/chat/')[1]?.split('/')[0]
     : undefined;
@@ -336,18 +338,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {isCollapsed && !isMobileDrawer ? (
               <Tooltip
-                title={`${user.userName} (${user.subscription || 'free'})`}
+                title={`${displayName} (${user.subscription || 'free'})`}
                 placement="right"
                 arrow
               >
                 <Box className="flex justify-center">
                   <Avatar
                     src={user.avatar}
-                    alt={user.userName}
+                    alt={displayName}
                     className="bg-gradient-to-br from-indigo-500 to-pink-500"
                     sx={{ width: 32, height: 32 }}
                   >
-                    {user.userName.charAt(0).toUpperCase()}
+                    {avatarInitial}
                   </Avatar>
                 </Box>
               </Tooltip>
@@ -356,18 +358,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Box className="flex items-center gap-3">
                   <Avatar
                     src={user.avatar}
-                    alt={user.userName}
+                    alt={displayName}
                     className="bg-gradient-to-br from-indigo-500 to-pink-500"
                     sx={{ width: 40, height: 40 }}
                   >
-                    {user.userName.charAt(0).toUpperCase()}
+                    {avatarInitial}
                   </Avatar>
                   <Box className="min-w-0 flex-1">
                     <Typography
                       variant="body2"
                       className="truncate font-semibold text-gray-900 dark:text-slate-100"
                     >
-                      {user.userName}
+                      {displayName}
                     </Typography>
                     <Typography
                       variant="caption"

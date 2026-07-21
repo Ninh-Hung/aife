@@ -12,6 +12,29 @@ export interface UserQuota {
   remainingTokens: number;
   quotaLimit: number;
   percentageUsed: number;
+  packageRemainingTokens?: number;
+  advanceTokens?: number;
+  totalRemainingTokens?: number;
+  packageTokensUsed?: number;
+  monthStartDate?: string;
+}
+
+export type TokenUsagePeriod = 'day' | 'month' | 'year';
+
+export interface TokenUsagePoint {
+  period: string;
+  label: string;
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  requestCount: number;
+}
+
+export interface TokenUsageSeries {
+  period: TokenUsagePeriod;
+  points: TokenUsagePoint[];
+  totalTokens: number;
+  requestCount: number;
 }
 
 // ✨ NEW: Subscription Info (Enhanced)
@@ -27,6 +50,7 @@ export interface SubscriptionInfo {
 export interface User {
   publicId: string; // Backend uses publicId instead of id
   userName: string; // Backend uses userName instead of name
+  fullName?: string;
   email: string;
   role: string; // ADMIN, USER, etc.
   authProvider?: string;
@@ -153,7 +177,13 @@ export interface CreateCharacteristicInput {
 
 export type KnowledgeScope = 'system' | 'user' | 'project' | 'all';
 export type KnowledgeSourceType = 'text' | 'file' | 'url';
-export type KnowledgeSyncStatus = 'pending' | 'processing' | 'success' | 'partial' | 'failed' | string;
+export type KnowledgeSyncStatus =
+  | 'pending'
+  | 'processing'
+  | 'success'
+  | 'partial'
+  | 'failed'
+  | string;
 
 export interface KnowledgeFileInfo {
   publicId: string;
@@ -191,6 +221,52 @@ export interface CreateKnowledgeInput {
   files?: File[];
   projectId?: number | string;
 }
+
+// ============================================
+// User Memories
+// ============================================
+
+export type UserMemoryScopeType = 'USER' | 'AGENT' | 'PROJECT';
+export type UserMemoryValueType = 'text' | 'json' | 'boolean' | 'number';
+export type UserMemorySource = 'explicit' | 'inferred' | 'system' | 'imported';
+export type UserMemoryStatus = 'ACTIVE' | 'SUPERSEDED' | 'DELETED';
+
+export interface UserMemory {
+  publicId: string;
+  scopeType: UserMemoryScopeType;
+  scopeId: number;
+  category: string;
+  key: string;
+  value: string;
+  originalText?: string | null;
+  valueType: UserMemoryValueType | string;
+  confidence: number;
+  importance: number;
+  source: UserMemorySource | string;
+  status: UserMemoryStatus | string;
+  lastUsedAt?: Date | string | null;
+  lastReinforcedAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+  useCount: number;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface CreateUserMemoryInput {
+  scopeType?: UserMemoryScopeType;
+  scopeId?: number;
+  category: string;
+  key: string;
+  value: string;
+  originalText?: string;
+  valueType?: UserMemoryValueType;
+  confidence?: number;
+  importance?: number;
+  source?: UserMemorySource;
+  expiresAt?: string | null;
+}
+
+export type UpdateUserMemoryInput = Partial<CreateUserMemoryInput>;
 
 // ============================================
 // Translation Service
@@ -328,29 +404,15 @@ export interface PackageMetadata {
   icon: string; // Lucide icon name (e.g., "Zap", "Crown", "Shield")
 }
 
-export interface PackageCapability {
-  quotaLimit: number;
-  quotaUnit: string; // token | char | image | request
-  period: string; // day | month
-  maxQualityTier: string; // low | standard | high
-  capability: {
-    publicId: string;
-    code: string;
-    name: string;
-    description?: string;
-    isActive: boolean;
-  };
-}
-
 export interface Package {
   publicId: string;
   code: string;
   name: string;
   price: number;
   duration: number; // duration in days
-  maxAgents: number; // -1 for unlimited
+  tokensPerMonth: number;
+  maxAgents: number;
   metadata?: string; // JSON string containing PackageMetadata
-  capabilities: PackageCapability[];
   isActive: boolean;
   createdAt?: string;
 }
@@ -359,13 +421,15 @@ export interface CurrentSubscription {
   publicId: string;
   startAt: string;
   endAt: string;
-  status: 'active' | 'expired' | 'canceled';
+  status: 'active' | 'trialing' | 'expired' | 'canceled';
   package?: {
     publicId: string;
     code: string;
     name: string;
     price: number;
     duration: number;
+    tokensPerMonth: number;
+    maxAgents: number;
     isActive: boolean;
   };
   coupon?: {
@@ -384,6 +448,26 @@ export interface BillingHistoryItem {
   paymentDate: string;
   invoiceUrl?: string;
   createdAt: string;
+}
+
+export interface TokenPack {
+  publicId: string;
+  code: string;
+  name: string;
+  tokenAmount: number;
+  price: number;
+  currency: string;
+  isActive: boolean;
+}
+
+export interface TokenPackPurchaseResult {
+  publicId: string;
+  tokenPackPublicId: string;
+  tokenAmount: number;
+  amount: number;
+  currency: string;
+  status: string;
+  advanceTokens: number;
 }
 
 // ============================================
@@ -511,8 +595,8 @@ export interface EnhancedPackage {
   duration: number; // days
 
   // Token-based quota
-  tokensPerMonth: number; // -1 = unlimited
-  maxAgents: number; // -1 = unlimited
+  tokensPerMonth: number;
+  maxAgents: number;
 
   // Trial-specific
   isTrial: boolean;

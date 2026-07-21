@@ -10,6 +10,8 @@ import type {
   CurrentSubscriptionDetails,
   AnonymousUserStats,
   Package,
+  TokenUsagePeriod,
+  TokenUsageSeries,
 } from '../types';
 
 /**
@@ -17,6 +19,17 @@ import type {
  */
 export async function getQuota(): Promise<UserQuota> {
   const response = await axiosInstance.get('/v1/subscriptions/quota');
+
+  return response.data.data;
+}
+
+/**
+ * Get current user's token usage series for dashboard charts.
+ */
+export async function getTokenUsageSeries(period: TokenUsagePeriod): Promise<TokenUsageSeries> {
+  const response = await axiosInstance.get('/v1/subscriptions/token-usage', {
+    params: { period },
+  });
 
   return response.data.data;
 }
@@ -89,7 +102,9 @@ export async function getTrialStatus(): Promise<{
   return {
     isTrialing: subscription.isTrialSubscription,
     daysRemaining: subscription.isTrialSubscription
-      ? Math.ceil((new Date(subscription.trialEndsAt!).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      ? Math.ceil(
+          (new Date(subscription.trialEndsAt!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        )
       : null,
     expiresAt: subscription.trialEndsAt,
   };

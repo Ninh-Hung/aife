@@ -21,7 +21,13 @@ const QuotaBadge: React.FC<QuotaBadgeProps> = ({ variant = 'compact', className 
     return null;
   }
 
-  const { remainingTokens, quotaLimit, percentageUsed } = quota;
+  const {
+    remainingTokens,
+    quotaLimit,
+    percentageUsed,
+    packageRemainingTokens = remainingTokens,
+    advanceTokens = 0,
+  } = quota;
 
   // Determine color based on usage
   const getColor = () => {
@@ -49,7 +55,10 @@ const QuotaBadge: React.FC<QuotaBadgeProps> = ({ variant = 'compact', className 
         title={
           <Box>
             <Typography variant="caption" display="block">
-              {remainingTokens.toLocaleString()} / {quotaLimit.toLocaleString()} tokens
+              Package: {packageRemainingTokens.toLocaleString()} / {quotaLimit.toLocaleString()}
+            </Typography>
+            <Typography variant="caption" display="block">
+              Advance: {advanceTokens.toLocaleString()}
             </Typography>
             <Typography variant="caption" display="block">
               {subscription?.packageName || 'Free'} Plan
@@ -57,8 +66,10 @@ const QuotaBadge: React.FC<QuotaBadgeProps> = ({ variant = 'compact', className 
           </Box>
         }
       >
-        <Box className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 ${className}`}>
-          <Zap className="w-4 h-4 text-yellow-500" />
+        <Box
+          className={`flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 dark:bg-gray-800 ${className}`}
+        >
+          <Zap className="h-4 w-4 text-yellow-500" />
           <Typography variant="body2" className="font-medium">
             {formatNumber(remainingTokens)}
           </Typography>
@@ -69,10 +80,12 @@ const QuotaBadge: React.FC<QuotaBadgeProps> = ({ variant = 'compact', className 
 
   // Detailed variant
   return (
-    <Box className={`p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ${className}`}>
-      <Box className="flex items-center justify-between mb-2">
+    <Box
+      className={`rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${className}`}
+    >
+      <Box className="mb-2 flex items-center justify-between">
         <Box className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-yellow-500" />
+          <Zap className="h-5 w-5 text-yellow-500" />
           <Typography variant="body2" className="font-semibold">
             Token Quota
           </Typography>
@@ -91,9 +104,9 @@ const QuotaBadge: React.FC<QuotaBadgeProps> = ({ variant = 'compact', className 
         />
       </Box>
 
-      <Box className="flex justify-between items-center">
+      <Box className="flex items-center justify-between">
         <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
-          {formatNumber(remainingTokens)} / {formatNumber(quotaLimit)} remaining
+          {formatNumber(packageRemainingTokens)} / {formatNumber(quotaLimit)} package tokens
         </Typography>
         <Typography
           variant="caption"
@@ -101,13 +114,19 @@ const QuotaBadge: React.FC<QuotaBadgeProps> = ({ variant = 'compact', className 
             percentageUsed >= 90
               ? 'text-red-600 dark:text-red-400'
               : percentageUsed >= 70
-              ? 'text-orange-600 dark:text-orange-400'
-              : 'text-green-600 dark:text-green-400'
+                ? 'text-orange-600 dark:text-orange-400'
+                : 'text-green-600 dark:text-green-400'
           }`}
         >
           {(100 - percentageUsed).toFixed(1)}% left
         </Typography>
       </Box>
+
+      {advanceTokens > 0 && (
+        <Typography variant="caption" className="mt-2 block text-gray-600 dark:text-gray-400">
+          Advance tokens: {advanceTokens.toLocaleString()}
+        </Typography>
+      )}
 
       {percentageUsed >= 90 && (
         <Typography variant="caption" className="mt-2 block text-red-600 dark:text-red-400">

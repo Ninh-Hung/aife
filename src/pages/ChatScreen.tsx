@@ -130,7 +130,7 @@ export const ChatScreen: React.FC = () => {
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAnonymous } = useAuth();
+  const { isAnonymous, user } = useAuth();
   const { agents } = useAgents();
   const { error: showError } = useNotification();
   const { sessions, addOrUpdateConversation } = useSidebarConversations();
@@ -844,6 +844,8 @@ export const ChatScreen: React.FC = () => {
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
           onToggleInfo={handleToggleInfo}
+          userAvatar={user?.avatar}
+          userAvatarType={user?.avatarType}
         />
       ) : (
         <div className="flex h-full flex-1 flex-col items-center justify-center bg-gray-50 dark:bg-slate-900">

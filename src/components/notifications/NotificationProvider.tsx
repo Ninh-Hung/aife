@@ -3,9 +3,10 @@
  * Wraps the app with notistack SnackbarProvider for toast notifications
  */
 
-import React, { useEffect } from 'react';
-import { SnackbarProvider, useSnackbar } from 'notistack';
-import { CheckCircle, AlertTriangle, Info, AlertCircle } from 'lucide-react';
+import React, { useCallback, useEffect } from 'react';
+import { SnackbarContent, SnackbarProvider, useSnackbar } from 'notistack';
+import type { CustomContentProps } from 'notistack';
+import { AlertCircle, AlertTriangle, CheckCircle, Copy, Info, X } from 'lucide-react';
 import { useMediaQuery } from '@mui/material';
 import axiosInstance from '../../lib/axios';
 import { setupAxiosToast } from '../../lib/axiosToastSetup';
@@ -39,10 +40,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       autoHideDuration={4000}
       preventDuplicate
       Components={{
-        success: CustomSuccessSnackbar,
-        error: CustomErrorSnackbar,
-        warning: CustomWarningSnackbar,
-        info: CustomInfoSnackbar,
+        success: CustomSnackbar,
+        error: CustomSnackbar,
+        warning: CustomSnackbar,
+        info: CustomSnackbar,
       }}
     >
       <AxiosToastSetup />
@@ -51,153 +52,119 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   );
 };
 
-// Custom Snackbar Components with Lucide Icons
-interface CustomSnackbarProps {
-  message: string;
-  onClose?: () => void;
-}
+const variantConfig = {
+  success: {
+    background: 'bg-green-500',
+    buttonFocus: 'focus-visible:ring-green-200',
+    icon: CheckCircle,
+  },
+  error: {
+    background: 'bg-red-500',
+    buttonFocus: 'focus-visible:ring-red-200',
+    icon: AlertTriangle,
+  },
+  warning: {
+    background: 'bg-yellow-500',
+    buttonFocus: 'focus-visible:ring-yellow-200',
+    icon: AlertCircle,
+  },
+  info: {
+    background: 'bg-blue-500',
+    buttonFocus: 'focus-visible:ring-blue-200',
+    icon: Info,
+  },
+};
 
-const CustomSuccessSnackbar = React.forwardRef<HTMLDivElement, CustomSnackbarProps>(
-  (props, ref) => {
-    const { message, onClose } = props;
+const getMessageText = (message: React.ReactNode): string => {
+  if (typeof message === 'string' || typeof message === 'number') {
+    return String(message);
+  }
+
+  if (Array.isArray(message)) {
+    return message.map(getMessageText).filter(Boolean).join(' ');
+  }
+
+  if (React.isValidElement<{ children?: React.ReactNode }>(message)) {
+    return getMessageText(message.props.children);
+  }
+
+  return '';
+};
+
+const copyToClipboard = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.setAttribute('readonly', '');
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  document.body.appendChild(textArea);
+  try {
+    textArea.select();
+    document.execCommand('copy');
+  } finally {
+    document.body.removeChild(textArea);
+  }
+};
+
+const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps>(
+  ({ id, message, style, variant }, ref) => {
+    const { closeSnackbar } = useSnackbar();
+    const toastVariant =
+      variant === 'success' || variant === 'error' || variant === 'warning' || variant === 'info'
+        ? variant
+        : 'info';
+    const config = variantConfig[toastVariant];
+    const Icon = config.icon;
+    const messageText = getMessageText(message);
+
+    const handleClose = useCallback(() => {
+      closeSnackbar(id);
+    }, [closeSnackbar, id]);
+
+    const handleCopy = useCallback(() => {
+      if (!messageText) return;
+      void copyToClipboard(messageText).catch(() => undefined);
+    }, [messageText]);
 
     return (
-      <div
+      <SnackbarContent
         ref={ref}
-        className="flex min-w-[300px] max-w-[500px] items-center gap-3 rounded-lg bg-green-500 px-4 py-3 text-white shadow-lg"
+        style={style}
+        className={`flex min-w-[300px] max-w-[500px] items-center gap-3 rounded-lg px-4 py-3 text-white shadow-lg ${config.background}`}
         role="alert"
       >
-        <CheckCircle size={20} className="flex-shrink-0" />
-        <div className="flex-1 text-sm font-medium">{message}</div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 text-white transition-colors hover:text-green-100"
-            aria-label="Close"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+        <Icon size={20} className="flex-shrink-0" />
+        <div className="min-w-0 flex-1 break-words text-sm font-medium">{message}</div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          {toastVariant === 'error' && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className={`rounded p-1 text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 ${config.buttonFocus}`}
+              aria-label="Copy toast content"
+              title="Copy"
             >
-              <path d="M6 18L18 6M6 6l12 12" />
-            </svg>
+              <Copy size={16} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleClose}
+            className={`rounded p-1 text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 ${config.buttonFocus}`}
+            aria-label="Close toast"
+            title="Close"
+          >
+            <X size={16} />
           </button>
-        )}
-      </div>
+        </div>
+      </SnackbarContent>
     );
   }
 );
 
-const CustomErrorSnackbar = React.forwardRef<HTMLDivElement, CustomSnackbarProps>((props, ref) => {
-  const { message, onClose } = props;
-
-  return (
-    <div
-      ref={ref}
-      className="flex min-w-[300px] max-w-[500px] items-center gap-3 rounded-lg bg-red-500 px-4 py-3 text-white shadow-lg"
-      role="alert"
-    >
-      <AlertTriangle size={20} className="flex-shrink-0" />
-      <div className="flex-1 text-sm font-medium">{message}</div>
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="flex-shrink-0 text-white transition-colors hover:text-red-100"
-          aria-label="Close"
-        >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-});
-
-const CustomWarningSnackbar = React.forwardRef<HTMLDivElement, CustomSnackbarProps>(
-  (props, ref) => {
-    const { message, onClose } = props;
-
-    return (
-      <div
-        ref={ref}
-        className="flex min-w-[300px] max-w-[500px] items-center gap-3 rounded-lg bg-yellow-500 px-4 py-3 text-white shadow-lg"
-        role="alert"
-      >
-        <AlertCircle size={20} className="flex-shrink-0" />
-        <div className="flex-1 text-sm font-medium">{message}</div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 text-white transition-colors hover:text-yellow-100"
-            aria-label="Close"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
-    );
-  }
-);
-
-const CustomInfoSnackbar = React.forwardRef<HTMLDivElement, CustomSnackbarProps>((props, ref) => {
-  const { message, onClose } = props;
-
-  return (
-    <div
-      ref={ref}
-      className="flex min-w-[300px] max-w-[500px] items-center gap-3 rounded-lg bg-blue-500 px-4 py-3 text-white shadow-lg"
-      role="alert"
-    >
-      <Info size={20} className="flex-shrink-0" />
-      <div className="flex-1 text-sm font-medium">{message}</div>
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="flex-shrink-0 text-white transition-colors hover:text-blue-100"
-          aria-label="Close"
-        >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-});
-
-CustomSuccessSnackbar.displayName = 'CustomSuccessSnackbar';
-CustomErrorSnackbar.displayName = 'CustomErrorSnackbar';
-CustomWarningSnackbar.displayName = 'CustomWarningSnackbar';
-CustomInfoSnackbar.displayName = 'CustomInfoSnackbar';
+CustomSnackbar.displayName = 'CustomSnackbar';

@@ -8,6 +8,7 @@ import { User, UserQuota, SubscriptionInfo } from '../types';
 import axiosInstance, { setAccessToken, clearAccessToken, refreshAccessToken } from '../lib/axios';
 import type { AxiosError } from 'axios';
 import { getQuota, getSubscription } from '../services/quota.service';
+import { updateMyProfile, type UpdateMyProfileInput } from '../services/api';
 
 // ============================================
 // Context Interface
@@ -22,6 +23,7 @@ interface AuthContextValue {
   subscription: SubscriptionInfo | null;
   refreshQuota: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
+  updateProfile: (input: UpdateMyProfileInput) => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -55,6 +57,7 @@ interface AuthProviderProps {
 type AuthUserData = {
   publicId: string;
   userName: string;
+  fullName?: string | null;
   email: string;
   role: string;
   authProvider?: string;
@@ -131,6 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const mappedUser: User = {
       publicId: userData.publicId,
       userName: userData.userName,
+      fullName: userData.fullName ?? undefined,
       email: userData.email,
       role: userData.role,
       authProvider: userData.authProvider,
@@ -309,6 +313,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const mappedUser: User = {
           publicId: userData.publicId,
           userName: userData.userName,
+          fullName: userData.fullName ?? undefined,
           email: userData.email,
           role: userData.role,
           authProvider: userData.authProvider,
@@ -420,6 +425,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // ============================================
+  // Update Profile Function
+  // ============================================
+
+  const updateProfile = async (input: UpdateMyProfileInput) => {
+    const response = await updateMyProfile(input);
+
+    if (!response.success || !response.data?.user) {
+      throw new Error(response.error || response.message || 'Failed to update profile');
+    }
+
+    const userData = response.data.user;
+    setUser((prev) =>
+      prev
+        ? {
+            ...prev,
+            publicId: userData.publicId,
+            userName: userData.userName,
+            fullName: userData.fullName ?? undefined,
+            email: userData.email,
+            role: userData.role,
+            authProvider: userData.authProvider,
+            avatar: userData.avatarUrl ?? userData.avatar ?? undefined,
+          }
+        : null
+    );
+  };
+
+  // ============================================
   // Logout Function
   // ============================================
 
@@ -473,6 +506,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     subscription,
     refreshQuota,
     refreshSubscription,
+    updateProfile,
     login,
     logout,
   };

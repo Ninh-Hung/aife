@@ -1,12 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Box, Button, Card, Chip, CircularProgress, Typography } from '@mui/material';
-import { MessageCircleWarning, Plus, RefreshCw } from 'lucide-react';
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { Eye, MessageCircleWarning, Plus, RefreshCw, Send, X } from 'lucide-react';
+import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import {
   FeedbackAttachment,
+  FeedbackMessage,
   FeedbackTicket,
   getFeedbackEvidenceBlob,
+  getMyFeedback,
   listMyFeedback,
+  replyToMyFeedback,
 } from '../services/api';
 
 const getStatusClassName = (status: string) => {
@@ -19,6 +35,7 @@ const getStatusClassName = (status: string) => {
 };
 
 const DEFAULT_LIST_FEEDBACK_ERROR = 'Failed to load feedback';
+const DEFAULT_REPLY_FEEDBACK_ERROR = 'Failed to send reply';
 
 const formatDate = (value: string, locale: string) =>
   new Date(value).toLocaleString(locale, {
@@ -109,11 +126,173 @@ const EvidencePreviewGrid: React.FC<{ attachments: FeedbackAttachment[] }> = ({ 
   );
 };
 
+const senderLabelKey = (senderType: FeedbackMessage['senderType']) => {
+  if (senderType === 'ADMIN') return 'feedback.detail.sender.admin';
+  if (senderType === 'AGENT') return 'feedback.detail.sender.agent';
+  if (senderType === 'SYSTEM') return 'feedback.detail.sender.system';
+  return 'feedback.detail.sender.user';
+};
+
+const FeedbackDetailDialog: React.FC<{
+  ticket: FeedbackTicket | null;
+  open: boolean;
+  loading: boolean;
+  error: string | null;
+  replyError: string | null;
+  replyContent: string;
+  replying: boolean;
+  locale: string;
+  onClose: () => void;
+  onReplyContentChange: (value: string) => void;
+  onSubmitReply: () => void;
+}> = ({
+  ticket,
+  open,
+  loading,
+  error,
+  replyError,
+  replyContent,
+  replying,
+  locale,
+  onClose,
+  onReplyContentChange,
+  onSubmitReply,
+}) => {
+  const { t } = useTranslation();
+  const canSubmitReply = Boolean(replyContent.trim()) && !replying && !loading;
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Typography variant="h6" className="truncate font-semibold">
+            {ticket?.title || t('feedback.ticket.untitled')}
+          </Typography>
+          {ticket && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Chip label={t(`feedback.types.${ticket.type}`, { defaultValue: ticket.type })} size="small" />
+              <Chip
+                label={t(`feedback.status.${ticket.status}`, { defaultValue: ticket.status })}
+                size="small"
+                className={getStatusClassName(ticket.status)}
+              />
+              {ticket.priority && (
+                <Chip
+                  label={t(`feedback.priority.${ticket.priority}`, {
+                    defaultValue: ticket.priority,
+                  })}
+                  size="small"
+                />
+              )}
+            </div>
+          )}
+        </div>
+        <IconButton onClick={onClose} size="small" aria-label={t('feedback.actions.close')}>
+          <X size={18} />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        {loading ? (
+          <div className="flex min-h-[240px] items-center justify-center">
+            <CircularProgress size={26} />
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            {error}
+          </div>
+        ) : ticket ? (
+          <div className="space-y-4">
+            <div className="text-xs text-gray-500 dark:text-slate-400">
+              {t('feedback.detail.updatedAt', {
+                date: formatDate(ticket.updatedAt, locale),
+              })}
+            </div>
+
+            <div className="space-y-3">
+              {ticket.messages.map((message) => {
+                const isAdmin = message.senderType === 'ADMIN';
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`rounded-lg border p-3 ${
+                      isAdmin
+                        ? 'border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30'
+                        : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900'
+                    }`}
+                  >
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                        {t(senderLabelKey(message.senderType))}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                        {formatDate(message.createdAt, locale)}
+                      </span>
+                    </div>
+                    <Typography
+                      variant="body2"
+                      className="whitespace-pre-wrap text-gray-700 dark:text-slate-200"
+                    >
+                      {message.content}
+                    </Typography>
+                    <EvidencePreviewGrid attachments={message.attachments} />
+                  </div>
+                );
+              })}
+            </div>
+
+            <form
+              className="space-y-3 border-t border-gray-200 pt-4 dark:border-slate-700"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (canSubmitReply) onSubmitReply();
+              }}
+            >
+              {replyError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                  {replyError}
+                </div>
+              )}
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                value={replyContent}
+                onChange={(event) => onReplyContentChange(event.target.value)}
+                placeholder={t('feedback.detail.replyPlaceholder')}
+                disabled={replying}
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  variant="contained"
+                  startIcon={<Send size={16} />}
+                  disabled={!canSubmitReply}
+                >
+                  {replying ? t('feedback.actions.sendingReply') : t('feedback.actions.sendReply')}
+                </Button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const FeedbackPage: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
   const [feedback, setFeedback] = useState<FeedbackTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<FeedbackTicket | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   const loadFeedback = useCallback(async () => {
     setIsLoading(true);
@@ -149,6 +328,71 @@ export const FeedbackPage: React.FC = () => {
         },
       })
     );
+  };
+
+  const handleOpenDetail = async (ticket: FeedbackTicket) => {
+    setSelectedTicket(ticket);
+    setIsDetailOpen(true);
+    setIsDetailLoading(true);
+    setDetailError(null);
+    setReplyError(null);
+    setReplyContent('');
+
+    const response = await getMyFeedback(ticket.publicId);
+    if (response.success && response.data) {
+      const nextTicket = response.data;
+      setSelectedTicket(nextTicket);
+      setFeedback((current) =>
+        current.map((item) => (item.publicId === nextTicket.publicId ? nextTicket : item))
+      );
+    } else {
+      setDetailError(
+        response.error && response.error !== 'Failed to load feedback details'
+          ? response.error
+          : t('feedback.errors.detailLoadFailed')
+      );
+    }
+
+    setIsDetailLoading(false);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setDetailError(null);
+    setReplyError(null);
+    setReplyContent('');
+  };
+
+  const handleSubmitReply = async () => {
+    if (!selectedTicket) return;
+
+    const content = replyContent.trim();
+    if (!content) return;
+
+    setIsReplying(true);
+    setReplyError(null);
+
+    const response = await replyToMyFeedback(selectedTicket.publicId, content);
+    if (response.success && response.data) {
+      const nextTicket = response.data;
+      setSelectedTicket(nextTicket);
+      setFeedback((current) =>
+        current.map((item) => (item.publicId === nextTicket.publicId ? nextTicket : item))
+      );
+      setReplyContent('');
+      setIsDetailOpen(false);
+      setDetailError(null);
+      setReplyError(null);
+      enqueueSnackbar(t('feedback.messages.replySent'), { variant: 'success' });
+    } else {
+      setReplyError(
+        response.error && response.error !== DEFAULT_REPLY_FEEDBACK_ERROR
+          ? response.error
+          : t('feedback.errors.replyFailed')
+      );
+    }
+
+    setIsReplying(false);
   };
 
   return (
@@ -217,7 +461,7 @@ export const FeedbackPage: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {feedback.map((ticket) => {
-            const firstMessage = ticket.messages[0];
+            const latestMessage = ticket.messages[ticket.messages.length - 1];
             const attachmentCount = ticket.messages.reduce(
               (total, message) => total + message.attachments.length,
               0
@@ -265,18 +509,30 @@ export const FeedbackPage: React.FC = () => {
                     >
                       {ticket.title || t('feedback.ticket.untitled')}
                     </Typography>
-                    {firstMessage?.content && (
+                    {latestMessage?.content && (
                       <Typography
                         variant="body2"
                         className="mt-1 line-clamp-2 whitespace-pre-wrap text-gray-600 dark:text-slate-300"
                       >
-                        {firstMessage.content}
+                        <span className="font-medium">
+                          {t(senderLabelKey(latestMessage.senderType))}
+                          {': '}
+                        </span>
+                        {latestMessage.content}
                       </Typography>
                     )}
                     <EvidencePreviewGrid attachments={attachments} />
                   </div>
                   <div className="shrink-0 text-sm text-gray-500 dark:text-slate-400">
-                    {formatDate(ticket.createdAt, i18n.language)}
+                    <div className="mb-3 text-right">{formatDate(ticket.updatedAt, i18n.language)}</div>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Eye size={16} />}
+                      onClick={() => void handleOpenDetail(ticket)}
+                    >
+                      {t('feedback.actions.viewDetails')}
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -284,6 +540,22 @@ export const FeedbackPage: React.FC = () => {
           })}
         </div>
       )}
+      <FeedbackDetailDialog
+        ticket={selectedTicket}
+        open={isDetailOpen}
+        loading={isDetailLoading}
+        error={detailError}
+        replyError={replyError}
+        replyContent={replyContent}
+        replying={isReplying}
+        locale={i18n.language}
+        onClose={handleCloseDetail}
+        onReplyContentChange={(value) => {
+          setReplyContent(value);
+          if (replyError) setReplyError(null);
+        }}
+        onSubmitReply={handleSubmitReply}
+      />
     </div>
   );
 };

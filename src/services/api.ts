@@ -5,7 +5,7 @@
 
 import type { AxiosError } from 'axios';
 import axiosInstance from '../lib/axios';
-import type { Language } from '../types';
+import type { Language, User } from '../types';
 
 // ============================================
 // API Response Types
@@ -106,6 +106,69 @@ export interface FeedbackTicket {
   closedAt?: string | null;
   messages: FeedbackMessage[];
 }
+
+export interface UpdateMyProfileInput {
+  fullName?: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface MyProfileResponse {
+  user: User & {
+    avatarUrl?: string | null;
+  };
+}
+
+export const updateMyProfile = async (
+  input: UpdateMyProfileInput
+): Promise<ApiResponse<MyProfileResponse>> => {
+  try {
+    const response = await axiosInstance.patch('/auth/me', input);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Profile updated successfully',
+    };
+  } catch (error) {
+    console.error('Update profile error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update profile',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+export const uploadMyAvatar = async (file: File): Promise<ApiResponse<{ url: string }>> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await axiosInstance.post('/auth/me/avatar', formData);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Avatar uploaded successfully',
+    };
+  } catch (error) {
+    console.error('Upload profile avatar error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to upload avatar',
+    };
+  }
+};
 
 export const translateText = async (
   input: TranslateTextInput
@@ -225,6 +288,55 @@ export const listMyFeedback = async (): Promise<ApiResponse<FeedbackTicket[]>> =
         axiosError.response?.data?.message ||
         axiosError.response?.data?.error ||
         'Failed to load feedback',
+    };
+  }
+};
+
+export const getMyFeedback = async (feedbackId: string): Promise<ApiResponse<FeedbackTicket>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/feedback/my/${feedbackId}`);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Get feedback error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to load feedback details',
+    };
+  }
+};
+
+export const replyToMyFeedback = async (
+  feedbackId: string,
+  content: string
+): Promise<ApiResponse<FeedbackTicket>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/feedback/my/${feedbackId}/replies`, { content });
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Reply feedback error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to send reply',
     };
   }
 };
@@ -364,7 +476,31 @@ export const revokeApiKey = async (publicId: string): Promise<ApiResponse> => {
 // Subscription Management
 // ============================================
 
-import type { Package, CurrentSubscription, BillingHistoryItem } from '../types';
+import type {
+  Package,
+  CurrentSubscription,
+  BillingHistoryItem,
+  TokenPack,
+  TokenPackPurchaseResult,
+} from '../types';
+
+type SubscriptionHistoryResponse = {
+  subscriptions?: BackendSubscriptionHistoryItem[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+};
+
+type BackendSubscriptionHistoryItem = {
+  publicId: string;
+  startAt: string;
+  endAt: string;
+  status: 'active' | 'trialing' | 'expired' | 'canceled' | string;
+  package?: {
+    name?: string;
+    price?: number;
+  };
+};
 
 /**
  * Fetches all available subscription packages
@@ -396,7 +532,9 @@ export const getPackages = async (): Promise<ApiResponse<Package[]>> => {
  * Fetches the current user's active subscription
  * @returns Promise with current subscription details
  */
-export const getCurrentSubscription = async (): Promise<ApiResponse<CurrentSubscription>> => {
+export const getCurrentSubscription = async (): Promise<
+  ApiResponse<CurrentSubscription | null>
+> => {
   try {
     const response = await axiosInstance.get('/v1/subscriptions/current');
 
@@ -425,10 +563,14 @@ export const getCurrentSubscription = async (): Promise<ApiResponse<CurrentSubsc
 export const getBillingHistory = async (): Promise<ApiResponse<BillingHistoryItem[]>> => {
   try {
     const response = await axiosInstance.get('/v1/subscriptions/history');
+    const payload = response.data.data || response.data;
+    const subscriptions = Array.isArray(payload)
+      ? payload
+      : ((payload as SubscriptionHistoryResponse).subscriptions ?? []);
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: subscriptions.map(mapSubscriptionToBillingHistoryItem),
     };
   } catch (error) {
     console.error('Get billing history error:', error);
@@ -442,6 +584,23 @@ export const getBillingHistory = async (): Promise<ApiResponse<BillingHistoryIte
         'Failed to load billing history',
     };
   }
+};
+
+const mapSubscriptionToBillingHistoryItem = (
+  subscription: BackendSubscriptionHistoryItem | BillingHistoryItem
+): BillingHistoryItem => {
+  if ('packageName' in subscription) {
+    return subscription;
+  }
+
+  return {
+    publicId: subscription.publicId,
+    packageName: subscription.package?.name || 'Unknown package',
+    amount: subscription.package?.price || 0,
+    status: subscription.status === 'trialing' ? 'PENDING' : 'PAID',
+    paymentDate: subscription.startAt,
+    createdAt: subscription.startAt,
+  };
 };
 
 /**
@@ -497,6 +656,56 @@ export const subscribe = async (packagePublicId: string): Promise<ApiResponse> =
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to process subscription',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+export const getTokenPacks = async (): Promise<ApiResponse<TokenPack[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/subscriptions/token-packs');
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('Get token packs error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load token packs',
+    };
+  }
+};
+
+export const purchaseTokenPack = async (
+  tokenPackPublicId: string
+): Promise<ApiResponse<TokenPackPurchaseResult>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/subscriptions/token-packs/${tokenPackPublicId}/purchase`
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message || 'Token pack purchased successfully',
+    };
+  } catch (error) {
+    console.error('Purchase token pack error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to purchase token pack',
       message: axiosError.response?.data?.message,
     };
   }
@@ -803,6 +1012,124 @@ const normalizeKnowledge = (knowledge: Knowledge): Knowledge => ({
 
 const normalizeKnowledgeList = (knowledges: Knowledge[]): Knowledge[] => {
   return knowledges.map(normalizeKnowledge);
+};
+
+// ============================================
+// User Memory API
+// ============================================
+
+import type {
+  CreateUserMemoryInput,
+  UpdateUserMemoryInput,
+  UserMemory,
+  UserMemoryScopeType,
+  UserMemoryStatus,
+} from '../types';
+
+export interface ListUserMemoriesParams {
+  scopeType?: UserMemoryScopeType;
+  status?: UserMemoryStatus;
+  category?: string;
+  search?: string;
+}
+
+export const listUserMemories = async (
+  params: ListUserMemoriesParams = {}
+): Promise<ApiResponse<UserMemory[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/memories', { params });
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('List user memories error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to load memories',
+    };
+  }
+};
+
+export const createUserMemory = async (
+  input: CreateUserMemoryInput
+): Promise<ApiResponse<UserMemory>> => {
+  try {
+    const response = await axiosInstance.post('/v1/memories', input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Create user memory error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to create memory',
+    };
+  }
+};
+
+export const updateUserMemory = async (
+  publicId: string,
+  input: UpdateUserMemoryInput
+): Promise<ApiResponse<UserMemory>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/memories/${publicId}`, input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Update user memory error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to update memory',
+    };
+  }
+};
+
+export const deleteUserMemory = async (publicId: string): Promise<ApiResponse<UserMemory>> => {
+  try {
+    const response = await axiosInstance.delete(`/v1/memories/${publicId}`);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error('Delete user memory error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to delete memory',
+    };
+  }
 };
 
 // ============================================

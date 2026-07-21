@@ -54,6 +54,19 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
   const IconComponent = iconMap[metadata.icon] || Zap;
   const accentColor = metadata.color || '#3B82F6';
+  const formatTokens = (tokens: number) => {
+    if (tokens >= 1000000) {
+      return `${(tokens / 1000000).toLocaleString(undefined, {
+        maximumFractionDigits: 1,
+      })}M`;
+    }
+    if (tokens >= 1000) {
+      return `${(tokens / 1000).toLocaleString(undefined, {
+        maximumFractionDigits: 1,
+      })}K`;
+    }
+    return tokens.toLocaleString();
+  };
 
   return (
     <div
@@ -99,47 +112,37 @@ export const PlanCard: React.FC<PlanCardProps> = ({
         </div>
       </div>
 
-      {/* Max Agents */}
-      <div className="mb-4">
+      {/* Package limits */}
+      <div className="mb-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+          <Zap size={16} className="text-yellow-500" />
+          <span>{formatTokens(pkg.tokensPerMonth)} tokens per cycle</span>
+        </div>
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
           <Sparkles size={16} className="text-blue-500" />
-          <span>
-            {pkg.maxAgents === -1 ? 'Unlimited Agents' : `Up to ${pkg.maxAgents} Agents`}
-          </span>
+          <span>Up to {pkg.maxAgents.toLocaleString()} agents</span>
         </div>
       </div>
 
-      {/* Capabilities */}
       <ul className="mb-6 space-y-3">
-        {pkg.capabilities.map((pkgCapability, index) => {
-          const formatQuota = (limit: number, unit: string, period: string) => {
-            const formattedLimit = limit.toLocaleString();
-            return `${formattedLimit} ${unit}/${period}`;
-          };
-
-          return (
-            <li key={index} className="flex items-start gap-3">
-              <CheckCircle2
-                size={20}
-                className="mt-0.5 flex-shrink-0 text-green-500 dark:text-green-400"
-              />
-              <div className="flex-1">
-                <div className="font-semibold text-gray-900 dark:text-slate-100">
-                  {pkgCapability.capability.name}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-slate-400">
-                  {formatQuota(
-                    pkgCapability.quotaLimit,
-                    pkgCapability.quotaUnit,
-                    pkgCapability.period
-                  )}
-                  {' • '}
-                  {pkgCapability.maxQualityTier} quality
-                </div>
-              </div>
-            </li>
-          );
-        })}
+        <li className="flex items-start gap-3">
+          <CheckCircle2
+            size={20}
+            className="mt-0.5 flex-shrink-0 text-green-500 dark:text-green-400"
+          />
+          <span className="text-sm text-gray-700 dark:text-slate-300">
+            Package tokens are used before advance tokens.
+          </span>
+        </li>
+        <li className="flex items-start gap-3">
+          <CheckCircle2
+            size={20}
+            className="mt-0.5 flex-shrink-0 text-green-500 dark:text-green-400"
+          />
+          <span className="text-sm text-gray-700 dark:text-slate-300">
+            Advance tokens can extend usage without changing plan.
+          </span>
+        </li>
       </ul>
 
       {/* Action Button */}
