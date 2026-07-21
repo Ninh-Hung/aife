@@ -253,9 +253,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
             </button>
 
             <div className="mb-2 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
-                <span className="text-sm font-bold text-white">AI</span>
-              </div>
+              <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
               <span className="text-lg font-semibold text-white">AppAIHelp.com</span>
             </div>
 

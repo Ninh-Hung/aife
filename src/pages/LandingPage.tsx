@@ -8,7 +8,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { getRandomChatSuggestions } from '../components/chat/chatInputContent';
@@ -122,9 +121,7 @@ const LandingPage: React.FC = () => {
       <header className="flex flex-shrink-0 items-center justify-between px-6 py-4">
         {/* Logo + App name */}
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
+          <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
           <span className="text-base font-semibold text-white">AppAIHelp.com</span>
         </div>
 

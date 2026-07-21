@@ -55,6 +55,19 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
     [selectedTargetCodes, supportedLanguages]
   );
 
+  useEffect(() => {
+    const defaultAgentId =
+      propSelectedAgentId || agents.find((agent) => agent.isDefault)?.id || agents[0]?.id || '';
+
+    setSelectedAgentId((currentAgentId) => {
+      if (currentAgentId && agents.some((agent) => agent.id === currentAgentId)) {
+        return currentAgentId;
+      }
+
+      return defaultAgentId;
+    });
+  }, [agents, propSelectedAgentId]);
+
   const findLanguage = (code: string): Language =>
     supportedLanguages.find((language) => language.code === code) || {
       code,
@@ -192,30 +205,20 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
               </Typography>
             </Box>
 
-            <Box className="flex items-center gap-2">
-              {agents.length > 0 && (
-                <Select
-                  size="small"
-                  value={selectedAgentId}
-                  onChange={(event) => setSelectedAgentId(event.target.value)}
-                  className="min-w-[180px] bg-gray-100 text-sm text-gray-900 dark:bg-slate-700 dark:text-white"
-                >
-                  {agents.map((agent) => (
-                    <MenuItem key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              <Tooltip title={t('translate.source.voiceInput')}>
-                <IconButton
-                  size="small"
-                  className="text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-slate-700"
-                >
-                  <Mic size={20} />
-                </IconButton>
-              </Tooltip>
-            </Box>
+            {agents.length > 0 && (
+              <Select
+                size="small"
+                value={selectedAgentId}
+                onChange={(event) => setSelectedAgentId(event.target.value)}
+                className="min-w-[180px] bg-gray-100 text-sm text-gray-900 dark:bg-slate-700 dark:text-white"
+              >
+                {agents.map((agent) => (
+                  <MenuItem key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
           </Box>
 
           <Box className="flex-1 p-4">
@@ -250,6 +253,17 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
                 <Button size="small" startIcon={<Upload size={16} />} disabled>
                   {t('translate.source.uploadFile')}
                 </Button>
+                <Tooltip title={t('translate.source.voiceInput')}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      disabled
+                      className="text-blue-600 hover:bg-gray-100 disabled:text-gray-400 dark:text-blue-400 dark:hover:bg-slate-700 dark:disabled:text-slate-500"
+                    >
+                      <Mic size={18} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
                 <Button size="small" startIcon={<FileText size={16} />} disabled>
                   {t('translate.source.paste')}
                 </Button>

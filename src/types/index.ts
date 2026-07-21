@@ -434,6 +434,42 @@ export interface ChatSource {
   title: string;
 }
 
+export interface SharedConversationMessage {
+  publicId: string;
+  role: 'user' | 'agent';
+  content: string;
+  type?: string;
+  createdAt: string;
+  sources?: ChatSource[];
+  attachments?: Array<ChatMessageAttachment & { displayMode?: 'PREVIEW' | 'DOWNLOAD' | 'OMITTED' }>;
+}
+
+export interface SharedConversation {
+  publicId: string;
+  title: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string | null;
+  messageCount: number;
+  messages: SharedConversationMessage[];
+}
+
+export interface ChatShare {
+  publicId: string;
+  shareToken: string;
+  sharePath: string;
+  shareUrl?: string;
+  title?: string | null;
+  status: string;
+  snapshotVersion: number;
+  messageCount: number;
+  expiresAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SendMessageRequest {
   sessionId: string;
   content: string;

@@ -292,6 +292,16 @@ export function useChatAgent({
     return typeof raw.metadata?.sessionId === 'number' ? raw.metadata.sessionId : null;
   }, []);
 
+  const extractMessageConversationId = useCallback((message: UIMessage): string | null => {
+    const raw = message as unknown as {
+      metadata?: {
+        conversationId?: unknown;
+      };
+    };
+
+    return typeof raw.metadata?.conversationId === 'string' ? raw.metadata.conversationId : null;
+  }, []);
+
   const extractAnonymousLimit = useCallback(
     (message: UIMessage): AnonymousLimitError | undefined => {
       const metadata = (message as unknown as { metadata?: unknown }).metadata;
@@ -300,8 +310,25 @@ export function useChatAgent({
     []
   );
 
+  const isCurrentConversationMessage = useCallback(
+    (message: UIMessage): boolean => {
+      const messageSessionId = extractMessageSessionId(message);
+      const messageConversationId = extractMessageConversationId(message);
+      return messageSessionId === sessionId && messageConversationId === conversationId;
+    },
+    [conversationId, extractMessageConversationId, extractMessageSessionId, sessionId]
+  );
+
   useEffect(() => {
+    if (!shouldConnect) {
+      return;
+    }
+
     const latestAnonymousLimitMessage = [...(agentMessages || [])].reverse().find((message) => {
+      if (!isCurrentConversationMessage(message)) {
+        return false;
+      }
+
       const metadata = (message as unknown as { metadata?: unknown }).metadata;
       const content = extractText(message).trim().toLowerCase();
       return (
@@ -335,15 +362,14 @@ export function useChatAgent({
         detail,
       })
     );
-  }, [agentMessages, extractText]);
+  }, [agentMessages, extractText, isCurrentConversationMessage, shouldConnect]);
 
   const messages: ChatMessage[] = useMemo(() => {
     if (!shouldConnect) return [];
 
     return (agentMessages || [])
       .filter((msg) => {
-        const messageSessionId = extractMessageSessionId(msg);
-        return messageSessionId === null || messageSessionId === sessionId;
+        return isCurrentConversationMessage(msg);
       })
       .map((msg) => {
         const content = extractText(msg);
@@ -384,11 +410,10 @@ export function useChatAgent({
     extractAnonymousLimit,
     extractConversationTitle,
     extractAttachments,
-    extractMessageSessionId,
+    isCurrentConversationMessage,
     extractReasoning,
     extractSources,
     extractText,
-    sessionId,
     shouldConnect,
   ]);
 
@@ -413,6 +438,7 @@ export function useChatAgent({
         metadata: {
           agentPublicId,
           sessionId,
+          conversationId,
           mode,
           locale: getStoredAppLocale(),
           ...(capability ? { capability } : {}),
@@ -423,7 +449,16 @@ export function useChatAgent({
         }
       });
     },
-    [agent.ready, agentPublicId, agentSendMessage, capability, mode, sessionId, shouldConnect]
+    [
+      agent.ready,
+      agentPublicId,
+      agentSendMessage,
+      capability,
+      conversationId,
+      mode,
+      sessionId,
+      shouldConnect,
+    ]
   );
 
   const isAgentConnected = shouldConnect && isSocketOpen && agent.identified;

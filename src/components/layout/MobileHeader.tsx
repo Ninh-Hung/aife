@@ -36,7 +36,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ user, onMenuClick })
       </IconButton>
 
       {/* Center Section: Logo */}
-      <Link to="/new-chat" className="no-underline">
+      <Link to="/new-chat" className="flex items-center gap-2 no-underline">
+        <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
         <Typography
           variant="h6"
           className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"

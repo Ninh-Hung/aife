@@ -37,6 +37,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
 import { ChatSessionsList } from '../chat/ChatSessionsList';
+import { ShareConversationDialog } from '../chat/ShareConversationDialog';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { useSidebarConversations } from './useSidebarConversations';
 
@@ -91,6 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [shareSessionId, setShareSessionId] = useState<string | null>(null);
   const isMenuOpen = Boolean(anchorEl);
   const activeSessionId = location.pathname.startsWith('/chat/')
     ? location.pathname.split('/chat/')[1]?.split('/')[0]
@@ -132,6 +134,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       navigate('/new-chat');
       handleNavigation();
     }
+  };
+
+  const handleShare = (sessionId: string) => {
+    setShareSessionId(sessionId);
   };
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -201,15 +207,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {(!isCollapsed || isMobileDrawer) && (
           <Link
             to={isAnonymous ? '/' : '/new-chat'}
-            className="no-underline"
+            className="flex items-center gap-2 no-underline"
             onClick={handleNavigation}
           >
+            <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
             <Typography
               variant="h6"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"
             >
               appaihelp
             </Typography>
+          </Link>
+        )}
+        {isCollapsed && !isMobileDrawer && (
+          <Link
+            to={isAnonymous ? '/' : '/new-chat'}
+            className="no-underline"
+            onClick={handleNavigation}
+          >
+            <img src="/logo.svg" alt="AppAIHelp" className="h-8 w-8 rounded-lg" />
           </Link>
         )}
         {/* Hide collapse button in mobile drawer mode */}
@@ -277,6 +293,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 activeSessionId={activeSessionId}
                 onSessionSelect={handleSessionSelect}
                 onNewChat={handleNewChat}
+                onShare={handleShare}
                 onRename={renameConversation}
                 onArchive={handleArchive}
                 onDelete={handleDelete}
@@ -453,6 +470,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         loading={isLoggingOut}
         onClose={handleLogoutDialogClose}
         onConfirm={() => void handleConfirmLogout()}
+      />
+      <ShareConversationDialog
+        open={Boolean(shareSessionId)}
+        sessionId={shareSessionId}
+        onClose={() => setShareSessionId(null)}
       />
     </Box>
   );

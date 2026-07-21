@@ -809,7 +809,7 @@ const normalizeKnowledgeList = (knowledges: Knowledge[]): Knowledge[] => {
 // Chat & Messaging API
 // ============================================
 
-import type { ChatSession, ChatMessage } from '../types';
+import type { ChatSession, ChatMessage, ChatShare, SharedConversation } from '../types';
 
 type BackendChatSession = Omit<
   ChatSession,
@@ -860,6 +860,31 @@ const normalizeChatMessage = (message: ChatMessage): ChatMessage => ({
   attachments: (message.attachments || []).map((attachment) => ({
     ...attachment,
     fileUrl: buildServerUrl(`/v1/chat/attachments/${attachment.publicId}`),
+  })),
+});
+
+const getClientShareUrl = (sharePath: string): string =>
+  `${window.location.origin}${sharePath.startsWith('/') ? sharePath : `/${sharePath}`}`;
+
+const normalizeChatShare = (share: ChatShare): ChatShare => ({
+  ...share,
+  shareUrl: getClientShareUrl(share.sharePath || `/share/${share.shareToken || share.publicId}`),
+});
+
+const normalizeSharedConversation = (
+  share: SharedConversation,
+  shareToken: string
+): SharedConversation => ({
+  ...share,
+  messages: (share.messages || []).map((message) => ({
+    ...message,
+    role: message.role === 'user' ? 'user' : 'agent',
+    attachments: (message.attachments || []).map((attachment) => ({
+      ...attachment,
+      fileUrl: buildServerUrl(
+        `/v1/chat/shares/public/${shareToken}/attachments/${attachment.publicId}`
+      ),
+    })),
   })),
 });
 
@@ -1085,6 +1110,150 @@ export const mergeAnonymousSession = async (
         axiosError.response?.data?.message ||
         axiosError.response?.data?.error ||
         'Failed to merge anonymous chat session',
+    };
+  }
+};
+
+export const getChatShare = async (sessionId: string): Promise<ApiResponse<ChatShare | null>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/chat/sessions/${sessionId}/share`);
+    const data = response.data.data || null;
+
+    return {
+      success: true,
+      data: data ? normalizeChatShare(data) : null,
+    };
+  } catch (error) {
+    console.error('Get chat share error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load share',
+    };
+  }
+};
+
+export const createChatShare = async (sessionId: string): Promise<ApiResponse<ChatShare>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/chat/sessions/${sessionId}/share`);
+
+    return {
+      success: true,
+      data: normalizeChatShare(response.data.data || response.data),
+      message: 'Share link created',
+    };
+  } catch (error) {
+    console.error('Create chat share error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create share',
+    };
+  }
+};
+
+export const refreshChatShare = async (shareId: string): Promise<ApiResponse<ChatShare>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/chat/shares/${shareId}/refresh-snapshot`);
+
+    return {
+      success: true,
+      data: normalizeChatShare(response.data.data || response.data),
+      message: 'Shared snapshot updated',
+    };
+  } catch (error) {
+    console.error('Refresh chat share error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update shared snapshot',
+    };
+  }
+};
+
+export const revokeChatShare = async (shareId: string): Promise<ApiResponse<ChatShare>> => {
+  try {
+    const response = await axiosInstance.delete(`/v1/chat/shares/${shareId}`);
+
+    return {
+      success: true,
+      data: normalizeChatShare(response.data.data || response.data),
+      message: 'Share link revoked',
+    };
+  } catch (error) {
+    console.error('Revoke chat share error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to revoke share',
+    };
+  }
+};
+
+export const getPublicChatShare = async (
+  shareToken: string
+): Promise<ApiResponse<SharedConversation>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/chat/shares/public/${shareToken}`);
+
+    return {
+      success: true,
+      data: normalizeSharedConversation(response.data.data || response.data, shareToken),
+    };
+  } catch (error) {
+    console.error('Get public chat share error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Shared conversation is no longer available',
+    };
+  }
+};
+
+export const forkPublicChatShare = async (
+  shareToken: string,
+  agentId?: string
+): Promise<ApiResponse<ChatSession>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/chat/shares/public/${shareToken}/fork`, {
+      ...(agentId ? { agentId } : {}),
+    });
+
+    return {
+      success: true,
+      data: normalizeChatSession(response.data.data || response.data),
+      message: 'Conversation copied',
+    };
+  } catch (error) {
+    console.error('Fork public chat share error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to continue shared conversation',
     };
   }
 };

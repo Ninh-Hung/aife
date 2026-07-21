@@ -4,6 +4,7 @@
  */
 
 import { useSnackbar, VariantType } from 'notistack';
+import { useCallback, useMemo } from 'react';
 
 interface NotificationOptions {
   variant?: VariantType;
@@ -14,32 +15,38 @@ interface NotificationOptions {
 export const useNotification = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
-  const showNotification = (message: string, options?: NotificationOptions) => {
-    return enqueueSnackbar(message, {
-      variant: options?.variant || 'info',
-      autoHideDuration: options?.autoHideDuration,
-      preventDuplicate: options?.preventDuplicate,
-    });
-  };
+  const showNotification = useCallback(
+    (message: string, options?: NotificationOptions) => {
+      return enqueueSnackbar(message, {
+        variant: options?.variant || 'info',
+        autoHideDuration: options?.autoHideDuration,
+        preventDuplicate: options?.preventDuplicate,
+      });
+    },
+    [enqueueSnackbar]
+  );
 
-  return {
-    // Main method
-    notify: showNotification,
+  return useMemo(
+    () => ({
+      // Main method
+      notify: showNotification,
 
-    // Convenience methods
-    success: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
-      showNotification(message, { ...options, variant: 'success' }),
+      // Convenience methods
+      success: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
+        showNotification(message, { ...options, variant: 'success' }),
 
-    error: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
-      showNotification(message, { ...options, variant: 'error' }),
+      error: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
+        showNotification(message, { ...options, variant: 'error' }),
 
-    warning: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
-      showNotification(message, { ...options, variant: 'warning' }),
+      warning: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
+        showNotification(message, { ...options, variant: 'warning' }),
 
-    info: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
-      showNotification(message, { ...options, variant: 'info' }),
+      info: (message: string, options?: Omit<NotificationOptions, 'variant'>) =>
+        showNotification(message, { ...options, variant: 'info' }),
 
-    // Close a specific notification or all notifications
-    close: closeSnackbar,
-  };
+      // Close a specific notification or all notifications
+      close: closeSnackbar,
+    }),
+    [closeSnackbar, showNotification]
+  );
 };

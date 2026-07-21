@@ -80,9 +80,7 @@ export const EmailVerificationPending: React.FC = () => {
 
         {/* Logo/Branding */}
         <div className="mt-6 flex items-center justify-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500">
-            <span className="text-xs font-bold text-white">AI</span>
-          </div>
+          <img src="/logo.svg" alt="" className="h-6 w-6 rounded-md" />
           <span className="text-sm text-slate-400">AppAIHelp.com</span>
         </div>
       </div>

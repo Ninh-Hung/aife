@@ -33,6 +33,7 @@ import { KnowledgeManagement } from './pages/KnowledgeManagement';
 import { SettingsPage } from './pages/SettingsPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { ChatScreen } from './pages/ChatScreen';
+import { SharedConversationPage } from './pages/SharedConversationPage';
 import NewChatPage from './pages/NewChatPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import {
@@ -125,10 +126,6 @@ const AppContent: React.FC = () => {
     setIsAgentDrawerOpen(false);
   };
 
-  const handleAgentChange = (agentId: string) => {
-    setSelectedAgentId(agentId);
-  };
-
   const handleSaveAgent = async (input: CreateAgentInput) => {
     await createAgent(input);
   };
@@ -190,6 +187,7 @@ const AppContent: React.FC = () => {
     isAnonymous &&
     location.pathname !== '/' &&
     !location.pathname.startsWith('/chat/') &&
+    !location.pathname.startsWith('/share/') &&
     location.pathname !== '/email-sent' &&
     location.pathname !== '/verify-email'
   ) {
@@ -205,9 +203,6 @@ const AppContent: React.FC = () => {
             title={t('header.translate.title')}
             subtitle={t('header.translate.subtitle')}
             icon={<Bot className="text-white" size={24} />}
-            agents={agents}
-            selectedAgentId={selectedAgentId}
-            onAgentChange={handleAgentChange}
           />
         );
       case '/dashboard':
@@ -302,6 +297,9 @@ const AppContent: React.FC = () => {
 
         {/* Email Verification Handler - processes token from email link (no layout, not protected) */}
         <Route path="/verify-email" element={<EmailVerification />} />
+
+        {/* Public shared conversation snapshot - no private layout */}
+        <Route path="/share/:shareToken" element={<SharedConversationPage />} />
 
         {/* App routes with layout - Protected */}
         <Route
