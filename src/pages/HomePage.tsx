@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
+import { MatrixRainBackground } from '../components/common/MatrixRainBackground';
 import { getRandomChatSuggestions } from '../components/chat/chatInputContent';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
@@ -122,9 +123,11 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0A1628] text-white">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#07111f] text-white">
+      <MatrixRainBackground />
+
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="flex flex-shrink-0 items-center justify-between px-6 py-4">
+      <header className="relative z-10 flex flex-shrink-0 items-center justify-between px-6 py-4">
         {/* Logo + App name */}
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
@@ -141,7 +144,7 @@ const HomePage: React.FC = () => {
       </header>
 
       {/* ── Main ───────────────────────────────────────────── */}
-      <main className="flex flex-1 items-center justify-center pb-16 pt-4">
+      <main className="relative z-10 flex flex-1 items-center justify-center pb-16 pt-4">
         <ChatInputScreen
           onSend={handleSend}
           suggestions={suggestions}
@@ -150,7 +153,7 @@ const HomePage: React.FC = () => {
         />
       </main>
 
-      <p className="px-6 pb-4 text-center text-xs italic text-slate-400">
+      <p className="relative z-10 px-6 pb-4 text-center text-xs italic text-slate-400">
         {t(AI_AGENT_WARNING_MESSAGE_KEY)}
       </p>
 
