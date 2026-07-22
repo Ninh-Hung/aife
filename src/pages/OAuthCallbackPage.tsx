@@ -2,9 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { OAUTH_PROVIDER } from '../common/constants';
+
+const OAUTH_PROVIDER_LABELS: Record<string, string> = {
+  [OAUTH_PROVIDER.APPLE]: 'Apple',
+  [OAUTH_PROVIDER.GOOGLE]: 'Google',
+  [OAUTH_PROVIDER.GITHUB]: 'GitHub',
+};
 
 const providerLabel = (provider: string | null) =>
-  provider === 'apple' ? 'Apple' : provider === 'google' ? 'Google' : 'Social';
+  provider ? OAUTH_PROVIDER_LABELS[provider] || 'Social' : 'Social';
 
 const oauthErrorMessage = (errorCode: string | null, provider: string | null) => {
   const providerName = providerLabel(provider);

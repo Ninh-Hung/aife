@@ -21,3 +21,18 @@ export const MIN_USERNAME_LENGTH = 3;
  * Shared translation key for AI-generated content warning
  */
 export const AI_AGENT_WARNING_MESSAGE_KEY = 'chat.aiAgentWarning';
+
+export const OAUTH_PROVIDER = {
+  GOOGLE: 'google',
+  FACEBOOK: 'facebook',
+  APPLE: 'apple',
+  GITHUB: 'github',
+} as const;
+
+export type OAuthProvider = (typeof OAUTH_PROVIDER)[keyof typeof OAUTH_PROVIDER];
+
+export const ENABLED_OAUTH_PROVIDERS = new Set<OAuthProvider>([
+  OAUTH_PROVIDER.GOOGLE,
+  OAUTH_PROVIDER.APPLE,
+  OAUTH_PROVIDER.GITHUB,
+]);
