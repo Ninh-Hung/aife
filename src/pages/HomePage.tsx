@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SignInModal } from '../components/auth/SignInModal';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { MatrixRainBackground } from '../components/common/MatrixRainBackground';
@@ -81,7 +81,7 @@ const HomePage: React.FC = () => {
   // Handle anonymous chat - create session and send first message
   const handleSend = async (
     message: string,
-    _image?: File,
+    image?: File,
     _agent?: unknown,
     mode: ChatExecutionMode = executionMode
   ) => {
@@ -110,7 +110,7 @@ const HomePage: React.FC = () => {
 
       // Navigate to chat screen. ChatScreen sends the first message through AgentDO.
       navigate(`/chat/${sessionResponse.data.id}`, {
-        state: { initialMessage: message, initialMode: mode },
+        state: { initialMessage: message, initialFile: image ?? null, initialMode: mode },
       });
     } catch (error) {
       console.error('Error starting anonymous chat:', error);
@@ -134,13 +134,20 @@ const HomePage: React.FC = () => {
           <span className="text-base font-semibold text-white">AppAIHelp</span>
         </div>
 
-        {/* Sign In button */}
-        <button
-          onClick={openSignInModal}
-          className="rounded-lg border border-slate-600 px-4 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:border-slate-400 hover:text-white"
-        >
-          Sign in
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openSignInModal}
+            className="rounded-lg border border-slate-600 px-4 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:border-slate-400 hover:text-white"
+          >
+            Sign in
+          </button>
+          <Link
+            to="/landing"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            Overview
+          </Link>
+        </div>
       </header>
 
       {/* ── Main ───────────────────────────────────────────── */}

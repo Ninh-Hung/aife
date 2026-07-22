@@ -22,6 +22,7 @@ import { Header } from './components/layout/Header';
 import { TranslationPage } from './features/translate/TranslationPage';
 import { AgentDrawer } from './components/agents/AgentDrawer';
 import HomePage from './pages/HomePage';
+import LandingPage from './pages/LandingPage';
 import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { EmailVerification } from './pages/EmailVerification';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
@@ -188,6 +189,7 @@ const AppContent: React.FC = () => {
     user &&
     isAnonymous &&
     location.pathname !== '/' &&
+    location.pathname !== '/landing' &&
     !location.pathname.startsWith('/chat/') &&
     !location.pathname.startsWith('/share/') &&
     location.pathname !== '/email-sent' &&
@@ -295,6 +297,9 @@ const AppContent: React.FC = () => {
       <Routes>
         {/* Root: redirects authenticated users to /new-chat, shows home page otherwise */}
         <Route path="/" element={<RootRoute />} />
+
+        {/* Public landing page for product benefits and integrations */}
+        <Route path="/landing" element={<LandingPage />} />
 
         {/* Email Verification Pending - shown after registration (no layout, not protected) */}
         <Route path="/email-sent" element={<EmailVerificationPending />} />
