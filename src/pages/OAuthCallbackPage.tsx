@@ -3,14 +3,24 @@ import { Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  OAUTH_PROVIDER_ERROR: 'Google sign-in was cancelled or rejected.',
-  OAUTH_CONFIGURATION_MISSING: 'Google sign-in is not configured yet.',
-  OAUTH_STATE_INVALID: 'Google sign-in session expired. Please try again.',
-  OAUTH_TOKEN_EXCHANGE_FAILED: 'Google sign-in could not be completed.',
-  OAUTH_EMAIL_NOT_VERIFIED: 'Your Google email is not verified.',
-  OAUTH_ACCOUNT_DISABLED: 'This account is disabled.',
-  OAUTH_LOGIN_FAILED: 'Google sign-in failed. Please try again.',
+const providerLabel = (provider: string | null) =>
+  provider === 'apple' ? 'Apple' : provider === 'google' ? 'Google' : 'Social';
+
+const oauthErrorMessage = (errorCode: string | null, provider: string | null) => {
+  const providerName = providerLabel(provider);
+  const messages: Record<string, string> = {
+    OAUTH_PROVIDER_ERROR: `${providerName} sign-in was cancelled or rejected.`,
+    OAUTH_CONFIGURATION_MISSING: `${providerName} sign-in is not configured yet.`,
+    OAUTH_STATE_INVALID: `${providerName} sign-in session expired. Please try again.`,
+    OAUTH_TOKEN_EXCHANGE_FAILED: `${providerName} sign-in could not be completed.`,
+    OAUTH_ID_TOKEN_INVALID: `${providerName} sign-in response could not be verified.`,
+    OAUTH_EMAIL_MISSING: `${providerName} did not return an email address.`,
+    OAUTH_EMAIL_NOT_VERIFIED: `Your ${providerName} email is not verified.`,
+    OAUTH_ACCOUNT_DISABLED: 'This account is disabled.',
+    OAUTH_LOGIN_FAILED: `${providerName} sign-in failed. Please try again.`,
+  };
+
+  return messages[errorCode || ''] || messages.OAUTH_LOGIN_FAILED;
 };
 
 const sanitizeReturnTo = (returnTo: string | null) => {
@@ -35,7 +45,8 @@ export const OAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { completeOAuthLogin } = useAuth();
   const hasHandledRef = useRef(false);
-  const [message, setMessage] = useState('Completing Google sign-in...');
+  const provider = searchParams.get('provider');
+  const [message, setMessage] = useState(`Completing ${providerLabel(provider)} sign-in...`);
 
   useEffect(() => {
     if (hasHandledRef.current) {
@@ -45,6 +56,7 @@ export const OAuthCallbackPage: React.FC = () => {
 
     const handleCallback = async () => {
       const status = searchParams.get('status');
+      const provider = searchParams.get('provider');
       const returnTo = sanitizeReturnTo(searchParams.get('returnTo'));
       const errorCode = searchParams.get('error');
 
@@ -53,8 +65,7 @@ export const OAuthCallbackPage: React.FC = () => {
           replace: true,
           state: {
             authMode: 'signin',
-            authError:
-              OAUTH_ERROR_MESSAGES[errorCode || ''] || OAUTH_ERROR_MESSAGES.OAUTH_LOGIN_FAILED,
+            authError: oauthErrorMessage(errorCode, provider),
           },
         });
         return;
@@ -65,12 +76,12 @@ export const OAuthCallbackPage: React.FC = () => {
         navigate(returnTo, { replace: true });
       } catch (error) {
         console.error('[OAuthCallback] Failed to complete OAuth login:', error);
-        setMessage('Google sign-in failed. Redirecting...');
+        setMessage(`${providerLabel(provider)} sign-in failed. Redirecting...`);
         navigate('/', {
           replace: true,
           state: {
             authMode: 'signin',
-            authError: OAUTH_ERROR_MESSAGES.OAUTH_LOGIN_FAILED,
+            authError: oauthErrorMessage('OAUTH_LOGIN_FAILED', provider),
           },
         });
       }
