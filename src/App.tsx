@@ -24,6 +24,7 @@ import { AgentDrawer } from './components/agents/AgentDrawer';
 import LandingPage from './pages/LandingPage';
 import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { EmailVerification } from './pages/EmailVerification';
+import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
@@ -189,7 +190,8 @@ const AppContent: React.FC = () => {
     !location.pathname.startsWith('/chat/') &&
     !location.pathname.startsWith('/share/') &&
     location.pathname !== '/email-sent' &&
-    location.pathname !== '/verify-email'
+    location.pathname !== '/verify-email' &&
+    location.pathname !== '/auth/callback'
   ) {
     return <Navigate to="/" replace />;
   }
@@ -297,6 +299,9 @@ const AppContent: React.FC = () => {
 
         {/* Email Verification Handler - processes token from email link (no layout, not protected) */}
         <Route path="/verify-email" element={<EmailVerification />} />
+
+        {/* OAuth callback - hydrates auth state after backend sets refresh cookie */}
+        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 
         {/* Public shared conversation snapshot - no private layout */}
         <Route path="/share/:shareToken" element={<SharedConversationPage />} />

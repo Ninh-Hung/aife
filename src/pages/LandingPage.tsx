@@ -34,7 +34,12 @@ const isAnonymousLimitResponse = (response: { error?: string; errorCode?: string
 const LandingPage: React.FC = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
-  const authMode = (location.state as { authMode?: 'signin' | 'signup' } | null)?.authMode;
+  const locationState = location.state as {
+    authMode?: 'signin' | 'signup';
+    authError?: string;
+  } | null;
+  const authMode = locationState?.authMode;
+  const authError = locationState?.authError ?? null;
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(Boolean(authMode));
   const navigate = useNavigate();
   const { agents } = useAgents();
@@ -153,6 +158,7 @@ const LandingPage: React.FC = () => {
       <SignInModal
         isOpen={isSignInModalOpen}
         initialMode={authMode === 'signup' ? 'signup' : 'signin'}
+        initialError={authError}
         onClose={closeSignInModal}
       />
     </div>

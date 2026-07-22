@@ -25,6 +25,7 @@ interface AuthContextValue {
   refreshSubscription: () => Promise<void>;
   updateProfile: (input: UpdateMyProfileInput) => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
+  completeOAuthLogin: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -130,7 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial auth check
   const initializingRef = useRef(false); // Prevent multiple simultaneous initializations
 
-  const applyUserData = useCallback((userData: AuthUserData) => {
+  const applyUserData = useCallback((userData: AuthUserData): User => {
     const mappedUser: User = {
       publicId: userData.publicId,
       userName: userData.userName,
@@ -158,15 +159,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     console.log('[AuthContext] User set successfully:', mappedUser);
+    return mappedUser;
   }, []);
 
-  const fetchAndApplyCurrentUser = useCallback(async () => {
+  const fetchAndApplyCurrentUser = useCallback(async (): Promise<User> => {
     const userResponse = await axiosInstance.get('/auth/me');
     console.log('[AuthContext] User response:', userResponse.data);
 
     if (userResponse.data.success && userResponse.data.data?.user) {
-      applyUserData(userResponse.data.data.user);
-      return;
+      return applyUserData(userResponse.data.data.user);
     }
 
     throw new Error('User response invalid format');
@@ -204,6 +205,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       initializingRef.current = true;
 
       try {
+        if (
+          typeof window !== 'undefined' &&
+          window.location.pathname === '/auth/callback' &&
+          new URLSearchParams(window.location.search).get('status') === 'success'
+        ) {
+          console.log('[AuthContext] OAuth callback route detected, deferring auth hydration...');
+          return;
+        }
+
         console.log('[AuthContext] Starting auth initialization...');
 
         try {
@@ -373,6 +383,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const completeOAuthLogin = async () => {
+    const pendingAnonymousSessionId =
+      typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY)
+        : null;
+
+    clearUserScopedClientStorage();
+    setUser(null);
+    setQuota(null);
+    setSubscription(null);
+
+    let mappedUser: User;
+    try {
+      await refreshAccessToken();
+      mappedUser = await fetchAndApplyCurrentUser();
+    } catch (error) {
+      await createAnonymousSession();
+      throw error;
+    }
+
+    if (
+      pendingAnonymousSessionId &&
+      !isAnonymousUser(mappedUser) &&
+      typeof window !== 'undefined'
+    ) {
+      window.sessionStorage.setItem(
+        ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY,
+        pendingAnonymousSessionId
+      );
+      window.dispatchEvent(
+        new CustomEvent('anonymous:merge-pending', {
+          detail: {
+            sessionId: pendingAnonymousSessionId,
+          },
+        })
+      );
+    }
+  };
+
   // ============================================
   // Refresh Quota Function
   // ============================================
@@ -517,6 +566,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshSubscription,
     updateProfile,
     login,
+    completeOAuthLogin,
     logout,
   };
 

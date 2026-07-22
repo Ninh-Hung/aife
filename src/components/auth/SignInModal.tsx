@@ -18,6 +18,7 @@ interface SignInModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'signin' | 'signup';
+  initialError?: string | null;
 }
 
 // ============================================
@@ -28,6 +29,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   isOpen,
   onClose,
   initialMode = 'signin',
+  initialError = null,
 }) => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -38,6 +40,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   const [password, setPassword] = useState('');
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthProviderLoading, setOauthProviderLoading] = useState<
+    'google' | 'facebook' | 'apple' | 'github' | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   // Username availability check states
@@ -49,6 +54,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setIsSignUp(initialMode === 'signup');
+      setError(initialError);
       setIsAnimating(true);
       // Lock body scroll when modal opens
       document.body.style.overflow = 'hidden';
@@ -60,7 +66,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [initialMode, isOpen]);
+  }, [initialError, initialMode, isOpen]);
 
   // Reset username availability states when toggling between sign in/up
   useEffect(() => {
@@ -235,8 +241,30 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   };
 
   const handleOAuthLogin = (provider: 'google' | 'facebook' | 'apple' | 'github') => {
-    // TODO: Add OAuth logic
-    console.log(`OAuth login with ${provider}`);
+    setError(null);
+
+    if (provider !== 'google') {
+      setError('This provider is not available yet.');
+      return;
+    }
+
+    const serverUrl = import.meta.env.VITE_SERVER_URL;
+    if (!serverUrl) {
+      setError('Authentication server is not configured.');
+      return;
+    }
+
+    setOauthProviderLoading(provider);
+
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const returnTo =
+      currentPath === '/' || currentPath.startsWith('/auth/') ? '/new-chat' : currentPath;
+    const params = new URLSearchParams({
+      returnTo,
+      mode: isSignUp ? 'signup' : 'signin',
+    });
+
+    window.location.assign(`${serverUrl.replace(/\/+$/, '')}/auth/oauth/google/start?${params}`);
   };
 
   return (
@@ -285,32 +313,38 @@ export const SignInModal: React.FC<SignInModalProps> = ({
               {/* Google */}
               <button
                 onClick={() => handleOAuthLogin('google')}
+                disabled={isLoading || Boolean(oauthProviderLoading)}
                 className="flex h-12 w-12 items-center justify-center rounded-lg bg-white transition-all hover:scale-110 hover:shadow-lg"
                 title="Continue with Google"
               >
-                <svg className="h-6 w-6" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
+                {oauthProviderLoading === 'google' ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-700" />
+                ) : (
+                  <svg className="h-6 w-6" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                )}
               </button>
 
               {/* Facebook */}
               <button
                 onClick={() => handleOAuthLogin('facebook')}
+                disabled={isLoading || Boolean(oauthProviderLoading)}
                 className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#1877F2] transition-all hover:scale-110 hover:shadow-lg"
                 title="Continue with Facebook"
               >
@@ -322,6 +356,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
               {/* Apple */}
               <button
                 onClick={() => handleOAuthLogin('apple')}
+                disabled={isLoading || Boolean(oauthProviderLoading)}
                 className="flex h-12 w-12 items-center justify-center rounded-lg bg-black transition-all hover:scale-110 hover:shadow-lg"
                 title="Continue with Apple"
               >
@@ -333,6 +368,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
               {/* GitHub */}
               <button
                 onClick={() => handleOAuthLogin('github')}
+                disabled={isLoading || Boolean(oauthProviderLoading)}
                 className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#24292e] transition-all hover:scale-110 hover:shadow-lg"
                 title="Continue with GitHub"
               >
@@ -477,7 +513,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
               <button
                 type="submit"
                 disabled={
-                  isLoading || (isSignUp && (isCheckingUsername || isUsernameAvailable === false))
+                  isLoading ||
+                  Boolean(oauthProviderLoading) ||
+                  (isSignUp && (isCheckingUsername || isUsernameAvailable === false))
                 }
                 className="mt-6 w-full rounded-lg bg-teal-500 px-4 py-3 font-medium text-white transition-colors hover:bg-teal-600 disabled:cursor-not-allowed disabled:bg-teal-500/50"
               >
@@ -498,6 +536,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
               </span>
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
+                disabled={isLoading || Boolean(oauthProviderLoading)}
                 className="text-sm font-medium text-teal-400 transition-colors hover:text-teal-300"
               >
                 {isSignUp ? 'Sign In' : 'Sign Up'}
