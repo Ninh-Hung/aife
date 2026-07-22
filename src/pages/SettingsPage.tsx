@@ -5,17 +5,18 @@ import {
   Button,
   Card,
   IconButton,
+  InputAdornment,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Languages, Save, Trash2, Upload, UserRound } from 'lucide-react';
+import { Eye, EyeOff, Languages, LockKeyhole, Save, Trash2, Upload, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { LanguageSwitch } from '../components/layout/LanguageSwitch';
 import { UserMemorySettings } from '../components/settings/UserMemorySettings';
 import { useAuth } from '../contexts/AuthContext';
-import { uploadMyAvatar } from '../services/api';
+import { changeMyPassword, uploadMyAvatar } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
 
 const MAX_AVATAR_SIZE_MB = 5;
@@ -23,7 +24,7 @@ const AVATAR_ACCEPT = 'image/jpeg,image/png,image/svg+xml,image/gif,image/webp,i
 
 export const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
-  const { user, updateProfile } = useAuth();
+  const { user, isAnonymous, updateProfile } = useAuth();
   const { success, error } = useNotification();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
@@ -34,6 +35,15 @@ export const SettingsPage: React.FC = () => {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(initialAvatarUrl);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [visiblePasswordFields, setVisiblePasswordFields] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
 
   useEffect(() => {
     setFullName(user?.fullName ?? '');
@@ -56,6 +66,27 @@ export const SettingsPage: React.FC = () => {
   const avatarLetter = (displayName || user?.email || 'U').charAt(0).toUpperCase();
   const hasChanges =
     fullName.trim() !== (user?.fullName ?? '') || (avatarUrl ?? null) !== (user?.avatar ?? null);
+  const canChangePassword =
+    Boolean(user) && !isAnonymous && (!user?.authProvider || user.authProvider === 'NORMAL');
+  const passwordValidationError = useMemo(() => {
+    if (!newPassword) return '';
+    if (newPassword.length < 8) return t('settings.password.validation.minLength');
+    if (newPassword.length > 128) return t('settings.password.validation.maxLength');
+    if (!/\d/.test(newPassword)) return t('settings.password.validation.requiresNumber');
+    if (!/[a-zA-Z]/.test(newPassword)) return t('settings.password.validation.requiresLetter');
+    if (currentPassword && newPassword === currentPassword) {
+      return t('settings.password.validation.sameAsCurrent');
+    }
+    return '';
+  }, [currentPassword, newPassword, t]);
+  const confirmPasswordError =
+    confirmPassword && newPassword !== confirmPassword
+      ? t('settings.password.validation.confirmMismatch')
+      : '';
+  const canSubmitPassword =
+    Boolean(currentPassword && newPassword && confirmPassword) &&
+    !passwordValidationError &&
+    !confirmPasswordError;
 
   const clearObjectPreview = () => {
     if (objectUrlRef.current) {
@@ -125,6 +156,62 @@ export const SettingsPage: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const togglePasswordVisibility = (field: keyof typeof visiblePasswordFields) => {
+    setVisiblePasswordFields((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  const renderPasswordVisibilityButton = (
+    field: keyof typeof visiblePasswordFields,
+    label: string
+  ) => (
+    <InputAdornment position="end">
+      <Tooltip title={label}>
+        <IconButton
+          type="button"
+          edge="end"
+          onClick={() => togglePasswordVisibility(field)}
+          aria-label={label}
+          disabled={isChangingPassword}
+        >
+          {visiblePasswordFields[field] ? <EyeOff size={18} /> : <Eye size={18} />}
+        </IconButton>
+      </Tooltip>
+    </InputAdornment>
+  );
+
+  const handlePasswordSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!canSubmitPassword) {
+      error(
+        passwordValidationError ||
+          confirmPasswordError ||
+          t('settings.password.validation.required')
+      );
+      return;
+    }
+
+    setIsChangingPassword(true);
+    const result = await changeMyPassword({
+      currentPassword,
+      newPassword,
+    });
+    setIsChangingPassword(false);
+
+    if (!result.success) {
+      error(result.error || t('settings.password.errors.changeFailed'));
+      return;
+    }
+
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    success(t('settings.password.messages.changed'));
   };
 
   return (
@@ -237,8 +324,102 @@ export const SettingsPage: React.FC = () => {
         </Box>
       </Card>
 
+      {canChangePassword && (
+        <Card
+          className="mb-4 max-w-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+          elevation={0}
+        >
+          <Box className="mb-5 flex min-w-0 items-start gap-3">
+            <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+              <LockKeyhole className="text-amber-600 dark:text-amber-400" size={20} />
+            </Box>
+            <Box className="min-w-0">
+              <Typography
+                variant="subtitle1"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {t('settings.password.title')}
+              </Typography>
+              <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
+                {t('settings.password.description')}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box component="form" onSubmit={handlePasswordSubmit} className="space-y-4">
+            <TextField
+              fullWidth
+              label={t('settings.password.fields.current')}
+              type={visiblePasswordFields.current ? 'text' : 'password'}
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              disabled={isChangingPassword}
+              autoComplete="current-password"
+              InputProps={{
+                endAdornment: renderPasswordVisibilityButton(
+                  'current',
+                  visiblePasswordFields.current
+                    ? t('settings.password.actions.hideCurrent')
+                    : t('settings.password.actions.showCurrent')
+                ),
+              }}
+            />
+            <TextField
+              fullWidth
+              label={t('settings.password.fields.new')}
+              type={visiblePasswordFields.next ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              disabled={isChangingPassword}
+              autoComplete="new-password"
+              error={Boolean(passwordValidationError)}
+              helperText={passwordValidationError || t('settings.password.fields.newHelp')}
+              InputProps={{
+                endAdornment: renderPasswordVisibilityButton(
+                  'next',
+                  visiblePasswordFields.next
+                    ? t('settings.password.actions.hideNew')
+                    : t('settings.password.actions.showNew')
+                ),
+              }}
+            />
+            <TextField
+              fullWidth
+              label={t('settings.password.fields.confirm')}
+              type={visiblePasswordFields.confirm ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              disabled={isChangingPassword}
+              autoComplete="new-password"
+              error={Boolean(confirmPasswordError)}
+              helperText={confirmPasswordError || ' '}
+              InputProps={{
+                endAdornment: renderPasswordVisibilityButton(
+                  'confirm',
+                  visiblePasswordFields.confirm
+                    ? t('settings.password.actions.hideConfirm')
+                    : t('settings.password.actions.showConfirm')
+                ),
+              }}
+            />
+            <Box className="flex justify-end">
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<Save size={16} />}
+                disabled={!canSubmitPassword || isChangingPassword}
+              >
+                {isChangingPassword
+                  ? t('settings.password.actions.saving')
+                  : t('settings.password.actions.save')}
+              </Button>
+            </Box>
+          </Box>
+        </Card>
+      )}
+
       <Card
-        className="max-w-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+        className="mb-4 max-w-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
         elevation={0}
       >
         <Box className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

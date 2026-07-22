@@ -8,7 +8,8 @@
     "settings": "Settings",
     "logout": "Logout",
     "trial": "Trial",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "close": "Close"
   },
   "logoutConfirm": {
     "title": "Confirm logout",
@@ -46,6 +47,41 @@
         "avatarTooLarge": "File is too large. Maximum size is {{size}} MB.",
         "uploadFailed": "Failed to upload profile picture",
         "updateFailed": "Failed to update profile"
+      }
+    },
+    "password": {
+      "title": "Password",
+      "description": "Change the password used to sign in to your account.",
+      "fields": {
+        "current": "Current password",
+        "new": "New password",
+        "confirm": "Confirm new password",
+        "newHelp": "Use 8-128 characters with at least one letter and one number."
+      },
+      "actions": {
+        "save": "Change password",
+        "saving": "Changing...",
+        "showCurrent": "Show current password",
+        "hideCurrent": "Hide current password",
+        "showNew": "Show new password",
+        "hideNew": "Hide new password",
+        "showConfirm": "Show password confirmation",
+        "hideConfirm": "Hide password confirmation"
+      },
+      "messages": {
+        "changed": "Password changed successfully"
+      },
+      "validation": {
+        "required": "Please complete all password fields.",
+        "minLength": "Password must be at least 8 characters.",
+        "maxLength": "Password must be less than 128 characters.",
+        "requiresNumber": "Password must contain at least one number.",
+        "requiresLetter": "Password must contain at least one letter.",
+        "sameAsCurrent": "New password must be different from the current password.",
+        "confirmMismatch": "New passwords do not match."
+      },
+      "errors": {
+        "changeFailed": "Failed to change password"
       }
     },
     "language": {
@@ -389,7 +425,15 @@
       "defaultOwnOnly": "Only your own agents can be selected as default",
       "deleteFailed": "Failed to delete agent",
       "createChatFailed": "Failed to create chat session",
-      "setDefaultFailed": "Failed to set default agent"
+      "setDefaultFailed": "Failed to set default agent",
+      "subscriptionCheckFailed": "Failed to check your agent creation limit"
+    },
+    "limit": {
+      "reachedTitle": "Agent limit reached",
+      "subscriptionRequiredTitle": "Subscription required",
+      "reachedMessage": "Your current {{packageName}} plan allows up to {{maxAgents}} active agents. You currently have {{currentAgents}}.",
+      "subscriptionRequiredMessage": "You need an active subscription before creating a new agent.",
+      "viewPlans": "View Plans"
     },
     "card": {
       "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",

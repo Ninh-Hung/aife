@@ -112,6 +112,11 @@ export interface UpdateMyProfileInput {
   avatarUrl?: string | null;
 }
 
+export interface ChangeMyPasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface MyProfileResponse {
   user: User & {
     avatarUrl?: string | null;
@@ -166,6 +171,29 @@ export const uploadMyAvatar = async (file: File): Promise<ApiResponse<{ url: str
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to upload avatar',
+    };
+  }
+};
+
+export const changeMyPassword = async (input: ChangeMyPasswordInput): Promise<ApiResponse> => {
+  try {
+    const response = await axiosInstance.patch('/auth/me/password', input);
+
+    return {
+      success: true,
+      message: response.data.message || 'Password changed successfully',
+    };
+  } catch (error) {
+    console.error('Change password error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to change password',
+      message: axiosError.response?.data?.message,
     };
   }
 };

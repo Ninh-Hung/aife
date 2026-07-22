@@ -8,7 +8,8 @@
     "settings": "Cài đặt",
     "logout": "Đăng xuất",
     "trial": "Dùng thử",
-    "comingSoon": "Sắp ra mắt"
+    "comingSoon": "Sắp ra mắt",
+    "close": "Đóng"
   },
   "logoutConfirm": {
     "title": "Xác nhận đăng xuất",
@@ -46,6 +47,41 @@
         "avatarTooLarge": "Tệp quá lớn. Kích thước tối đa là {{size}} MB.",
         "uploadFailed": "Không thể tải ảnh đại diện",
         "updateFailed": "Không thể cập nhật hồ sơ"
+      }
+    },
+    "password": {
+      "title": "Mật khẩu",
+      "description": "Đổi mật khẩu dùng để đăng nhập tài khoản của bạn.",
+      "fields": {
+        "current": "Mật khẩu hiện tại",
+        "new": "Mật khẩu mới",
+        "confirm": "Xác nhận mật khẩu mới",
+        "newHelp": "Dùng 8-128 ký tự, có ít nhất một chữ cái và một số."
+      },
+      "actions": {
+        "save": "Đổi mật khẩu",
+        "saving": "Đang đổi...",
+        "showCurrent": "Hiện mật khẩu hiện tại",
+        "hideCurrent": "Ẩn mật khẩu hiện tại",
+        "showNew": "Hiện mật khẩu mới",
+        "hideNew": "Ẩn mật khẩu mới",
+        "showConfirm": "Hiện xác nhận mật khẩu",
+        "hideConfirm": "Ẩn xác nhận mật khẩu"
+      },
+      "messages": {
+        "changed": "Đổi mật khẩu thành công"
+      },
+      "validation": {
+        "required": "Vui lòng nhập đầy đủ các trường mật khẩu.",
+        "minLength": "Mật khẩu phải có ít nhất 8 ký tự.",
+        "maxLength": "Mật khẩu phải ngắn hơn 128 ký tự.",
+        "requiresNumber": "Mật khẩu phải có ít nhất một số.",
+        "requiresLetter": "Mật khẩu phải có ít nhất một chữ cái.",
+        "sameAsCurrent": "Mật khẩu mới phải khác mật khẩu hiện tại.",
+        "confirmMismatch": "Mật khẩu mới không khớp."
+      },
+      "errors": {
+        "changeFailed": "Không thể đổi mật khẩu"
       }
     },
     "language": {
@@ -389,7 +425,15 @@
       "defaultOwnOnly": "Chỉ có thể chọn agent của bạn làm mặc định",
       "deleteFailed": "Không thể xóa agent",
       "createChatFailed": "Không thể tạo phiên chat",
-      "setDefaultFailed": "Không thể đặt agent mặc định"
+      "setDefaultFailed": "Không thể đặt agent mặc định",
+      "subscriptionCheckFailed": "Không thể kiểm tra giới hạn tạo agent"
+    },
+    "limit": {
+      "reachedTitle": "Đã đạt giới hạn agent",
+      "subscriptionRequiredTitle": "Cần gói dịch vụ",
+      "reachedMessage": "Gói {{packageName}} hiện tại cho phép tối đa {{maxAgents}} agent đang hoạt động. Bạn hiện có {{currentAgents}}.",
+      "subscriptionRequiredMessage": "Bạn cần có gói dịch vụ đang hoạt động trước khi tạo agent mới.",
+      "viewPlans": "Xem gói dịch vụ"
     },
     "card": {
       "deleteConfirm": "Bạn có chắc muốn xóa \"{{name}}\"?",

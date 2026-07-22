@@ -6,7 +6,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Bot } from 'lucide-react';
-import { Button } from '@mui/material';
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { useAgents } from '../contexts/AgentsContext';
 import { AgentCard } from '../components/agents/AgentCard';
@@ -14,17 +21,28 @@ import { AgentDrawer } from '../components/agents/AgentDrawer';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { Agent, CreateAgentInput } from '../types';
 import { useNotification } from '../hooks/useNotification';
-import { createChatSession } from '../services/api';
+import { createChatSession, getCurrentSubscription } from '../services/api';
 
 const isAnonymousLimitResponse = (response: { errorCode?: string; error?: string }) =>
   response.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
   response.error === 'ANONYMOUS_LIMIT_EXCEEDED';
 
+type AgentLimitModalState = {
+  open: boolean;
+  reason: 'subscription' | 'limit';
+  packageName?: string;
+  maxAgents?: number;
+  currentAgents: number;
+};
+
 // ============================================
 // Empty State Component
 // ============================================
 
-const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) => {
+const EmptyState: React.FC<{ onCreateAgent: () => void; createDisabled?: boolean }> = ({
+  onCreateAgent,
+  createDisabled = false,
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -41,6 +59,7 @@ const EmptyState: React.FC<{ onCreateAgent: () => void }> = ({ onCreateAgent }) 
       <Button
         variant="contained"
         onClick={onCreateAgent}
+        disabled={createDisabled}
         startIcon={<Plus size={18} />}
         className="bg-[#3B82F6] text-white hover:bg-[#2563EB]"
       >
@@ -71,14 +90,65 @@ export const AgentManagement: React.FC = () => {
   const { addOrUpdateConversation } = useSidebarConversations();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [isCheckingAgentLimit, setIsCheckingAgentLimit] = useState(false);
+  const [agentLimitModal, setAgentLimitModal] = useState<AgentLimitModalState>({
+    open: false,
+    reason: 'limit',
+    currentAgents: 0,
+  });
+
+  const userCreatedAgentCount = agents.filter((a) => !a.ownerType || a.ownerType === 'USER').length;
 
   // ============================================
   // Handlers
   // ============================================
 
-  const handleCreateNew = () => {
-    setSelectedAgent(null);
-    setIsDrawerOpen(true);
+  const handleCreateNew = async () => {
+    if (isCheckingAgentLimit) {
+      return;
+    }
+
+    setIsCheckingAgentLimit(true);
+
+    try {
+      const subscriptionResponse = await getCurrentSubscription();
+
+      if (!subscriptionResponse.success) {
+        showError(subscriptionResponse.error || t('agents.errors.subscriptionCheckFailed'));
+        return;
+      }
+
+      const subscription = subscriptionResponse.data;
+
+      if (!subscription?.package) {
+        setAgentLimitModal({
+          open: true,
+          reason: 'subscription',
+          currentAgents: userCreatedAgentCount,
+        });
+        return;
+      }
+
+      const { maxAgents, name } = subscription.package;
+
+      if (userCreatedAgentCount >= maxAgents) {
+        setAgentLimitModal({
+          open: true,
+          reason: 'limit',
+          packageName: name,
+          maxAgents,
+          currentAgents: userCreatedAgentCount,
+        });
+        return;
+      }
+
+      setSelectedAgent(null);
+      setIsDrawerOpen(true);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t('agents.errors.subscriptionCheckFailed'));
+    } finally {
+      setIsCheckingAgentLimit(false);
+    }
   };
 
   const handleEdit = (agent: Agent) => {
@@ -125,6 +195,15 @@ export const AgentManagement: React.FC = () => {
     setSelectedAgent(null);
   };
 
+  const handleCloseAgentLimitModal = () => {
+    setAgentLimitModal((prev) => ({ ...prev, open: false }));
+  };
+
+  const handleViewPlans = () => {
+    handleCloseAgentLimitModal();
+    navigate('/subscription');
+  };
+
   const handleSaveAgent = async (input: CreateAgentInput) => {
     // AgentDrawer handles the error display and drawer closing
     await createAgent(input);
@@ -169,6 +248,7 @@ export const AgentManagement: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleCreateNew}
+            disabled={isCheckingAgentLimit}
             startIcon={<Plus size={20} />}
             className="bg-[#3B82F6] text-white hover:bg-[#2563EB]"
             sx={{
@@ -201,7 +281,7 @@ export const AgentManagement: React.FC = () => {
 
         {/* Agent Grid or Empty State */}
         {!loading && !error && agents.length === 0 && (
-          <EmptyState onCreateAgent={handleCreateNew} />
+          <EmptyState onCreateAgent={handleCreateNew} createDisabled={isCheckingAgentLimit} />
         )}
 
         {!loading && !error && agents.length > 0 && (
@@ -261,6 +341,39 @@ export const AgentManagement: React.FC = () => {
           agent={selectedAgent}
           onUpdate={handleUpdateAgent}
         />
+
+        <Dialog
+          open={agentLimitModal.open}
+          onClose={handleCloseAgentLimitModal}
+          fullWidth
+          maxWidth="xs"
+          PaperProps={{ sx: { borderRadius: '12px' } }}
+        >
+          <DialogTitle sx={{ fontWeight: 600 }}>
+            {agentLimitModal.reason === 'subscription'
+              ? t('agents.limit.subscriptionRequiredTitle')
+              : t('agents.limit.reachedTitle')}
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
+              {agentLimitModal.reason === 'subscription'
+                ? t('agents.limit.subscriptionRequiredMessage')
+                : t('agents.limit.reachedMessage', {
+                    packageName: agentLimitModal.packageName,
+                    maxAgents: agentLimitModal.maxAgents,
+                    currentAgents: agentLimitModal.currentAgents,
+                  })}
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={handleCloseAgentLimitModal} size="small">
+              {t('common.close')}
+            </Button>
+            <Button onClick={handleViewPlans} variant="contained" size="small">
+              {t('agents.limit.viewPlans')}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </div>
   );
