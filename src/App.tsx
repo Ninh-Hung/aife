@@ -21,7 +21,7 @@ import { Layout } from './components/layout/Layout';
 import { Header } from './components/layout/Header';
 import { TranslationPage } from './features/translate/TranslationPage';
 import { AgentDrawer } from './components/agents/AgentDrawer';
-import LandingPage from './pages/LandingPage';
+import HomePage from './pages/HomePage';
 import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { EmailVerification } from './pages/EmailVerification';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
@@ -82,7 +82,7 @@ const RootRoute: React.FC = () => {
     return <Navigate to="/new-chat" replace />;
   }
 
-  return <LandingPage />;
+  return <HomePage />;
 };
 
 const ChatScreenRoute: React.FC = () => {
@@ -293,7 +293,7 @@ const AppContent: React.FC = () => {
   return (
     <>
       <Routes>
-        {/* Root: redirects authenticated users to /new-chat, shows landing page otherwise */}
+        {/* Root: redirects authenticated users to /new-chat, shows home page otherwise */}
         <Route path="/" element={<RootRoute />} />
 
         {/* Email Verification Pending - shown after registration (no layout, not protected) */}

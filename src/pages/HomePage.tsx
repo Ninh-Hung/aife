@@ -1,6 +1,6 @@
 /**
- * Landing Page - AppAIHelp.com
- * Minimal chat-centric layout for unauthenticated users.
+ * Home Page - AppAIHelp.com
+ * Main chat-centric home screen for unauthenticated users.
  * Mirrors the clean aesthetic of ChatGPT / Claude home screens.
  * Supports anonymous chat - users can start chatting without signing in.
  */
@@ -28,10 +28,10 @@ const isAnonymousLimitResponse = (response: { error?: string; errorCode?: string
   response.error?.toLowerCase().startsWith('guest ');
 
 // ============================================
-// Main Landing Page Component
+// Main Home Page Component
 // ============================================
 
-const LandingPage: React.FC = () => {
+const HomePage: React.FC = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
   const locationState = location.state as {
@@ -165,4 +165,4 @@ const LandingPage: React.FC = () => {
   );
 };
 
-export default LandingPage;
+export default HomePage;
