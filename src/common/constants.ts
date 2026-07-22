@@ -33,6 +33,7 @@ export type OAuthProvider = (typeof OAUTH_PROVIDER)[keyof typeof OAUTH_PROVIDER]
 
 export const ENABLED_OAUTH_PROVIDERS = new Set<OAuthProvider>([
   OAUTH_PROVIDER.GOOGLE,
+  OAUTH_PROVIDER.FACEBOOK,
   OAUTH_PROVIDER.APPLE,
   OAUTH_PROVIDER.GITHUB,
 ]);

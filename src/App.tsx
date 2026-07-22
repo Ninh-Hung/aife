@@ -25,6 +25,7 @@ import LandingPage from './pages/LandingPage';
 import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { EmailVerification } from './pages/EmailVerification';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
@@ -191,6 +192,7 @@ const AppContent: React.FC = () => {
     !location.pathname.startsWith('/share/') &&
     location.pathname !== '/email-sent' &&
     location.pathname !== '/verify-email' &&
+    location.pathname !== '/reset-password' &&
     location.pathname !== '/auth/callback'
   ) {
     return <Navigate to="/" replace />;
@@ -302,6 +304,9 @@ const AppContent: React.FC = () => {
 
         {/* OAuth callback - hydrates auth state after backend sets refresh cookie */}
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+
+        {/* Password reset - public link from email */}
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Public shared conversation snapshot - no private layout */}
         <Route path="/share/:shareToken" element={<SharedConversationPage />} />

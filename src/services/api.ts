@@ -117,6 +117,15 @@ export interface ChangeMyPasswordInput {
   newPassword: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
 export interface MyProfileResponse {
   user: User & {
     avatarUrl?: string | null;
@@ -193,6 +202,52 @@ export const changeMyPassword = async (input: ChangeMyPasswordInput): Promise<Ap
         axiosError.response?.data?.message ||
         axiosError.response?.data?.error ||
         'Failed to change password',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+export const requestPasswordReset = async (input: ForgotPasswordInput): Promise<ApiResponse> => {
+  try {
+    const response = await axiosInstance.post('/auth/forgot-password', input);
+
+    return {
+      success: true,
+      message: response.data.message || 'Password reset link sent',
+    };
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to request password reset',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+export const resetPassword = async (input: ResetPasswordInput): Promise<ApiResponse> => {
+  try {
+    const response = await axiosInstance.post('/auth/reset-password', input);
+
+    return {
+      success: true,
+      message: response.data.message || 'Password reset successfully',
+    };
+  } catch (error) {
+    console.error('Reset password error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
+        'Failed to reset password',
       message: axiosError.response?.data?.message,
     };
   }

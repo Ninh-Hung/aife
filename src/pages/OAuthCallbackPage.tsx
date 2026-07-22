@@ -6,6 +6,7 @@ import { OAUTH_PROVIDER } from '../common/constants';
 
 const OAUTH_PROVIDER_LABELS: Record<string, string> = {
   [OAUTH_PROVIDER.APPLE]: 'Apple',
+  [OAUTH_PROVIDER.FACEBOOK]: 'Facebook',
   [OAUTH_PROVIDER.GOOGLE]: 'Google',
   [OAUTH_PROVIDER.GITHUB]: 'GitHub',
 };
@@ -23,6 +24,8 @@ const oauthErrorMessage = (errorCode: string | null, provider: string | null) =>
     OAUTH_ID_TOKEN_INVALID: `${providerName} sign-in response could not be verified.`,
     OAUTH_EMAIL_MISSING: `${providerName} did not return an email address.`,
     OAUTH_EMAIL_NOT_VERIFIED: `Your ${providerName} email is not verified.`,
+    FACEBOOK_EMAIL_REQUIRED:
+      'Facebook did not return an email address. Please grant email access and try again.',
     OAUTH_ACCOUNT_DISABLED: 'This account is disabled.',
     OAUTH_LOGIN_FAILED: `${providerName} sign-in failed. Please try again.`,
   };

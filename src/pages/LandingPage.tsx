@@ -128,7 +128,7 @@ const LandingPage: React.FC = () => {
         {/* Logo + App name */}
         <div className="flex items-center gap-2">
           <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
-          <span className="text-base font-semibold text-white">AppAIHelp.com</span>
+          <span className="text-base font-semibold text-white">AppAIHelp</span>
         </div>
 
         {/* Sign In button */}
