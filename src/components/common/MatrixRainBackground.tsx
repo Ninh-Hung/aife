@@ -21,10 +21,18 @@ export const MatrixRainBackground: React.FC = () => {
     let columns = 0;
     let drops: number[] = [];
 
+    const getCanvasSize = () => {
+      const bounds = canvas.parentElement?.getBoundingClientRect();
+
+      return {
+        width: Math.max(1, Math.floor(bounds?.width || window.innerWidth)),
+        height: Math.max(1, Math.floor(bounds?.height || window.innerHeight)),
+      };
+    };
+
     const resizeCanvas = () => {
       const pixelRatio = window.devicePixelRatio || 1;
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const { width, height } = getCanvasSize();
 
       canvas.width = Math.floor(width * pixelRatio);
       canvas.height = Math.floor(height * pixelRatio);
@@ -50,8 +58,7 @@ export const MatrixRainBackground: React.FC = () => {
 
       lastFrameTime = timestamp;
 
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const { width, height } = getCanvasSize();
 
       context.fillStyle = 'rgba(7, 17, 31, 0.14)';
       context.fillRect(0, 0, width, height);
@@ -76,8 +83,7 @@ export const MatrixRainBackground: React.FC = () => {
     };
 
     const renderStaticFrame = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const { width, height } = getCanvasSize();
 
       context.fillStyle = '#07111f';
       context.fillRect(0, 0, width, height);
@@ -111,11 +117,17 @@ export const MatrixRainBackground: React.FC = () => {
 
     start();
 
+    const resizeObserver = new ResizeObserver(start);
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
+
     window.addEventListener('resize', start);
     reducedMotionQuery.addEventListener('change', start);
 
     return () => {
       window.cancelAnimationFrame(animationFrameId);
+      resizeObserver.disconnect();
       window.removeEventListener('resize', start);
       reducedMotionQuery.removeEventListener('change', start);
     };

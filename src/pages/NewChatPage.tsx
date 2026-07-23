@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
+import { MatrixRainBackground } from '../components/common/MatrixRainBackground';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
@@ -109,13 +110,16 @@ const NewChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-[#0A1628]">
-      <ChatInputScreen
-        onSend={handleSend}
-        isSubmitting={isStartingChat || loading}
-        executionMode={executionMode}
-        onExecutionModeChange={setExecutionMode}
-      />
+    <div className="dark relative flex h-full min-h-screen items-center justify-center overflow-hidden bg-[#07111f] px-4 text-white">
+      <MatrixRainBackground />
+      <div className="relative z-10 w-full">
+        <ChatInputScreen
+          onSend={handleSend}
+          isSubmitting={isStartingChat || loading}
+          executionMode={executionMode}
+          onExecutionModeChange={setExecutionMode}
+        />
+      </div>
     </div>
   );
 };
