@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MessageSquare } from 'lucide-react';
 import { Agent, ChatMessage, ChatSource } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
@@ -133,6 +134,7 @@ export const ChatScreen: React.FC = () => {
   const { isAnonymous, user } = useAuth();
   const { agents } = useAgents();
   const { error: showError } = useNotification();
+  const { t } = useTranslation();
   const { sessions, addOrUpdateConversation } = useSidebarConversations();
   const initialSendRef = useRef<string | null>(null);
   const lastSyncedAgentMessageRef = useRef<string | null>(null);
@@ -370,7 +372,7 @@ export const ChatScreen: React.FC = () => {
       setIsInitializing(true);
 
       if (!routeSessionId) {
-        showError('Chat session ID is required');
+        showError(t('chat.errors.sessionIdRequired'));
         navigate('/new-chat');
         return;
       }
@@ -386,20 +388,20 @@ export const ChatScreen: React.FC = () => {
       }
 
       if (!sessionResponse.success || !sessionResponse.data) {
-        showError(sessionResponse.error || 'Chat session not found');
+        showError(sessionResponse.error || t('chat.errors.sessionNotFound'));
         navigate('/new-chat');
         return;
       }
 
       const currentSession = sessionResponse.data;
       if (typeof currentSession.internalId !== 'number') {
-        showError('Chat session is missing internal ID');
+        showError(t('chat.errors.missingInternalId'));
         navigate('/new-chat');
         return;
       }
 
       if (!currentSession.agentPublicId) {
-        showError('Chat session is missing agent ID');
+        showError(t('chat.errors.missingAgentId'));
         navigate('/new-chat');
         return;
       }
@@ -426,8 +428,8 @@ export const ChatScreen: React.FC = () => {
         resolvedAgent = {
           id: currentSession.agentPublicId,
           publicId: currentSession.agentPublicId,
-          name: currentSession.agentName || 'AI Assistant',
-          description: 'Chat assistant',
+          name: currentSession.agentName || t('chat.fallbackAgentName'),
+          description: t('chat.fallbackAgentDescription'),
           avatarUrl: null,
           characteristicIds: [],
           knowledgeIds: [],
@@ -676,7 +678,7 @@ export const ChatScreen: React.FC = () => {
       }
 
       if (!isConnected || !activeSessionId) {
-        showError('Not connected to agent. Please wait...');
+        showError(t('chat.errors.notConnected'));
         return;
       }
 
@@ -699,12 +701,20 @@ export const ChatScreen: React.FC = () => {
         }
       } catch (err) {
         setIsAwaitingResponse(false);
-        const error = err instanceof Error ? err : new Error('Failed to send message');
+        const error = err instanceof Error ? err : new Error(t('chat.errors.sendFailed'));
         showError(error.message);
         throw error;
       }
     },
-    [isConnected, activeSessionId, agentSendMessage, showError, sessions, addOrUpdateConversation]
+    [
+      isConnected,
+      activeSessionId,
+      agentSendMessage,
+      showError,
+      sessions,
+      addOrUpdateConversation,
+      t,
+    ]
   );
 
   const handleCancelResponse = useCallback(async () => {
@@ -762,7 +772,7 @@ export const ChatScreen: React.FC = () => {
         : undefined
     );
     if (!response.success) {
-      showError(response.error || 'Failed to cancel response');
+      showError(response.error || t('chat.errors.cancelFailed'));
       return;
     }
 
@@ -774,6 +784,7 @@ export const ChatScreen: React.FC = () => {
     responseMessagesAfterLastUser,
     showError,
     stopAgentResponse,
+    t,
   ]);
 
   useEffect(() => {
@@ -815,7 +826,7 @@ export const ChatScreen: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900">
         <div className="text-center">
           <CircularProgress size={40} className="mb-4" />
-          <p className="text-gray-600 dark:text-slate-400">Loading chat...</p>
+          <p className="text-gray-600 dark:text-slate-400">{t('chat.loading')}</p>
         </div>
       </div>
     );
@@ -824,7 +835,7 @@ export const ChatScreen: React.FC = () => {
   if (!agent) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-slate-900">
-        <p className="text-gray-600 dark:text-slate-400">Agent not found</p>
+        <p className="text-gray-600 dark:text-slate-400">{t('chat.errors.agentNotFound')}</p>
       </div>
     );
   }
@@ -854,11 +865,12 @@ export const ChatScreen: React.FC = () => {
               <MessageSquare size={32} className="text-gray-400 dark:text-slate-500" />
             </div>
             <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
-              No conversations yet
+              {t('chat.empty.title')}
             </h3>
             <p className="max-w-md text-sm text-gray-600 dark:text-slate-400">
-              Click <span className="font-medium text-blue-500">New Chat</span> to start a
-              conversation with {agent.name}.
+              {t('chat.empty.prefix')}{' '}
+              <span className="font-medium text-blue-500">{t('sidebar.newChat')}</span>{' '}
+              {t('chat.empty.suffix', { name: agent.name })}
             </p>
           </div>
         </div>
@@ -867,12 +879,17 @@ export const ChatScreen: React.FC = () => {
       {/* WebSocket Status Indicator */}
       {!isConnected && activeSessionId && (
         <div className="fixed bottom-4 right-4 rounded-lg bg-yellow-100 px-4 py-2 text-sm text-yellow-800 shadow-lg dark:bg-yellow-900 dark:text-yellow-200">
-          {isConnecting ? 'Connecting to agent...' : 'Disconnected from agent'}
+          {isConnecting ? t('chat.connection.connecting') : t('chat.connection.disconnected')}
         </div>
       )}
 
       {/* Right Panel - Agent Info (collapsible) */}
-      <AgentInfoPanel agent={agent} isVisible={isInfoPanelVisible} onClose={handleToggleInfo} />
+      <AgentInfoPanel
+        agent={agent}
+        isVisible={isInfoPanelVisible}
+        onClose={handleToggleInfo}
+        onAgentChange={setAgent}
+      />
     </div>
   );
 };

@@ -219,8 +219,57 @@
     }
   },
   "chat": {
+    "loading": "Loading chat...",
+    "fallbackAgentName": "AI Assistant",
+    "fallbackAgentDescription": "Chat assistant",
     "thinking": "Thinking...",
-    "aiAgentWarning": "AI agents can make mistakes. Always check/verify important information."
+    "aiAgentWarning": "AI agents can make mistakes. Always check/verify important information.",
+    "connection": {
+      "connecting": "Connecting to agent...",
+      "disconnected": "Disconnected from agent"
+    },
+    "empty": {
+      "title": "No conversations yet",
+      "prefix": "Click",
+      "suffix": "to start a conversation with {{name}}."
+    },
+    "errors": {
+      "sessionIdRequired": "Chat session ID is required",
+      "sessionNotFound": "Chat session not found",
+      "missingInternalId": "Chat session is missing internal ID",
+      "missingAgentId": "Chat session is missing agent ID",
+      "agentNotFound": "Agent not found",
+      "notConnected": "Not connected to agent. Please wait...",
+      "sendFailed": "Failed to send message",
+      "cancelFailed": "Failed to cancel response"
+    },
+    "agentInfo": {
+      "title": "Agent Info",
+      "avatarAlt": "{{name}} avatar",
+      "behaviors": "Behaviors",
+      "noBehaviors": "No behaviors configured",
+      "knowledge": "Knowledge",
+      "knowledgeSources": "Knowledge sources",
+      "details": "Details",
+      "ownerType": "Owner Type:",
+      "defaultAgent": "Default Agent:",
+      "yes": "Yes",
+      "no": "No",
+      "actions": {
+        "uploadAvatar": "Upload avatar",
+        "removeAvatar": "Remove avatar"
+      },
+      "messages": {
+        "avatarUpdated": "Agent avatar updated",
+        "avatarRemoved": "Agent avatar removed"
+      },
+      "errors": {
+        "unsupportedAvatarType": "Unsupported file type. Please upload JPG, PNG, SVG, GIF, WebP, or AVIF.",
+        "avatarTooLarge": "File is too large. Maximum size is {{size}} MB.",
+        "uploadFailed": "Failed to upload avatar",
+        "updateFailed": "Failed to update avatar"
+      }
+    }
   },
   "feedback": {
     "title": "Feedback",

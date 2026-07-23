@@ -20,6 +20,7 @@ interface AgentsContextValue {
   fetchAgents: () => Promise<void>;
   createAgent: (input: CreateAgentInput) => Promise<Agent>;
   updateAgent: (id: string, input: Partial<CreateAgentInput>) => Promise<void>;
+  updateAgentAvatar: (publicId: string, avatarUrl: string | null) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
   setDefaultAgent: (publicId: string) => Promise<void>;
 }
@@ -157,6 +158,29 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     setAgents((prev) => prev.map((agent) => (agent.id === id ? { ...agent, ...input } : agent)));
   };
 
+  const updateAgentAvatar = async (publicId: string, avatarUrl: string | null): Promise<void> => {
+    const response = await agentApi.updateAgentAvatar(publicId, avatarUrl);
+
+    if (!response.success) {
+      throw new Error(response.message || response.error || 'Failed to update agent avatar');
+    }
+
+    setAgents((prev) =>
+      prev.map((agent) =>
+        agent.publicId === publicId
+          ? {
+              ...agent,
+              avatarUrl,
+              avatarType: avatarUrl ? 'image' : undefined,
+              updatedAt: response.data?.updatedAt
+                ? new Date(response.data.updatedAt)
+                : agent.updatedAt,
+            }
+          : agent
+      )
+    );
+  };
+
   const deleteAgent = async (id: string): Promise<void> => {
     const response = await agentApi.deleteAgent(id);
 
@@ -192,6 +216,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     fetchAgents,
     createAgent,
     updateAgent,
+    updateAgentAvatar,
     deleteAgent,
     setDefaultAgent,
   };

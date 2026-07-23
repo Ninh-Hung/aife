@@ -219,8 +219,57 @@
     }
   },
   "chat": {
+    "loading": "Đang tải chat...",
+    "fallbackAgentName": "AI Assistant",
+    "fallbackAgentDescription": "Trợ lý chat",
     "thinking": "Đang suy nghĩ...",
-    "aiAgentWarning": "AI agent có thể mắc lỗi, hãy luôn kiểm tra/đối chiếu thông tin quan trọng."
+    "aiAgentWarning": "AI agent có thể mắc lỗi, hãy luôn kiểm tra/đối chiếu thông tin quan trọng.",
+    "connection": {
+      "connecting": "Đang kết nối tới agent...",
+      "disconnected": "Đã mất kết nối với agent"
+    },
+    "empty": {
+      "title": "Chưa có cuộc trò chuyện",
+      "prefix": "Bấm",
+      "suffix": "để bắt đầu trò chuyện với {{name}}."
+    },
+    "errors": {
+      "sessionIdRequired": "Thiếu ID phiên chat",
+      "sessionNotFound": "Không tìm thấy phiên chat",
+      "missingInternalId": "Phiên chat thiếu internal ID",
+      "missingAgentId": "Phiên chat thiếu agent ID",
+      "agentNotFound": "Không tìm thấy agent",
+      "notConnected": "Chưa kết nối tới agent. Vui lòng chờ...",
+      "sendFailed": "Không thể gửi tin nhắn",
+      "cancelFailed": "Không thể hủy phản hồi"
+    },
+    "agentInfo": {
+      "title": "Thông tin agent",
+      "avatarAlt": "Avatar của {{name}}",
+      "behaviors": "Hành vi",
+      "noBehaviors": "Chưa cấu hình hành vi",
+      "knowledge": "Kiến thức",
+      "knowledgeSources": "Nguồn kiến thức",
+      "details": "Chi tiết",
+      "ownerType": "Loại sở hữu:",
+      "defaultAgent": "Agent mặc định:",
+      "yes": "Có",
+      "no": "Không",
+      "actions": {
+        "uploadAvatar": "Tải avatar lên",
+        "removeAvatar": "Xóa avatar"
+      },
+      "messages": {
+        "avatarUpdated": "Đã cập nhật avatar agent",
+        "avatarRemoved": "Đã xóa avatar agent"
+      },
+      "errors": {
+        "unsupportedAvatarType": "Định dạng tệp không được hỗ trợ. Vui lòng tải lên JPG, PNG, SVG, GIF, WebP hoặc AVIF.",
+        "avatarTooLarge": "Tệp quá lớn. Kích thước tối đa là {{size}} MB.",
+        "uploadFailed": "Không thể tải avatar lên",
+        "updateFailed": "Không thể cập nhật avatar"
+      }
+    }
   },
   "feedback": {
     "title": "Feedback",

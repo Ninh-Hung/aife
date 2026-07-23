@@ -1784,6 +1784,32 @@ export const uploadAgentAvatar = async (file: File): Promise<ApiResponse<{ url: 
   }
 };
 
+export const updateAgentAvatar = async (
+  publicId: string,
+  avatarUrl: string | null
+): Promise<ApiResponse<{ publicId: string; avatarUrl: string | null; updatedAt: string }>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/agents/${publicId}/avatar`, { avatarUrl });
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Agent avatar updated successfully',
+    };
+  } catch (error) {
+    console.error('Update agent avatar error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update agent avatar',
+    };
+  }
+};
+
 export interface DefaultAvatar {
   publicId: string;
   name: string;
