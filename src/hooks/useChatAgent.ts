@@ -4,8 +4,9 @@ import type { FileUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnonymousLimitError, ChatMessage, ChatSource } from '../types';
 import { getStoredAppLocale } from '../i18n/types';
+import type { ChatExecutionMode } from '../common/chatExecutionMode';
 
-export type ChatExecutionMode = 'cheap' | 'normal' | 'expensive';
+export type { ChatExecutionMode };
 
 interface UseChatAgentOptions {
   conversationId: string;

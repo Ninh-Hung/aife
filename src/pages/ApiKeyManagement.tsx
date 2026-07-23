@@ -16,6 +16,7 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  MenuItem,
   TextField,
   Tooltip,
 } from '@mui/material';
@@ -31,13 +32,23 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { createApiKey, listApiKeys, listCapabilities, revokeApiKey } from '../services/api';
+import {
+  createApiKey,
+  listAgents,
+  listApiKeys,
+  listCapabilities,
+  listIntegrationClients,
+  revokeApiKey,
+} from '../services/api';
 import type {
+  Agent,
   ApiKey,
+  ApiKeyApiScopeInput,
   ApiKeyScopeInput,
   Capability,
   CreateApiKeyInput,
   CreateApiKeyResponse,
+  IntegrationClient,
 } from '../types';
 import { useNotification } from '../hooks/useNotification';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +58,48 @@ import { useTranslation } from 'react-i18next';
 // ============================================
 
 const API_KEY_ACTIONS = ['canExecute', 'canCreate', 'canDelete'] as const;
+const API_KEY_SCOPE_PRESETS = {
+  chatWithOneAgent: (agentPublicId: string): ApiKeyApiScopeInput[] => [
+    { scope: 'agents:execute', resourceType: 'agent', resourcePublicId: agentPublicId },
+    { scope: 'chat_sessions:create', resourceType: 'agent', resourcePublicId: agentPublicId },
+    { scope: 'chat_messages:create', resourceType: 'agent', resourcePublicId: agentPublicId },
+    { scope: 'usage:read' },
+  ],
+  thirdPartyRuntime: (clientPublicId: string): ApiKeyApiScopeInput[] => [
+    {
+      scope: 'agents:execute',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'chat_sessions:create',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'chat_messages:create',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    { scope: 'usage:read' },
+  ],
+  thirdPartyProvisioning: (clientPublicId: string): ApiKeyApiScopeInput[] => [
+    {
+      scope: 'integration_clients:read',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'integration_clients:update',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    { scope: 'agents:create' },
+    { scope: 'knowledge:create' },
+    { scope: 'knowledge:sync' },
+    { scope: 'files:upload' },
+  ],
+};
 
 function displayName(apiKey: ApiKey): string {
   return apiKey.metadata?.appName || apiKey.publicId;
@@ -58,6 +111,20 @@ function formatDate(dateString: string, locale: string): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function formatOptionalDate(dateString: string | null | undefined, locale: string): string {
+  return dateString ? formatDate(dateString, locale) : '—';
+}
+
+function apiKeyEnvironment(apiKey: ApiKey): string {
+  return apiKey.environment || apiKey.metadata?.environment || '—';
+}
+
+function formatRateLimit(apiKey: ApiKey): string {
+  const minute = apiKey.rateLimitPerMinute ? `${apiKey.rateLimitPerMinute}/min` : null;
+  const day = apiKey.rateLimitPerDay ? `${apiKey.rateLimitPerDay}/day` : null;
+  return [minute, day].filter(Boolean).join(' · ') || '—';
 }
 
 // ============================================
@@ -247,10 +314,17 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
 
         {/* Capabilities */}
         <div className="flex flex-1 flex-wrap gap-1.5">
-          {apiKey.capabilities.length === 0 ? (
+          {(apiKey.scopes?.length ?? apiKey.capabilities.length) === 0 ? (
             <span className="text-sm text-gray-400 dark:text-slate-500">
               {t('apiKeys.card.noCapabilities')}
             </span>
+          ) : apiKey.scopes?.length ? (
+            apiKey.scopes.map((scope) => (
+              <ApiScopeBadge
+                key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
+                scope={scope}
+              />
+            ))
           ) : (
             apiKey.capabilities.map((cap) => (
               <CapabilityBadge key={cap.capabilityCode} scope={cap} />
@@ -307,11 +381,18 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
         </div>
 
         {/* Row 2: Capabilities */}
-        {apiKey.capabilities.length > 0 && (
+        {(apiKey.scopes?.length ?? apiKey.capabilities.length) > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {apiKey.capabilities.map((cap) => (
-              <CapabilityBadge key={cap.capabilityCode} scope={cap} />
-            ))}
+            {apiKey.scopes?.length
+              ? apiKey.scopes.map((scope) => (
+                  <ApiScopeBadge
+                    key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
+                    scope={scope}
+                  />
+                ))
+              : apiKey.capabilities.map((cap) => (
+                  <CapabilityBadge key={cap.capabilityCode} scope={cap} />
+                ))}
           </div>
         )}
 
@@ -327,6 +408,37 @@ const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
           )}
         </div>
       </div>
+
+      <ApiKeyMetadataGrid apiKey={apiKey} dateLocale={dateLocale} />
+    </div>
+  );
+};
+
+const ApiKeyMetadataGrid: React.FC<{ apiKey: ApiKey; dateLocale: string }> = ({
+  apiKey,
+  dateLocale,
+}) => {
+  const { t } = useTranslation();
+  const items = [
+    { label: t('apiKeys.card.prefix'), value: apiKey.prefix || '—', mono: true },
+    { label: t('apiKeys.card.environment'), value: apiKeyEnvironment(apiKey) },
+    { label: t('apiKeys.card.expires'), value: formatOptionalDate(apiKey.expiresAt, dateLocale) },
+    { label: t('apiKeys.card.lastUsed'), value: formatOptionalDate(apiKey.lastUsed, dateLocale) },
+    { label: t('apiKeys.card.rateLimit'), value: formatRateLimit(apiKey) },
+  ];
+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-xs dark:border-slate-700 md:grid-cols-5">
+      {items.map((item) => (
+        <div key={item.label} className="min-w-0">
+          <div className="text-gray-400 dark:text-slate-500">{item.label}</div>
+          <div
+            className={`truncate text-gray-700 dark:text-slate-300 ${item.mono ? 'font-mono' : ''}`}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -358,6 +470,28 @@ const CapabilityBadge: React.FC<CapabilityBadgeProps> = ({ scope }) => {
   );
 };
 
+interface ApiScopeBadgeProps {
+  scope: NonNullable<ApiKey['scopes']>[number];
+}
+
+const ApiScopeBadge: React.FC<ApiScopeBadgeProps> = ({ scope }) => {
+  const restriction = scope.resourceType
+    ? `${scope.resourceType}:${scope.resourcePublicId ?? scope.resourceId ?? '*'}`
+    : 'all resources';
+
+  return (
+    <Tooltip title={restriction} arrow placement="top">
+      <Chip
+        icon={<Zap size={12} />}
+        label={scope.scope}
+        size="small"
+        variant="outlined"
+        className="!border-blue-300 !text-xs !text-blue-700 dark:!border-blue-700 dark:!text-blue-300"
+      />
+    </Tooltip>
+  );
+};
+
 // ============================================
 // Create API Key Modal
 // ============================================
@@ -374,6 +508,8 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
 
   // Available capabilities from the server
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [integrationClients, setIntegrationClients] = useState<IntegrationClient[]>([]);
   const [capsLoading, setCapsLoading] = useState(false);
 
   // Selected scopes: code -> { canExecute, canCreate, canDelete }
@@ -387,6 +523,14 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     environment: '',
     description: '',
   });
+  const [selectedAgentPublicId, setSelectedAgentPublicId] = useState('');
+  const [selectedIntegrationClientPublicId, setSelectedIntegrationClientPublicId] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [rateLimit, setRateLimit] = useState({
+    requestsPerMinute: '',
+    requestsPerDay: '',
+  });
+  const [advancedScopesJson, setAdvancedScopesJson] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -394,14 +538,25 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
   useEffect(() => {
     if (!open) return;
     setCapsLoading(true);
-    listCapabilities().then((res) => {
-      if (res.success && res.data) {
-        setCapabilities(res.data);
-      } else {
-        error(res.error || t('apiKeys.errors.loadCapabilitiesFailed'));
+    Promise.all([listCapabilities(), listAgents(), listIntegrationClients()]).then(
+      ([capsRes, agentsRes, clientsRes]) => {
+        if (capsRes.success && capsRes.data) {
+          setCapabilities(capsRes.data);
+        } else {
+          error(capsRes.error || t('apiKeys.errors.loadCapabilitiesFailed'));
+        }
+
+        if (agentsRes.success && agentsRes.data) {
+          setAgents(agentsRes.data);
+        }
+
+        if (clientsRes.success && clientsRes.data) {
+          setIntegrationClients(clientsRes.data);
+        }
+
+        setCapsLoading(false);
       }
-      setCapsLoading(false);
-    });
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -424,7 +579,13 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
   };
 
   const selectedCount = Object.keys(selectedScopes).length;
-  const canSubmit = selectedCount > 0 && !submitting;
+  const hasAdvancedScopes = advancedScopesJson.trim().length > 0;
+  const canSubmit = (selectedCount > 0 || hasAdvancedScopes) && !submitting;
+
+  const applyScopePreset = (preset: ApiKeyApiScopeInput[] | undefined) => {
+    if (!preset) return;
+    setAdvancedScopesJson(JSON.stringify(preset, null, 2));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -434,15 +595,43 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     const scopesInput: ApiKeyScopeInput[] = Object.entries(selectedScopes).map(
       ([capabilityCode, actions]) => ({ capabilityCode, ...actions })
     );
+    let apiScopesInput: ApiKeyApiScopeInput[] | undefined;
+
+    if (hasAdvancedScopes) {
+      try {
+        const parsed = JSON.parse(advancedScopesJson) as unknown;
+        if (!Array.isArray(parsed)) {
+          throw new Error('Advanced scopes must be a JSON array');
+        }
+        apiScopesInput = parsed as ApiKeyApiScopeInput[];
+      } catch (err) {
+        error(err instanceof Error ? err.message : 'Invalid advanced scopes JSON');
+        setSubmitting(false);
+        return;
+      }
+    }
 
     const cleanMeta: CreateApiKeyInput['metadata'] = {};
     if (metadata.appName.trim()) cleanMeta.appName = metadata.appName.trim();
     if (metadata.environment.trim()) cleanMeta.environment = metadata.environment.trim();
     if (metadata.description.trim()) cleanMeta.description = metadata.description.trim();
 
+    const requestsPerMinute = Number(rateLimit.requestsPerMinute);
+    const requestsPerDay = Number(rateLimit.requestsPerDay);
+    const cleanRateLimit: NonNullable<CreateApiKeyInput['rateLimit']> = {};
+    if (Number.isFinite(requestsPerMinute) && requestsPerMinute > 0) {
+      cleanRateLimit.requestsPerMinute = requestsPerMinute;
+    }
+    if (Number.isFinite(requestsPerDay) && requestsPerDay > 0) {
+      cleanRateLimit.requestsPerDay = requestsPerDay;
+    }
+
     const input: CreateApiKeyInput = {
-      capabilities: scopesInput,
+      ...(scopesInput.length > 0 && { capabilities: scopesInput }),
+      ...(apiScopesInput && { scopes: apiScopesInput }),
       ...(Object.keys(cleanMeta).length > 0 && { metadata: cleanMeta }),
+      ...(expiresAt && { expiresAt: new Date(expiresAt).toISOString() }),
+      ...(Object.keys(cleanRateLimit).length > 0 && { rateLimit: cleanRateLimit }),
     };
 
     const response = await createApiKey(input);
@@ -460,6 +649,11 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
   const resetForm = () => {
     setSelectedScopes({});
     setMetadata({ appName: '', environment: '', description: '' });
+    setSelectedAgentPublicId('');
+    setSelectedIntegrationClientPublicId('');
+    setExpiresAt('');
+    setRateLimit({ requestsPerMinute: '', requestsPerDay: '' });
+    setAdvancedScopesJson('');
   };
 
   const handleClose = () => {
@@ -609,6 +803,130 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
               placeholder={t('apiKeys.modal.descriptionPlaceholder')}
             />
           </div>
+
+          <div>
+            <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
+              {t('apiKeys.modal.keyPolicy')}{' '}
+              <span className="font-normal text-gray-400">{t('apiKeys.modal.optional')}</span>
+            </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <TextField
+                fullWidth
+                label={t('apiKeys.modal.expiresAt')}
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                type="datetime-local"
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                fullWidth
+                label={t('apiKeys.modal.rateLimitMinute')}
+                value={rateLimit.requestsPerMinute}
+                onChange={(e) => setRateLimit({ ...rateLimit, requestsPerMinute: e.target.value })}
+                type="number"
+                size="small"
+                inputProps={{ min: 1 }}
+              />
+              <TextField
+                fullWidth
+                label={t('apiKeys.modal.rateLimitDay')}
+                value={rateLimit.requestsPerDay}
+                onChange={(e) => setRateLimit({ ...rateLimit, requestsPerDay: e.target.value })}
+                type="number"
+                size="small"
+                inputProps={{ min: 1 }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
+              {t('apiKeys.modal.resourceScopes')}{' '}
+              <span className="font-normal text-gray-400">{t('apiKeys.modal.optional')}</span>
+            </p>
+            <div className="mb-3 grid gap-3 md:grid-cols-2">
+              <TextField
+                select
+                fullWidth
+                label={t('apiKeys.modal.agentResource')}
+                value={selectedAgentPublicId}
+                onChange={(e) => setSelectedAgentPublicId(e.target.value)}
+                size="small"
+              >
+                <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
+                {agents.map((agent) => (
+                  <MenuItem key={agent.publicId} value={agent.publicId}>
+                    {agent.name} ({agent.publicId})
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                fullWidth
+                label={t('apiKeys.modal.integrationClientResource')}
+                value={selectedIntegrationClientPublicId}
+                onChange={(e) => setSelectedIntegrationClientPublicId(e.target.value)}
+                size="small"
+              >
+                <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
+                {integrationClients.map((client) => (
+                  <MenuItem key={client.public_id} value={client.public_id}>
+                    {client.name} ({client.public_id})
+                  </MenuItem>
+                ))}
+              </TextField>
+            </div>
+            <div className="mb-2 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="small"
+                variant="outlined"
+                disabled={!selectedAgentPublicId}
+                onClick={() =>
+                  applyScopePreset(API_KEY_SCOPE_PRESETS.chatWithOneAgent(selectedAgentPublicId))
+                }
+              >
+                {t('apiKeys.modal.presets.chatWithOneAgent')}
+              </Button>
+              <Button
+                type="button"
+                size="small"
+                variant="outlined"
+                disabled={!selectedIntegrationClientPublicId}
+                onClick={() =>
+                  applyScopePreset(
+                    API_KEY_SCOPE_PRESETS.thirdPartyRuntime(selectedIntegrationClientPublicId)
+                  )
+                }
+              >
+                {t('apiKeys.modal.presets.thirdPartyRuntime')}
+              </Button>
+              <Button
+                type="button"
+                size="small"
+                variant="outlined"
+                disabled={!selectedIntegrationClientPublicId}
+                onClick={() =>
+                  applyScopePreset(
+                    API_KEY_SCOPE_PRESETS.thirdPartyProvisioning(selectedIntegrationClientPublicId)
+                  )
+                }
+              >
+                {t('apiKeys.modal.presets.thirdPartyProvisioning')}
+              </Button>
+            </div>
+            <TextField
+              fullWidth
+              value={advancedScopesJson}
+              onChange={(e) => setAdvancedScopesJson(e.target.value)}
+              size="small"
+              multiline
+              rows={5}
+              placeholder='[{"scope":"agents:execute","resourceType":"agent","resourcePublicId":"agt_..."}]'
+              helperText={t('apiKeys.modal.resourceScopesHelper')}
+            />
+          </div>
         </DialogContent>
 
         <DialogActions>
@@ -690,15 +1008,23 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
         </div>
 
         {/* Granted Capabilities */}
-        {data?.capabilities && data.capabilities.length > 0 && (
+        {((data?.scopes && data.scopes.length > 0) ||
+          (data?.capabilities && data.capabilities.length > 0)) && (
           <div className="mt-4">
             <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-slate-300">
               {t('apiKeys.oneTime.capabilitiesGranted')}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {data.capabilities.map((cap) => (
-                <CapabilityBadge key={cap.capabilityCode} scope={cap} />
-              ))}
+              {data.scopes?.length
+                ? data.scopes.map((scope) => (
+                    <ApiScopeBadge
+                      key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
+                      scope={scope}
+                    />
+                  ))
+                : data.capabilities.map((cap) => (
+                    <CapabilityBadge key={cap.capabilityCode} scope={cap} />
+                  ))}
             </div>
           </div>
         )}

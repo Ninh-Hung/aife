@@ -47,6 +47,37 @@ export interface TokenUsageSeries {
   requestCount: number;
 }
 
+export type ThirdPartyUsageGroupBy =
+  | 'agent'
+  | 'external_tenant'
+  | 'day'
+  | 'api_key'
+  | 'capability'
+  | 'tool';
+
+export interface ThirdPartyUsageRow {
+  client_id: string | null;
+  external_tenant_type: string | null;
+  external_tenant_id: string | null;
+  agent_public_id: string | null;
+  api_key_id: number | null;
+  capability: string | null;
+  day: string | null;
+  tool_id?: string | null;
+  messages: number;
+  total_tokens: number;
+  cost_credits: number;
+  cost_usd?: number;
+  tool_calls: number;
+  successful_tool_calls?: number;
+  failed_tool_calls?: number;
+  avg_execution_ms?: number | null;
+}
+
+export interface ThirdPartyUsageResponse {
+  data: ThirdPartyUsageRow[];
+}
+
 // ✨ NEW: Subscription Info (Enhanced)
 export interface SubscriptionInfo {
   status: 'trialing' | 'active' | 'expired' | 'canceled';
@@ -307,6 +338,7 @@ export interface Language {
   name: string; // Display name (e.g., 'English', 'French', 'Japanese')
   nativeName: string; // Native name (e.g., 'English', 'Français', '日本語')
   countryCode?: string; // ISO 3166-1 alpha-2 code used for flag image URLs
+  flagUrl?: string; // Uploaded flag image URL from admin language settings
 }
 
 // ============================================
@@ -368,6 +400,22 @@ export interface ApiKeyScopeInput {
   canDelete: boolean;
 }
 
+export interface ApiKeyApiScopeInput {
+  scope: string;
+  resourceType?: string;
+  resourceId?: number;
+  resourcePublicId?: string;
+}
+
+export interface ApiKeyApiScopeResponse {
+  scope: string;
+  name: string;
+  capabilityCode: string;
+  resourceType?: string | null;
+  resourceId?: number | null;
+  resourcePublicId?: string | null;
+}
+
 /** Capability scope as returned on an API key */
 export interface ApiKeyScopeResponse {
   capabilityCode: string;
@@ -379,30 +427,53 @@ export interface ApiKeyScopeResponse {
 
 export interface ApiKey {
   publicId: string;
+  prefix?: string | null;
+  environment?: string | null;
   status: 'ACTIVE' | 'REVOKED';
   metadata?: {
     appName?: string;
     environment?: string;
     description?: string;
   };
+  scopes?: ApiKeyApiScopeResponse[];
   capabilities: ApiKeyScopeResponse[];
   createdAt: string;
+  expiresAt?: string | null;
   revokedAt?: string | null;
   lastUsed?: string | null;
+  rateLimitPerMinute?: number | null;
+  rateLimitPerDay?: number | null;
 }
 
 export interface CreateApiKeyInput {
-  capabilities: ApiKeyScopeInput[];
+  capabilities?: ApiKeyScopeInput[];
+  scopes?: ApiKeyApiScopeInput[];
   metadata?: {
     appName?: string;
     environment?: string;
     description?: string;
+  };
+  expiresAt?: string;
+  rateLimit?: {
+    requestsPerMinute?: number;
+    requestsPerDay?: number;
   };
 }
 
 export interface CreateApiKeyResponse extends ApiKey {
   /** Raw secret — shown ONLY ONCE at creation time */
   apiKey: string;
+}
+
+export interface IntegrationClient {
+  public_id: string;
+  name: string;
+  environment: string;
+  status: string;
+  metadata?: Record<string, unknown> | null;
+  binding_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ============================================

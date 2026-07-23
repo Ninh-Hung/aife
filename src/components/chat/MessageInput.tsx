@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, X, File as FileIcon, StopCircle } from 'lucide-react';
 import { IconButton } from '@mui/material';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
+import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
 
 interface FileWithPreview {
   file: File;
@@ -267,9 +268,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           aria-label="Model mode"
           className="h-[42px] flex-shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
         >
-          <option value="cheap">cheap</option>
-          <option value="normal">normal</option>
-          <option value="expensive">expensive</option>
+          {CHAT_EXECUTION_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
 
         {/* Textarea Container */}

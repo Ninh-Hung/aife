@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ChatExecutionMode } from './useChatAgent';
+import {
+  CHAT_EXECUTION_MODE_VALUES,
+  DEFAULT_CHAT_EXECUTION_MODE,
+  LEGACY_CHAT_EXECUTION_MODE_ALIASES,
+  type ChatExecutionMode,
+} from '../common/chatExecutionMode';
 
 const STORAGE_KEY = 'appaihelp-execution-mode';
-const DEFAULT_EXECUTION_MODE: ChatExecutionMode = 'normal';
-const CHAT_EXECUTION_MODES = new Set<ChatExecutionMode>(['cheap', 'normal', 'expensive']);
-const LEGACY_EXECUTION_MODE_ALIASES: Record<string, ChatExecutionMode> = {
-  fast: 'cheap',
-  premium: 'expensive',
-  smart: 'expensive',
-};
+const CHAT_EXECUTION_MODES = new Set<ChatExecutionMode>(CHAT_EXECUTION_MODE_VALUES);
 
 const isChatExecutionMode = (mode: unknown): mode is ChatExecutionMode =>
   typeof mode === 'string' && CHAT_EXECUTION_MODES.has(mode as ChatExecutionMode);
@@ -19,21 +18,21 @@ export const normalizeChatExecutionMode = (mode: unknown): ChatExecutionMode => 
   }
 
   if (typeof mode === 'string') {
-    return LEGACY_EXECUTION_MODE_ALIASES[mode] ?? DEFAULT_EXECUTION_MODE;
+    return LEGACY_CHAT_EXECUTION_MODE_ALIASES[mode] ?? DEFAULT_CHAT_EXECUTION_MODE;
   }
 
-  return DEFAULT_EXECUTION_MODE;
+  return DEFAULT_CHAT_EXECUTION_MODE;
 };
 
 export const getStoredChatExecutionMode = (): ChatExecutionMode => {
   if (typeof window === 'undefined') {
-    return DEFAULT_EXECUTION_MODE;
+    return DEFAULT_CHAT_EXECUTION_MODE;
   }
 
   try {
     return normalizeChatExecutionMode(window.localStorage.getItem(STORAGE_KEY));
   } catch {
-    return DEFAULT_EXECUTION_MODE;
+    return DEFAULT_CHAT_EXECUTION_MODE;
   }
 };
 

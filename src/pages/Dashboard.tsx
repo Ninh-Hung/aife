@@ -4,15 +4,24 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Card, Typography, LinearProgress, Chip } from '@mui/material';
-import { Activity, BarChart3, Coins, CreditCard, Users } from 'lucide-react';
+import { Box, Card, Typography, LinearProgress, Chip, CircularProgress } from '@mui/material';
+import { Activity, BarChart3, Coins, CreditCard, Network, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useAgents } from '../contexts/AgentsContext';
 import { getQuota, getSubscription, getTokenUsageSeries } from '../services/quota.service';
-import type { SubscriptionInfo, TokenUsagePeriod, TokenUsagePoint, UserQuota } from '../types';
+import { getThirdPartyUsage } from '../services/third-party-usage.service';
+import type {
+  SubscriptionInfo,
+  ThirdPartyUsageRow,
+  TokenUsagePeriod,
+  TokenUsagePoint,
+  UserQuota,
+} from '../types';
 
 const TOKEN_USAGE_PERIODS: TokenUsagePeriod[] = ['day', 'month', 'year'];
+const THIRD_PARTY_USAGE_LIMIT = 5;
+const EMPTY_THIRD_PARTY_TOTAL = { messages: 0, tokens: 0, credits: 0, toolCalls: 0 };
 
 const formatTokens = (value: number): string => {
   if (value >= 1000000) {
@@ -38,6 +47,17 @@ const getLineCoordinates = (points: TokenUsagePoint[], maxValue: number) =>
     return { x, y, value: point.totalTokens, label: point.label };
   });
 
+const getUsageDateRange = () => {
+  const to = new Date();
+  const from = new Date(to);
+  from.setDate(from.getDate() - 30);
+
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+  };
+};
+
 // ============================================
 // Dashboard Component
 // ============================================
@@ -51,6 +71,11 @@ export const Dashboard: React.FC = () => {
   const [usagePoints, setUsagePoints] = useState<TokenUsagePoint[]>([]);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState<string | null>(null);
+  const [thirdPartyByTenant, setThirdPartyByTenant] = useState<ThirdPartyUsageRow[]>([]);
+  const [thirdPartyByAgent, setThirdPartyByAgent] = useState<ThirdPartyUsageRow[]>([]);
+  const [thirdPartyTotal, setThirdPartyTotal] = useState(EMPTY_THIRD_PARTY_TOTAL);
+  const [thirdPartyLoading, setThirdPartyLoading] = useState(false);
+  const [thirdPartyError, setThirdPartyError] = useState<string | null>(null);
   const [dashboardQuota, setDashboardQuota] = useState<UserQuota | null>(
     quota ?? user?.quota ?? null
   );
@@ -192,6 +217,58 @@ export const Dashboard: React.FC = () => {
       isActive = false;
     };
   }, [t, usagePeriod]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadThirdPartyUsage = async () => {
+      setThirdPartyLoading(true);
+      setThirdPartyError(null);
+
+      try {
+        const dateRange = getUsageDateRange();
+        const [tenantUsage, agentUsage] = await Promise.all([
+          getThirdPartyUsage({ ...dateRange, groupBy: 'external_tenant' }),
+          getThirdPartyUsage({ ...dateRange, groupBy: 'agent' }),
+        ]);
+
+        if (!isActive) return;
+
+        setThirdPartyTotal(
+          tenantUsage.data.reduce(
+            (total, row) => ({
+              messages: total.messages + row.messages,
+              tokens: total.tokens + row.total_tokens,
+              credits: total.credits + row.cost_credits,
+              toolCalls: total.toolCalls + row.tool_calls,
+            }),
+            EMPTY_THIRD_PARTY_TOTAL
+          )
+        );
+        setThirdPartyByTenant(tenantUsage.data.slice(0, THIRD_PARTY_USAGE_LIMIT));
+        setThirdPartyByAgent(agentUsage.data.slice(0, THIRD_PARTY_USAGE_LIMIT));
+      } catch (error) {
+        if (!isActive) return;
+
+        setThirdPartyByTenant([]);
+        setThirdPartyByAgent([]);
+        setThirdPartyTotal(EMPTY_THIRD_PARTY_TOTAL);
+        setThirdPartyError(
+          error instanceof Error ? error.message : t('dashboard.thirdPartyUsage.errors.loadFailed')
+        );
+      } finally {
+        if (isActive) {
+          setThirdPartyLoading(false);
+        }
+      }
+    };
+
+    loadThirdPartyUsage();
+
+    return () => {
+      isActive = false;
+    };
+  }, [t]);
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -585,6 +662,108 @@ export const Dashboard: React.FC = () => {
         )}
       </Card>
 
+      {/* Third-Party Usage */}
+      <Card
+        className="mb-6 border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800 md:mb-8"
+        elevation={0}
+      >
+        <Box className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <Box>
+            <Box className="flex items-center gap-2">
+              <Network size={18} className="text-emerald-600 dark:text-emerald-400" />
+              <Typography variant="h6" className="font-semibold text-gray-900 dark:text-white">
+                {t('dashboard.thirdPartyUsage.title')}
+              </Typography>
+            </Box>
+            <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
+              {t('dashboard.thirdPartyUsage.subtitle')}
+            </Typography>
+          </Box>
+
+          <Box className="grid grid-cols-2 gap-3 text-right md:grid-cols-4">
+            <Box>
+              <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                {t('dashboard.thirdPartyUsage.summary.messages')}
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {thirdPartyTotal.messages.toLocaleString()}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                {t('dashboard.thirdPartyUsage.summary.tokens')}
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {formatTokens(thirdPartyTotal.tokens)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                {t('dashboard.thirdPartyUsage.summary.credits')}
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {thirdPartyTotal.credits.toLocaleString()}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                {t('dashboard.thirdPartyUsage.summary.tools')}
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                className="font-semibold text-gray-900 dark:text-white"
+              >
+                {thirdPartyTotal.toolCalls.toLocaleString()}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {thirdPartyLoading && (
+          <Box className="flex min-h-44 items-center justify-center rounded-lg border border-dashed border-gray-200 dark:border-slate-700">
+            <CircularProgress size={24} />
+          </Box>
+        )}
+
+        {!thirdPartyLoading && thirdPartyError && (
+          <Box className="rounded-lg border border-dashed border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <Typography variant="body2" className="text-amber-700 dark:text-amber-300">
+              {thirdPartyError}
+            </Typography>
+          </Box>
+        )}
+
+        {!thirdPartyLoading && !thirdPartyError && (
+          <Box className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ThirdPartyUsageList
+              title={t('dashboard.thirdPartyUsage.byTenant')}
+              emptyText={t('dashboard.thirdPartyUsage.empty')}
+              rows={thirdPartyByTenant}
+              getLabel={(row) =>
+                row.external_tenant_id ||
+                row.client_id ||
+                t('dashboard.thirdPartyUsage.unknownTenant')
+              }
+            />
+            <ThirdPartyUsageList
+              title={t('dashboard.thirdPartyUsage.byAgent')}
+              emptyText={t('dashboard.thirdPartyUsage.empty')}
+              rows={thirdPartyByAgent}
+              getLabel={(row) => row.agent_public_id || t('dashboard.thirdPartyUsage.unknownAgent')}
+            />
+          </Box>
+        )}
+      </Card>
+
       {/* Additional Content Section */}
       <Box className="grid grid-cols-1 gap-4 md:gap-6">
         {/* Recent Activity Card */}
@@ -637,3 +816,56 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+interface ThirdPartyUsageListProps {
+  title: string;
+  emptyText: string;
+  rows: ThirdPartyUsageRow[];
+  getLabel: (row: ThirdPartyUsageRow) => string;
+}
+
+const ThirdPartyUsageList: React.FC<ThirdPartyUsageListProps> = ({
+  title,
+  emptyText,
+  rows,
+  getLabel,
+}) => (
+  <Box className="rounded-lg border border-gray-100 p-4 dark:border-slate-700">
+    <Typography variant="subtitle2" className="mb-3 font-semibold text-gray-900 dark:text-white">
+      {title}
+    </Typography>
+    <Box className="space-y-3">
+      {rows.map((row, index) => (
+        <Box
+          key={`${getLabel(row)}-${index}`}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
+        >
+          <Box className="min-w-0">
+            <Typography
+              variant="body2"
+              className="truncate font-medium text-gray-900 dark:text-white"
+            >
+              {getLabel(row)}
+            </Typography>
+            <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+              {row.messages.toLocaleString()} messages · {row.tool_calls.toLocaleString()} tools
+            </Typography>
+          </Box>
+          <Box className="text-right">
+            <Typography variant="body2" className="font-semibold text-gray-900 dark:text-white">
+              {formatTokens(row.total_tokens)}
+            </Typography>
+            <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+              {row.cost_credits.toLocaleString()} credits
+            </Typography>
+          </Box>
+        </Box>
+      ))}
+      {rows.length === 0 && (
+        <Typography variant="body2" className="py-4 text-center text-gray-500 dark:text-slate-400">
+          {emptyText}
+        </Typography>
+      )}
+    </Box>
+  </Box>
+);

@@ -632,6 +632,24 @@
         "loadFailed": "Không thể tải dữ liệu token"
       }
     },
+    "thirdPartyUsage": {
+      "title": "Sử dụng third-party",
+      "subtitle": "30 ngày gần nhất theo downstream tenant và agent.",
+      "byTenant": "Tenant dùng nhiều nhất",
+      "byAgent": "Agent dùng nhiều nhất",
+      "unknownTenant": "Tenant chưa rõ",
+      "unknownAgent": "Agent chưa rõ",
+      "empty": "Chưa có usage third-party trong 30 ngày gần nhất.",
+      "summary": {
+        "messages": "Tin nhắn",
+        "tokens": "Token",
+        "credits": "Credit",
+        "tools": "Tool"
+      },
+      "errors": {
+        "loadFailed": "Không thể tải usage third-party"
+      }
+    },
     "quickActions": {
       "title": "Thao tác nhanh",
       "createAgent": {
@@ -668,7 +686,12 @@
     },
     "card": {
       "noCapabilities": "Không có khả năng",
-      "created": "Đã tạo: {{date}}"
+      "created": "Đã tạo: {{date}}",
+      "prefix": "Prefix",
+      "environment": "Môi trường",
+      "expires": "Hết hạn",
+      "lastUsed": "Dùng lần cuối",
+      "rateLimit": "Rate limit"
     },
     "modal": {
       "createTitle": "Tạo API Key",
@@ -686,6 +709,20 @@
       "environmentPlaceholder": "production, staging, development",
       "description": "Mô tả",
       "descriptionPlaceholder": "Mô tả ngắn mục đích của key này",
+      "keyPolicy": "Chính sách key",
+      "expiresAt": "Hết hạn lúc",
+      "rateLimitMinute": "Request/phút",
+      "rateLimitDay": "Request/ngày",
+      "resourceScopes": "Scope theo resource",
+      "agentResource": "Agent",
+      "integrationClientResource": "Integration client",
+      "none": "Không chọn",
+      "resourceScopesHelper": "Chọn resource và áp preset, hoặc sửa JSON trực tiếp cho scope tùy chỉnh.",
+      "presets": {
+        "chatWithOneAgent": "Chat với một agent",
+        "thirdPartyRuntime": "Third-party runtime",
+        "thirdPartyProvisioning": "Third-party provisioning"
+      },
       "cancel": "Hủy",
       "creating": "Đang tạo...",
       "createKey": "Tạo key"

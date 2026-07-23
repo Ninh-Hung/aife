@@ -93,7 +93,8 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
   }, []);
 
   const getFlagUrl = (language: Language) =>
-    language.countryCode ? `https://flagcdn.com/24x18/${language.countryCode}.png` : null;
+    language.flagUrl ||
+    (language.countryCode ? `https://flagcdn.com/24x18/${language.countryCode}.png` : null);
 
   const renderLanguageLabel = (language: Language) => {
     const flagUrl = getFlagUrl(language);
@@ -105,11 +106,11 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             component="img"
             src={flagUrl}
             alt=""
-            className="h-[14px] w-[20px] rounded-sm object-cover"
+            className="h-[18px] w-[18px] rounded-full object-cover"
             loading="lazy"
           />
         ) : (
-          <Box className="flex h-[18px] w-[24px] items-center justify-center rounded-sm bg-gray-200 text-[10px] font-semibold text-gray-700 dark:bg-slate-600 dark:text-slate-100">
+          <Box className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-gray-200 text-[9px] font-semibold text-gray-700 dark:bg-slate-600 dark:text-slate-100">
             {language.code.toUpperCase()}
           </Box>
         )}
@@ -191,10 +192,10 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
   };
 
   return (
-    <Box className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900">
-      <Box className="grid flex-1 grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
-        <Box className="flex min-h-[640px] flex-col rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-          <Box className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-slate-700">
+    <Box className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-50 dark:bg-slate-900">
+      <Box className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-6 px-6 py-6 lg:grid-cols-2 lg:grid-rows-1">
+        <Box className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <Box className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-slate-700">
             <Box className="flex items-center gap-2">
               <Languages size={20} className="text-blue-600 dark:text-blue-400" />
               <Typography
@@ -221,7 +222,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             )}
           </Box>
 
-          <Box className="flex-1 p-4">
+          <Box className="min-h-0 flex-1 overflow-hidden p-4">
             <TextField
               multiline
               fullWidth
@@ -237,6 +238,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
                 height: '100%',
                 '& .MuiInputBase-root': {
                   height: '100%',
+                  minHeight: 0,
                   alignItems: 'flex-start',
                 },
                 '& textarea': {
@@ -247,7 +249,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             />
           </Box>
 
-          <Box className="border-t border-gray-200 px-4 py-3 dark:border-slate-700">
+          <Box className="shrink-0 border-t border-gray-200 px-4 py-3 dark:border-slate-700">
             <Box className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <Box className="flex gap-2">
                 <Button size="small" startIcon={<Upload size={16} />} disabled>
@@ -287,8 +289,8 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
           </Box>
         </Box>
 
-        <Box className="flex min-h-[640px] flex-col rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-          <Box className="flex min-h-[57px] items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
+        <Box className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <Box className="flex min-h-[57px] shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-slate-700">
             <Box className="flex min-w-0 items-center gap-2">
               <Languages size={20} className="text-blue-600 dark:text-blue-400" />
               <Typography
@@ -302,7 +304,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
 
           <Accordion
             disableGutters
-            className="border-b border-gray-200 bg-white shadow-none before:hidden dark:border-slate-700 dark:bg-slate-800"
+            className="shrink-0 border-b border-gray-200 bg-white shadow-none before:hidden dark:border-slate-700 dark:bg-slate-800"
           >
             <AccordionSummary
               expandIcon={<ChevronDown size={18} />}
@@ -331,7 +333,12 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
                       label={language.name}
                       avatar={
                         flagUrl ? (
-                          <Box component="img" src={flagUrl} alt="" className="h-[14px] w-[20px]" />
+                          <Box
+                            component="img"
+                            src={flagUrl}
+                            alt=""
+                            className="h-[18px] w-[18px] rounded-full object-cover"
+                          />
                         ) : undefined
                       }
                     />
@@ -358,7 +365,7 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
 
           {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
-          <Box className="flex-1 space-y-4 overflow-y-auto p-4">
+          <Box className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             {results.length === 0 ? (
               <Box className="flex h-full min-h-[240px] items-center justify-center text-center">
                 <Typography variant="body2" className="text-gray-500 dark:text-slate-500">

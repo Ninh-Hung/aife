@@ -5,7 +5,7 @@
 
 import type { AxiosError } from 'axios';
 import axiosInstance from '../lib/axios';
-import type { Language, User } from '../types';
+import { SUPPORTED_LANGUAGES, type Language, type User } from '../types';
 
 // ============================================
 // API Response Types
@@ -53,6 +53,14 @@ export interface TranslateTextResponse {
     limit?: number;
     resetAt?: string;
   };
+}
+
+interface DatabaseLanguage {
+  key: string;
+  name: string;
+  active?: boolean;
+  flag?: string;
+  flagUrl?: string;
 }
 
 export type FeedbackType = 'FEEDBACK' | 'BUG_REPORT' | 'ABUSE_REPORT' | 'OTHER';
@@ -281,11 +289,20 @@ export const translateText = async (
 
 export const getSupportedLanguages = async (): Promise<ApiResponse<Language[]>> => {
   try {
-    const response = await axiosInstance.get('/v1/common/supported-languages');
+    const response =
+      await axiosInstance.get<ApiResponse<DatabaseLanguage[]>>('/v1/common/languages');
+    const databaseLanguages = (response.data.data || [])
+      .filter((language) => language.active !== false)
+      .map((language) => ({
+        code: language.key,
+        name: language.name,
+        nativeName: language.name,
+        flagUrl: language.flagUrl || language.flag,
+      }));
 
     return {
       success: true,
-      data: response.data.data,
+      data: databaseLanguages.length > 0 ? databaseLanguages : SUPPORTED_LANGUAGES,
       message: response.data.message,
     };
   } catch (error) {
@@ -293,11 +310,12 @@ export const getSupportedLanguages = async (): Promise<ApiResponse<Language[]>> 
     const axiosError = error as AxiosError<{ message?: string; error?: string }>;
 
     return {
-      success: false,
+      success: true,
+      data: SUPPORTED_LANGUAGES,
       error:
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
-        'Failed to load supported languages',
+        'Failed to load supported languages from database. Using local fallback.',
       message: axiosError.response?.data?.message,
     };
   }
@@ -468,7 +486,7 @@ export const verifyEmail = async (token: string): Promise<ApiResponse> => {
 // API Key Management
 // ============================================
 
-import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '../types';
+import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse, IntegrationClient } from '../types';
 
 /**
  * Fetches all API keys for the current user.
@@ -551,6 +569,28 @@ export const revokeApiKey = async (publicId: string): Promise<ApiResponse> => {
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to revoke API key',
+    };
+  }
+};
+
+export const listIntegrationClients = async (): Promise<ApiResponse<IntegrationClient[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/integration-clients');
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List integration clients error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load integration clients',
     };
   }
 };

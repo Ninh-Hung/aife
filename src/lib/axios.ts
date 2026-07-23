@@ -62,7 +62,7 @@ export const clearAccessToken = () => {
 
 let refreshPromise: Promise<string> | null = null;
 
-const AUTH_REFRESH_EXCLUDED_PATHS = [
+const AUTH_REFRESH_EXCLUDED_PATHS = new Set([
   '/auth/refresh',
   '/auth/anonymous',
   '/auth/login',
@@ -70,10 +70,23 @@ const AUTH_REFRESH_EXCLUDED_PATHS = [
   '/auth/resend-otp',
   '/auth/verify-email',
   '/auth/logout',
-];
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]);
 
-const shouldSkipRefreshForRequest = (url: string) => {
-  return AUTH_REFRESH_EXCLUDED_PATHS.some((path) => url.includes(path));
+const shouldSkipRefreshForRequest = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+
+  const baseUrl =
+    import.meta.env.VITE_SERVER_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+  const pathname = url.startsWith('http')
+    ? new URL(url).pathname
+    : new URL(url, baseUrl).pathname;
+
+  return AUTH_REFRESH_EXCLUDED_PATHS.has(pathname);
 };
 
 refreshClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -191,11 +204,9 @@ axiosInstance.interceptors.response.use(
 
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const requestUrl = originalRequest.url || '';
-
       // Auth bootstrap calls must resolve/reject directly. Retrying refresh from a
       // failed refresh request can leave app initialization waiting forever.
-      if (shouldSkipRefreshForRequest(requestUrl)) {
+      if (shouldSkipRefreshForRequest(originalRequest.url)) {
         return Promise.reject(error);
       }
 

@@ -13,6 +13,7 @@ import { AvatarMedia } from './AvatarMedia';
 import { getChatInputContent, getRandomChatHeading } from './chatInputContent';
 import type { Agent } from '../../types';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
+import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
 
 // ============================================
 // Props Interface
@@ -423,9 +424,11 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                 aria-label="Model mode"
                 className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-400 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-[#0F1F38] dark:text-slate-300 dark:focus:border-slate-500"
               >
-                <option value="cheap">cheap</option>
-                <option value="normal">normal</option>
-                <option value="expensive">expensive</option>
+                {CHAT_EXECUTION_MODE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
 
               <button

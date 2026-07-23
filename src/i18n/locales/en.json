@@ -632,6 +632,24 @@
         "loadFailed": "Failed to load token usage"
       }
     },
+    "thirdPartyUsage": {
+      "title": "Third-party Usage",
+      "subtitle": "Last 30 days by downstream tenant and agent.",
+      "byTenant": "Top downstream tenants",
+      "byAgent": "Top agents",
+      "unknownTenant": "Unknown tenant",
+      "unknownAgent": "Unknown agent",
+      "empty": "No third-party usage in the last 30 days.",
+      "summary": {
+        "messages": "Messages",
+        "tokens": "Tokens",
+        "credits": "Credits",
+        "tools": "Tools"
+      },
+      "errors": {
+        "loadFailed": "Failed to load third-party usage"
+      }
+    },
     "quickActions": {
       "title": "Quick Actions",
       "createAgent": {
@@ -668,7 +686,12 @@
     },
     "card": {
       "noCapabilities": "No capabilities",
-      "created": "Created: {{date}}"
+      "created": "Created: {{date}}",
+      "prefix": "Prefix",
+      "environment": "Environment",
+      "expires": "Expires",
+      "lastUsed": "Last used",
+      "rateLimit": "Rate limit"
     },
     "modal": {
       "createTitle": "Create API Key",
@@ -686,6 +709,20 @@
       "environmentPlaceholder": "production, staging, development",
       "description": "Description",
       "descriptionPlaceholder": "Brief description of this key's purpose",
+      "keyPolicy": "Key policy",
+      "expiresAt": "Expires at",
+      "rateLimitMinute": "Requests/min",
+      "rateLimitDay": "Requests/day",
+      "resourceScopes": "Resource scopes",
+      "agentResource": "Agent",
+      "integrationClientResource": "Integration client",
+      "none": "None",
+      "resourceScopesHelper": "Pick a resource and apply a preset, or edit JSON directly for custom scopes.",
+      "presets": {
+        "chatWithOneAgent": "Chat With One Agent",
+        "thirdPartyRuntime": "Third-Party Runtime",
+        "thirdPartyProvisioning": "Third-Party Provisioning"
+      },
       "cancel": "Cancel",
       "creating": "Creating...",
       "createKey": "Create Key"
