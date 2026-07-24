@@ -486,7 +486,13 @@ export const verifyEmail = async (token: string): Promise<ApiResponse> => {
 // API Key Management
 // ============================================
 
-import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse, IntegrationClient } from '../types';
+import type {
+  ApiKey,
+  ChannelIntegration,
+  CreateApiKeyInput,
+  CreateApiKeyResponse,
+  IntegrationClient,
+} from '../types';
 
 /**
  * Fetches all API keys for the current user.
@@ -591,6 +597,133 @@ export const listIntegrationClients = async (): Promise<ApiResponse<IntegrationC
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to load integration clients',
+    };
+  }
+};
+
+export const listTelegramIntegrations = async (): Promise<ApiResponse<ChannelIntegration[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/channel-integrations/telegram');
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List Telegram integrations error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load Telegram integrations',
+    };
+  }
+};
+
+export const createTelegramIntegration = async (input: {
+  agent_public_id: string;
+  bot_token: string;
+  name?: string;
+  settings?: Record<string, unknown>;
+  register_webhook?: boolean;
+}): Promise<ApiResponse<ChannelIntegration>> => {
+  try {
+    const response = await axiosInstance.post('/v1/channel-integrations/telegram', input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Telegram integration created successfully',
+    };
+  } catch (error) {
+    console.error('Create Telegram integration error:', error);
+    const axiosError = error as AxiosError<{
+      message?: string;
+      error?: string;
+      errorCode?: string;
+    }>;
+
+    return {
+      success: false,
+      errorCode: axiosError.response?.data?.errorCode,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create Telegram integration',
+    };
+  }
+};
+
+export const updateTelegramIntegration = async (
+  integrationPublicId: string,
+  input: {
+    name?: string;
+    status?: string;
+    agent_public_id?: string;
+    settings?: Record<string, unknown>;
+  }
+): Promise<ApiResponse<ChannelIntegration>> => {
+  try {
+    const response = await axiosInstance.patch(
+      `/v1/channel-integrations/telegram/${integrationPublicId}`,
+      input
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Telegram integration updated successfully',
+    };
+  } catch (error) {
+    console.error('Update Telegram integration error:', error);
+    const axiosError = error as AxiosError<{
+      message?: string;
+      error?: string;
+      errorCode?: string;
+    }>;
+
+    return {
+      success: false,
+      errorCode: axiosError.response?.data?.errorCode,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update Telegram integration',
+    };
+  }
+};
+
+export const disconnectTelegramIntegration = async (
+  integrationPublicId: string
+): Promise<ApiResponse<ChannelIntegration>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/channel-integrations/telegram/${integrationPublicId}/disconnect`
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Telegram integration disconnected successfully',
+    };
+  } catch (error) {
+    console.error('Disconnect Telegram integration error:', error);
+    const axiosError = error as AxiosError<{
+      message?: string;
+      error?: string;
+      errorCode?: string;
+    }>;
+
+    return {
+      success: false,
+      errorCode: axiosError.response?.data?.errorCode,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to disconnect Telegram integration',
     };
   }
 };
@@ -873,7 +1006,12 @@ export const listCapabilities = async (): Promise<ApiResponse<Capability[]>> => 
 // Characteristics API
 // ============================================
 
-import type { Characteristic, CharacteristicScope, CreateCharacteristicInput } from '../types';
+import type {
+  Characteristic,
+  CharacteristicScope,
+  CreateCharacteristicInput,
+  UpdateCharacteristicInput,
+} from '../types';
 
 /**
  * Fetches characteristics filtered by scope and optional search
@@ -938,6 +1076,55 @@ export const createCharacteristic = async (
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to create characteristic',
+    };
+  }
+};
+
+export const updateCharacteristic = async (
+  publicId: string,
+  input: UpdateCharacteristicInput
+): Promise<ApiResponse<Characteristic>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/characteristics/${publicId}`, input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Characteristic updated successfully',
+    };
+  } catch (error) {
+    console.error('Update characteristic error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update characteristic',
+    };
+  }
+};
+
+export const deleteCharacteristic = async (publicId: string): Promise<ApiResponse<void>> => {
+  try {
+    const response = await axiosInstance.delete(`/v1/characteristics/${publicId}`);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Characteristic deleted successfully',
+    };
+  } catch (error) {
+    console.error('Delete characteristic error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to delete characteristic',
     };
   }
 };
@@ -1343,10 +1530,22 @@ const normalizeSharedConversation = (
  * @param agentId - The ID of the agent
  * @returns Promise with array of chat sessions
  */
-export const listChatSessions = async (agentId?: string): Promise<ApiResponse<ChatSession[]>> => {
+export const listChatSessions = async (
+  agentId?: string,
+  filters?: {
+    source?: string;
+    entrypoint?: string;
+    source_provider?: string;
+  }
+): Promise<ApiResponse<ChatSession[]>> => {
   try {
     const response = await axiosInstance.get(`/v1/chat/sessions`, {
-      params: agentId ? { agentId } : undefined,
+      params: {
+        ...(agentId ? { agentId } : {}),
+        ...(filters?.source ? { source: filters.source } : {}),
+        ...(filters?.entrypoint ? { entrypoint: filters.entrypoint } : {}),
+        ...(filters?.source_provider ? { source_provider: filters.source_provider } : {}),
+      },
     });
 
     return {

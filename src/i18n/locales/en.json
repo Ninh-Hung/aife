@@ -173,8 +173,10 @@
     "conversations": "Conversations",
     "dashboard": "Dashboard",
     "agents": "My Agents",
+    "characteristics": "Characteristics",
     "knowledge": "Knowledge",
     "apiKeys": "API Keys",
+    "integrations": "Integrations",
     "subscription": "Subscription",
     "feedback": "Feedback",
     "multilanguage": "Multilanguage"
@@ -192,6 +194,10 @@
     "agents": {
       "title": "My Agents",
       "subtitle": "Manage your AI agents"
+    },
+    "characteristics": {
+      "title": "Characteristics",
+      "subtitle": "Manage reusable behavior and persona prompts"
     },
     "knowledge": {
       "title": "Knowledge",
@@ -569,9 +575,12 @@
     },
     "characteristicForm": {
       "title": "Create New Characteristic",
+      "editTitle": "Edit Characteristic",
       "description": "Create one reusable prompt layer. You can combine identity, tone, values, and rules when building an agent.",
       "create": "Create Characteristic",
+      "update": "Update Characteristic",
       "creating": "Creating...",
+      "updating": "Updating...",
       "cancel": "Cancel",
       "fields": {
         "name": "Name",
@@ -601,10 +610,12 @@
         "domain": "Example: When discussing legal topics, explain risk categories and recommend professional review..."
       },
       "messages": {
-        "created": "Characteristic created successfully!"
+        "created": "Characteristic created successfully!",
+        "updated": "Characteristic updated successfully!"
       },
       "errors": {
-        "createFailed": "Failed to create characteristic"
+        "createFailed": "Failed to create characteristic",
+        "updateFailed": "Failed to update characteristic"
       },
       "validation": {
         "nameRequired": "Name is required",
@@ -622,6 +633,46 @@
       "errors": {
         "loadFailed": "Failed to load capabilities"
       }
+    }
+  },
+  "characteristicManagement": {
+    "title": "Characteristics",
+    "subtitle": "Create, edit, and delete reusable characteristics for agents.",
+    "create": "Create characteristic",
+    "search": "Search",
+    "refresh": "Refresh",
+    "empty": "No matching characteristics found.",
+    "filters": {
+      "scope": "Scope",
+      "searchPlaceholder": "Search by name or code"
+    },
+    "scope": {
+      "all": "All",
+      "system": "System",
+      "user": "Mine",
+      "project": "Project"
+    },
+    "columns": {
+      "name": "Name",
+      "layer": "Layer",
+      "scope": "Scope",
+      "prompt": "Prompt",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "systemCannotEdit": "System characteristics cannot be edited",
+      "systemCannotDelete": "System characteristics cannot be deleted"
+    },
+    "deleteDialog": {
+      "title": "Delete characteristic",
+      "beforeName": "Are you sure you want to delete",
+      "afterName": "? This characteristic will be detached from agents using it."
+    },
+    "errors": {
+      "loadFailed": "Failed to load characteristics",
+      "deleteFailed": "Failed to delete characteristic"
     }
   },
   "dashboard": {

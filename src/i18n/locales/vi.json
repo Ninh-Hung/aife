@@ -173,8 +173,10 @@
     "conversations": "Cuộc trò chuyện",
     "dashboard": "Dashboard",
     "agents": "Agent của tôi",
+    "characteristics": "Characteristic",
     "knowledge": "Kiến thức",
     "apiKeys": "API Keys",
+    "integrations": "Tích hợp",
     "subscription": "Gói dịch vụ",
     "feedback": "Feedback",
     "multilanguage": "Đa ngôn ngữ"
@@ -192,6 +194,10 @@
     "agents": {
       "title": "Agent của tôi",
       "subtitle": "Quản lý AI agent"
+    },
+    "characteristics": {
+      "title": "Characteristic",
+      "subtitle": "Quản lý hành vi và persona tái sử dụng"
     },
     "knowledge": {
       "title": "Kiến thức",
@@ -569,9 +575,12 @@
     },
     "characteristicForm": {
       "title": "Tạo characteristic mới",
+      "editTitle": "Chỉnh sửa characteristic",
       "description": "Tạo một lớp prompt có thể tái sử dụng. Bạn có thể kết hợp danh tính, giọng điệu, giá trị và quy tắc khi xây dựng agent.",
       "create": "Tạo characteristic",
+      "update": "Cập nhật characteristic",
       "creating": "Đang tạo...",
+      "updating": "Đang cập nhật...",
       "cancel": "Hủy",
       "fields": {
         "name": "Tên",
@@ -601,10 +610,12 @@
         "domain": "Ví dụ: Khi trao đổi về pháp lý, hãy giải thích nhóm rủi ro và khuyến nghị review chuyên môn..."
       },
       "messages": {
-        "created": "Tạo characteristic thành công!"
+        "created": "Tạo characteristic thành công!",
+        "updated": "Cập nhật characteristic thành công!"
       },
       "errors": {
-        "createFailed": "Không thể tạo characteristic"
+        "createFailed": "Không thể tạo characteristic",
+        "updateFailed": "Không thể cập nhật characteristic"
       },
       "validation": {
         "nameRequired": "Tên là bắt buộc",
@@ -622,6 +633,46 @@
       "errors": {
         "loadFailed": "Không thể tải khả năng"
       }
+    }
+  },
+  "characteristicManagement": {
+    "title": "Characteristic",
+    "subtitle": "Tạo, chỉnh sửa và xoá characteristic có thể tái sử dụng cho agent.",
+    "create": "Tạo characteristic",
+    "search": "Tìm kiếm",
+    "refresh": "Tải lại",
+    "empty": "Chưa có characteristic nào phù hợp.",
+    "filters": {
+      "scope": "Phạm vi",
+      "searchPlaceholder": "Tìm theo tên hoặc mã"
+    },
+    "scope": {
+      "all": "Tất cả",
+      "system": "Hệ thống",
+      "user": "Của tôi",
+      "project": "Dự án"
+    },
+    "columns": {
+      "name": "Tên",
+      "layer": "Lớp",
+      "scope": "Phạm vi",
+      "prompt": "Prompt",
+      "actions": "Thao tác"
+    },
+    "actions": {
+      "edit": "Chỉnh sửa",
+      "delete": "Xoá",
+      "systemCannotEdit": "Không thể sửa characteristic hệ thống",
+      "systemCannotDelete": "Không thể xoá characteristic hệ thống"
+    },
+    "deleteDialog": {
+      "title": "Xoá characteristic",
+      "beforeName": "Bạn có chắc muốn xoá",
+      "afterName": "không? Characteristic này sẽ được gỡ khỏi các agent đang dùng."
+    },
+    "errors": {
+      "loadFailed": "Không thể tải characteristic",
+      "deleteFailed": "Không thể xoá characteristic"
     }
   },
   "dashboard": {

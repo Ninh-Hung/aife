@@ -3,7 +3,7 @@
  * Modal for creating new user characteristics
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -23,8 +23,13 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import { X, Save } from 'lucide-react';
-import { Characteristic, CharacteristicLayer, CreateCharacteristicInput } from '../../types';
-import { createCharacteristic } from '../../services/api';
+import {
+  Characteristic,
+  CharacteristicLayer,
+  CreateCharacteristicInput,
+  UpdateCharacteristicInput,
+} from '../../types';
+import { createCharacteristic, updateCharacteristic } from '../../services/api';
 import { useNotification } from '../../hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 
@@ -36,6 +41,8 @@ interface CreateCharacteristicModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: (characteristic: Characteristic) => void;
+  initialCharacteristic?: Characteristic | null;
+  onUpdated?: (characteristic: Characteristic) => void;
 }
 
 // ============================================
@@ -68,6 +75,8 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
   open,
   onClose,
   onCreated,
+  initialCharacteristic,
+  onUpdated,
 }) => {
   const { t } = useTranslation();
   const { success, error: showError } = useNotification();
@@ -76,6 +85,27 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
     {}
   );
   const [isSaving, setIsSaving] = useState(false);
+  const isEditMode = Boolean(initialCharacteristic);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialCharacteristic) {
+      setFormData({
+        code: initialCharacteristic.code,
+        name: initialCharacteristic.name,
+        description: initialCharacteristic.description || '',
+        layer: initialCharacteristic.layer as CharacteristicLayer,
+        prompt: initialCharacteristic.prompt,
+        sortOrder: initialCharacteristic.sortOrder,
+        status: 'published',
+      });
+    } else {
+      setFormData(initialFormState);
+    }
+
+    setErrors({});
+  }, [initialCharacteristic, open]);
 
   const handleChange =
     (field: keyof CreateCharacteristicInput) =>
@@ -149,26 +179,60 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
     setIsSaving(true);
 
     try {
-      const response = await createCharacteristic({
+      const basePayload = {
         ...formData,
         code: formData.code.trim(),
         name: formData.name.trim(),
-        description: formData.description?.trim() || undefined,
         prompt: formData.prompt.trim(),
-        status: 'published',
-      });
+        status: 'published' as const,
+      };
+
+      const response =
+        isEditMode && initialCharacteristic
+          ? await updateCharacteristic(initialCharacteristic.publicId, {
+              ...basePayload,
+              description: formData.description?.trim() || null,
+            } satisfies UpdateCharacteristicInput)
+          : await createCharacteristic({
+              ...basePayload,
+              description: formData.description?.trim() || undefined,
+            } satisfies CreateCharacteristicInput);
 
       if (response.success && response.data) {
-        success(t('agents.characteristicForm.messages.created'));
-        onCreated(response.data);
+        success(
+          t(
+            isEditMode
+              ? 'agents.characteristicForm.messages.updated'
+              : 'agents.characteristicForm.messages.created'
+          )
+        );
+        if (isEditMode) {
+          onUpdated?.(response.data);
+        } else {
+          onCreated(response.data);
+        }
         setFormData(initialFormState);
         setErrors({});
+        onClose();
       } else {
-        showError(response.error || t('agents.characteristicForm.errors.createFailed'));
+        showError(
+          response.error ||
+            t(
+              isEditMode
+                ? 'agents.characteristicForm.errors.updateFailed'
+                : 'agents.characteristicForm.errors.createFailed'
+            )
+        );
       }
     } catch (err) {
       showError(
-        err instanceof Error ? err.message : t('agents.characteristicForm.errors.createFailed')
+        err instanceof Error
+          ? err.message
+          : t(
+              isEditMode
+                ? 'agents.characteristicForm.errors.updateFailed'
+                : 'agents.characteristicForm.errors.createFailed'
+            )
       );
     } finally {
       setIsSaving(false);
@@ -196,7 +260,9 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
       <DialogTitle className="border-b border-gray-200 dark:border-slate-700">
         <Box className="flex items-center justify-between">
           <span className="text-gray-900 dark:text-slate-100">
-            {t('agents.characteristicForm.title')}
+            {t(
+              isEditMode ? 'agents.characteristicForm.editTitle' : 'agents.characteristicForm.title'
+            )}
           </span>
           <IconButton
             onClick={handleClose}
@@ -304,8 +370,14 @@ export const CreateCharacteristicModal: React.FC<CreateCharacteristicModalProps>
           className="bg-[#3B82F6] text-white hover:bg-[#2563EB] disabled:bg-gray-300 dark:disabled:bg-slate-700"
         >
           {isSaving
-            ? t('agents.characteristicForm.creating')
-            : t('agents.characteristicForm.create')}
+            ? t(
+                isEditMode
+                  ? 'agents.characteristicForm.updating'
+                  : 'agents.characteristicForm.creating'
+              )
+            : t(
+                isEditMode ? 'agents.characteristicForm.update' : 'agents.characteristicForm.create'
+              )}
         </Button>
       </DialogActions>
     </Dialog>

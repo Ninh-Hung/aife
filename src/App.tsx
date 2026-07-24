@@ -30,8 +30,10 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
+import { IntegrationsPage } from './pages/IntegrationsPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
+import { CharacteristicManagement } from './pages/CharacteristicManagement';
 import { KnowledgeManagement } from './pages/KnowledgeManagement';
 import { SettingsPage } from './pages/SettingsPage';
 import { FeedbackPage } from './pages/FeedbackPage';
@@ -50,6 +52,8 @@ import {
   BookOpen,
   Settings,
   MessageCircleWarning,
+  Plug,
+  BrainCircuit,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
 import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
@@ -227,6 +231,14 @@ const AppContent: React.FC = () => {
             icon={<Users className="text-white" size={24} />}
           />
         );
+      case '/characteristics':
+        return (
+          <Header
+            title={t('header.characteristics.title')}
+            subtitle={t('header.characteristics.subtitle')}
+            icon={<BrainCircuit className="text-white" size={24} />}
+          />
+        );
       case '/knowledge':
         return (
           <Header
@@ -265,6 +277,14 @@ const AppContent: React.FC = () => {
             title={t('header.apiKeys.title')}
             subtitle={t('header.apiKeys.subtitle')}
             icon={<KeyRound className="text-white" size={24} />}
+          />
+        );
+      case '/integrations':
+        return (
+          <Header
+            title="Integrations"
+            subtitle="Telegram, Discord, API and webhook channels"
+            icon={<Plug className="text-white" size={24} />}
           />
         );
       case '/settings':
@@ -343,8 +363,10 @@ const AppContent: React.FC = () => {
 
                   {/* API Key Management */}
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
+                  <Route path="/integrations" element={<IntegrationsPage />} />
 
                   <Route path="/agents" element={<AgentManagement />} />
+                  <Route path="/characteristics" element={<CharacteristicManagement />} />
                   <Route path="/knowledge" element={<KnowledgeManagement />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/feedback" element={<FeedbackPage />} />

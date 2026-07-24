@@ -209,6 +209,10 @@ export const ChatScreen: React.FC = () => {
 
     return [...dedupedInitialMessages, ...enrichedAgentMessages];
   }, [agentMessages, initialMessages, initialMessagesLoaded, isActiveRouteSession]);
+  const activeSession = useMemo(
+    () => sessions.find((session) => session.id === activeSessionId) ?? null,
+    [activeSessionId, sessions]
+  );
   const visibleMessages = useMemo(
     () =>
       allMessages.filter((message) => {
@@ -865,10 +869,11 @@ export const ChatScreen: React.FC = () => {
           onCancelResponse={isResponseInFlight ? handleCancelResponse : undefined}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
-          onToggleInfo={handleToggleInfo}
-          userAvatar={user?.avatar}
-          userAvatarType={user?.avatarType}
-        />
+	          onToggleInfo={handleToggleInfo}
+	          userAvatar={user?.avatar}
+	          userAvatarType={user?.avatarType}
+	          sessionLimitWarning={activeSession?.limitWarning ?? null}
+	        />
       ) : (
         <div className="flex h-full flex-1 flex-col items-center justify-center bg-gray-50 dark:bg-slate-900">
           <div className="text-center">

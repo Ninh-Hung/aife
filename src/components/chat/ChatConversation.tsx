@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Bot, Info, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Bot, Info, MessageSquare } from 'lucide-react';
 import { IconButton, CircularProgress } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Agent, ChatMessage } from '../../types';
@@ -29,6 +29,10 @@ interface ChatConversationProps {
   userAvatar?: string;
   /** Current user's avatar type */
   userAvatarType?: 'image' | 'video';
+  sessionLimitWarning?: {
+    level: 'near_limit' | 'limit_reached' | string;
+    message: string;
+  } | null;
 }
 
 export const ChatConversation: React.FC<ChatConversationProps> = ({
@@ -44,6 +48,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   onToggleInfo,
   userAvatar,
   userAvatarType,
+  sessionLimitWarning,
 }) => {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -120,6 +125,20 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           <Info size={20} />
         </IconButton>
       </div>
+
+      {sessionLimitWarning && (
+        <div
+          role="status"
+          className={`flex flex-shrink-0 items-center gap-2 border-b px-4 py-2 text-sm ${
+            sessionLimitWarning.level === 'limit_reached'
+              ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200'
+              : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200'
+          }`}
+        >
+          <AlertTriangle size={16} className="flex-shrink-0" />
+          <span className="min-w-0 flex-1 truncate">{sessionLimitWarning.message}</span>
+        </div>
+      )}
 
       {/* Messages Area - Flex 1, Scrollable */}
       <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">

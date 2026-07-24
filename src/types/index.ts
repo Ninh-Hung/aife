@@ -125,6 +125,9 @@ export interface Agent {
   ownerId?: number;
   userId?: string;
   isActive?: boolean;
+  status?: 'draft' | 'published' | 'archived' | 'disabled' | string;
+  publishedVersion?: number | null;
+  publishedAt?: Date | string | null;
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -210,6 +213,16 @@ export interface CreateCharacteristicInput {
   sortOrder?: number;
   status?: 'published';
   projectId?: number;
+}
+
+export interface UpdateCharacteristicInput {
+  code?: string;
+  name?: string;
+  description?: string | null;
+  layer?: CharacteristicLayer;
+  prompt?: string;
+  sortOrder?: number;
+  status?: 'published' | 'draft' | 'archived';
 }
 
 // ============================================
@@ -569,6 +582,46 @@ export interface ChatSession {
   createdAt: Date;
   updatedAt: Date;
   status?: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+  messageCount?: number;
+  tokenCount?: number;
+  entrypoint?: string | null;
+  sourceType?: 'web' | 'channel' | 'api_key' | 'webhook' | 'other' | string;
+  sourceProvider?: 'appaihelp' | 'telegram' | 'discord' | 'api_key' | string;
+  sourcePublicId?: string | null;
+  sourceDisplayName?: string | null;
+  externalTenantType?: string | null;
+  externalTenantId?: string | null;
+  externalUserId?: string | null;
+  externalSessionId?: string | null;
+  channelConversationPublicId?: string | null;
+  channelChatType?: string | null;
+  channelChatTitle?: string | null;
+  channelChatUsername?: string | null;
+  limitWarning?: {
+    level: 'near_limit' | 'limit_reached' | string;
+    message: string;
+  } | null;
+}
+
+export interface ChannelIntegration {
+  public_id: string;
+  provider: 'telegram' | 'discord' | string;
+  name: string;
+  status: 'active' | 'disabled' | 'disabled_by_package' | 'revoked' | 'error' | string;
+  bot_username?: string | null;
+  bot_token_prefix?: string | null;
+  webhook_url?: string | null;
+  webhook_status?: string;
+  last_error?: string | null;
+  settings?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  agent_public_id?: string | null;
+  agent_name?: string | null;
+  conversation_count?: number;
+  created_at: string;
+  updated_at: string;
+  disabled_at?: string | null;
+  last_webhook_at?: string | null;
 }
 
 export interface ChatMessage {

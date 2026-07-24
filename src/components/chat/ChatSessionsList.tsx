@@ -4,7 +4,19 @@
  */
 
 import React, { useState } from 'react';
-import { Plus, MessageSquare, MoreVertical, Share2, Pencil, Archive, Trash2 } from 'lucide-react';
+import {
+  Plus,
+  MessageSquare,
+  MoreVertical,
+  Share2,
+  Pencil,
+  Archive,
+  Trash2,
+  Bot,
+  KeyRound,
+  Webhook,
+  AlertTriangle,
+} from 'lucide-react';
 import {
   Button,
   CircularProgress,
@@ -124,6 +136,19 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
     setTargetSessionId(null);
   };
 
+  const getSourceBadge = (session: ChatSession) => {
+    if (session.sourceProvider === 'telegram' || session.entrypoint === 'telegram_bot') {
+      return { label: 'Telegram', Icon: Bot, className: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' };
+    }
+    if (session.sourceType === 'api_key' || session.entrypoint === 'third_party_api') {
+      return { label: 'API', Icon: KeyRound, className: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' };
+    }
+    if (session.sourceType === 'webhook') {
+      return { label: 'Webhook', Icon: Webhook, className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' };
+    }
+    return null;
+  };
+
   return (
     <div
       className={`flex flex-col ${
@@ -173,40 +198,73 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
           </div>
         ) : (
           <div className={embedded ? 'pb-2' : 'py-2'}>
-            {sessions.map((session) => (
-              <div
-                key={session.id}
-                className={`group relative flex w-full items-center border-l-4 transition-colors ${
-                  activeSessionId === session.id
-                    ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-slate-700/70'
-                    : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-700/50'
-                }`}
-              >
-                {/* Clickable session area */}
-                <button
-                  onClick={() => onSessionSelect(session.id)}
-                  className={`min-w-0 flex-1 text-left ${embedded ? 'px-5 py-2.5' : 'px-4 py-3'}`}
-                >
-                  {/* Session Title */}
-                  <div className="truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
-                    {session.title}
-                  </div>
-                </button>
+            {sessions.map((session) => {
+              const sourceBadge = getSourceBadge(session);
+              const SourceIcon = sourceBadge?.Icon;
+              const limitWarning = session.limitWarning;
+              const limitWarningLabel =
+                limitWarning?.level === 'limit_reached' ? 'Limit' : 'Near limit';
+              const limitWarningClass =
+                limitWarning?.level === 'limit_reached'
+                  ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
 
-                {/* Options button — always visible on active, hover-visible otherwise */}
-                <button
-                  onClick={(e) => handleMenuOpen(e, session.id)}
-                  aria-label="Session options"
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-opacity hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 ${
+              return (
+                <div
+                  key={session.id}
+                  className={`group relative flex w-full items-center border-l-4 transition-colors ${
                     activeSessionId === session.id
-                      ? 'opacity-100'
-                      : 'opacity-0 group-hover:opacity-100'
+                      ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-slate-700/70'
+                      : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-700/50'
                   }`}
                 >
-                  <MoreVertical size={16} />
-                </button>
-              </div>
-            ))}
+                  {/* Clickable session area */}
+                  <button
+                    onClick={() => onSessionSelect(session.id)}
+                    className={`min-w-0 flex-1 text-left ${embedded ? 'px-5 py-2.5' : 'px-4 py-3'}`}
+                  >
+                    {/* Session Title */}
+	                    <div className="truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
+	                      {session.title}
+	                    </div>
+	                    {(sourceBadge || limitWarning) && (
+	                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+	                        {sourceBadge && (
+	                          <div
+	                            className={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${sourceBadge.className}`}
+	                          >
+	                            {SourceIcon && <SourceIcon size={12} />}
+	                            <span className="truncate">{sourceBadge.label}</span>
+	                          </div>
+	                        )}
+	                        {limitWarning && (
+	                          <div
+	                            title={limitWarning.message}
+	                            className={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${limitWarningClass}`}
+	                          >
+	                            <AlertTriangle size={12} />
+	                            <span className="truncate">{limitWarningLabel}</span>
+	                          </div>
+	                        )}
+	                      </div>
+	                    )}
+	                  </button>
+
+                  {/* Options button — always visible on active, hover-visible otherwise */}
+                  <button
+                    onClick={(e) => handleMenuOpen(e, session.id)}
+                    aria-label="Session options"
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-opacity hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 ${
+                      activeSessionId === session.id
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

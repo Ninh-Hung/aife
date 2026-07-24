@@ -28,9 +28,11 @@ import {
   Settings,
   LogOut,
   KeyRound,
+  Plug,
   SquarePen,
   BookOpen,
   MessageCircleWarning,
+  BrainCircuit,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -60,8 +62,15 @@ interface SidebarProps {
 const profileMenuItems = [
   { id: 'dashboard', labelKey: 'sidebar.dashboard', path: '/dashboard', Icon: LayoutDashboard },
   { id: 'agents', labelKey: 'sidebar.agents', path: '/agents', Icon: Users },
+  {
+    id: 'characteristics',
+    labelKey: 'sidebar.characteristics',
+    path: '/characteristics',
+    Icon: BrainCircuit,
+  },
   { id: 'knowledge', labelKey: 'sidebar.knowledge', path: '/knowledge', Icon: BookOpen },
   { id: 'api-keys', labelKey: 'sidebar.apiKeys', path: '/api-keys', Icon: KeyRound },
+  { id: 'integrations', labelKey: 'sidebar.integrations', path: '/integrations', Icon: Plug },
   { id: 'subscription', labelKey: 'sidebar.subscription', path: '/subscription', Icon: CreditCard },
   {
     id: 'translate',
