@@ -602,7 +602,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                     )}
                   </button>
 
-                  {/* Apple */}
+                  {/* Apple
                   <button
                     onClick={() => handleOAuthLogin(OAUTH_PROVIDER.APPLE)}
                     disabled={isLoading || Boolean(oauthProviderLoading)}
@@ -617,6 +617,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                       </svg>
                     )}
                   </button>
+                  */}
 
                   {/* GitHub */}
                   <button
