@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -10,14 +10,18 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  IconButton,
+  InputAdornment,
   InputLabel,
   MenuItem,
+  Popover,
   Select,
   Switch,
   TextField,
   Typography,
 } from '@mui/material';
-import { Bot, Plus, Power, RefreshCw, Settings, Unplug } from 'lucide-react';
+import { Bot, Info, Plus, Power, RefreshCw, Settings, Unplug } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAgents } from '../contexts/AgentsContext';
 import { useNotification } from '../hooks/useNotification';
 import {
@@ -70,6 +74,7 @@ const numberFromSettings = (
 };
 
 export const IntegrationsPage: React.FC = () => {
+  const { t } = useTranslation();
   const { agents, loading: agentsLoading } = useAgents();
   const notification = useNotification();
   const [integrations, setIntegrations] = useState<ChannelIntegration[]>([]);
@@ -80,6 +85,7 @@ export const IntegrationsPage: React.FC = () => {
   const [form, setForm] = useState<TelegramFormState>(defaultForm);
   const [agentOptions, setAgentOptions] = useState<Agent[]>([]);
   const [agentOptionsLoading, setAgentOptionsLoading] = useState(false);
+  const [botTokenHelpAnchor, setBotTokenHelpAnchor] = useState<HTMLElement | null>(null);
 
   const userAgents = useMemo(
     () => agentOptions.filter((agent) => !agent.ownerType || agent.ownerType === 'USER'),
@@ -107,7 +113,7 @@ export const IntegrationsPage: React.FC = () => {
         setAgentOptions(response.data);
         return response.data;
       }
-      notification.error(response.error || 'Failed to load agents');
+      notification.error(response.error || t('integrations.telegram.errors.loadAgentsFailed'));
     } finally {
       setAgentOptionsLoading(false);
     }
@@ -115,23 +121,23 @@ export const IntegrationsPage: React.FC = () => {
     return [];
   };
 
-  const loadIntegrations = async () => {
+  const loadIntegrations = useCallback(async () => {
     setLoading(true);
     try {
       const response = await listTelegramIntegrations();
       if (response.success && response.data) {
         setIntegrations(response.data);
       } else {
-        notification.error(response.error || 'Failed to load integrations');
+        notification.error(response.error || t('integrations.telegram.errors.loadFailed'));
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [notification, t]);
 
   useEffect(() => {
     void loadIntegrations();
-  }, []);
+  }, [loadIntegrations]);
 
   const openCreateDialog = async () => {
     const loadedAgents = await loadAgentOptions();
@@ -193,16 +199,16 @@ export const IntegrationsPage: React.FC = () => {
 
   const submit = async () => {
     if (!form.agentPublicId) {
-      notification.error('Select an agent');
+      notification.error(t('integrations.telegram.errors.selectAgent'));
       return;
     }
     const selectedAgent = userAgents.find((agent) => agent.publicId === form.agentPublicId);
     if (selectedAgent?.status !== 'published') {
-      notification.error('Publish the selected agent before connecting it to Telegram');
+      notification.error(t('integrations.telegram.errors.publishAgent'));
       return;
     }
     if (!editing && !form.botToken.trim()) {
-      notification.error('Telegram bot token is required');
+      notification.error(t('integrations.telegram.errors.botTokenRequired'));
       return;
     }
 
@@ -232,47 +238,59 @@ export const IntegrationsPage: React.FC = () => {
 
     setSaving(false);
     if (response.success) {
-      notification.success(editing ? 'Telegram integration updated' : 'Telegram integration connected');
+      notification.success(
+        editing
+          ? t('integrations.telegram.messages.updated')
+          : t('integrations.telegram.messages.connected')
+      );
       setDialogOpen(false);
       await loadIntegrations();
       return;
     }
 
-    notification.error(response.error || 'Telegram integration request failed');
+    notification.error(response.error || t('integrations.telegram.errors.requestFailed'));
   };
 
   const toggleStatus = async (integration: ChannelIntegration) => {
     const nextStatus = integration.status === 'active' ? 'disabled' : 'active';
     const response = await updateTelegramIntegration(integration.public_id, { status: nextStatus });
     if (response.success) {
-      notification.success(nextStatus === 'active' ? 'Integration enabled' : 'Integration disabled');
+      notification.success(
+        nextStatus === 'active'
+          ? t('integrations.telegram.messages.enabled')
+          : t('integrations.telegram.messages.disabled')
+      );
       await loadIntegrations();
       return;
     }
-    notification.error(response.error || 'Failed to update integration');
+    notification.error(response.error || t('integrations.telegram.errors.updateFailed'));
   };
 
   const disconnect = async (integration: ChannelIntegration) => {
     const response = await disconnectTelegramIntegration(integration.public_id);
     if (response.success) {
-      notification.success('Telegram integration disconnected');
+      notification.success(t('integrations.telegram.messages.disconnected'));
       await loadIntegrations();
       return;
     }
-    notification.error(response.error || 'Failed to disconnect integration');
+    notification.error(response.error || t('integrations.telegram.errors.disconnectFailed'));
   };
 
   return (
     <Box className="h-full bg-slate-50 p-6 dark:bg-slate-900">
       <Box className="mb-5 flex items-center justify-between">
         <Typography variant="h5" className="font-semibold text-gray-900 dark:text-slate-100">
-          Integrations
+          {t('integrations.title')}
         </Typography>
         <Box className="flex gap-2">
           <Button startIcon={<RefreshCw size={16} />} onClick={loadIntegrations}>
-            Refresh
+            {t('integrations.telegram.actions.refresh')}
           </Button>
-          <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => void openCreateDialog()}>
+          <Button
+            variant="contained"
+            startIcon={<Plus size={16} />}
+            onClick={() => void openCreateDialog()}
+          >
             Telegram
           </Button>
         </Box>
@@ -286,10 +304,15 @@ export const IntegrationsPage: React.FC = () => {
         <Box className="flex min-h-[280px] flex-col items-center justify-center rounded border border-dashed border-gray-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-800">
           <Bot size={40} className="mb-3 text-sky-500" />
           <Typography className="font-medium text-gray-900 dark:text-slate-100">
-            No Telegram integrations
+            {t('integrations.telegram.empty')}
           </Typography>
-          <Button className="mt-4" variant="contained" startIcon={<Plus size={16} />} onClick={() => void openCreateDialog()}>
-            Connect Telegram
+          <Button
+            className="mt-4"
+            variant="contained"
+            startIcon={<Plus size={16} />}
+            onClick={() => void openCreateDialog()}
+          >
+            {t('integrations.telegram.connect')}
           </Button>
         </Box>
       ) : (
@@ -308,11 +331,14 @@ export const IntegrationsPage: React.FC = () => {
                     </Typography>
                   </Box>
                   <Typography variant="body2" className="text-gray-600 dark:text-slate-400">
-                    @{integration.bot_username || 'unknown'} · {integration.agent_name || 'No agent'}
+                    @{integration.bot_username || t('integrations.telegram.common.unknown')} ·{' '}
+                    {integration.agent_name || t('integrations.telegram.common.noAgent')}
                   </Typography>
                 </Box>
                 <Chip
-                  label={integration.status}
+                  label={t(`integrations.telegram.status.${integration.status}`, {
+                    defaultValue: integration.status,
+                  })}
                   color={statusColor(integration.status)}
                   size="small"
                   variant="outlined"
@@ -322,10 +348,27 @@ export const IntegrationsPage: React.FC = () => {
               <Divider className="my-3" />
 
               <Box className="grid grid-cols-2 gap-3 text-sm text-gray-700 dark:text-slate-300">
-                <div>Webhook: {integration.webhook_status || 'unknown'}</div>
-                <div>Conversations: {integration.conversation_count ?? 0}</div>
-                <div>Token: {integration.bot_token_prefix || 'stored'}</div>
-                <div>Limit: {numberFromSettings(integration.settings, 'max_messages_per_session', 100)} msg</div>
+                <div>
+                  {t('integrations.telegram.card.webhook')}:{' '}
+                  {integration.webhook_status
+                    ? t(`integrations.telegram.webhookStatus.${integration.webhook_status}`, {
+                        defaultValue: integration.webhook_status,
+                      })
+                    : t('integrations.telegram.common.unknown')}
+                </div>
+                <div>
+                  {t('integrations.telegram.card.conversations')}:{' '}
+                  {integration.conversation_count ?? 0}
+                </div>
+                <div>
+                  {t('integrations.telegram.card.token')}:{' '}
+                  {integration.bot_token_prefix || t('integrations.telegram.common.stored')}
+                </div>
+                <div>
+                  {t('integrations.telegram.card.limit')}:{' '}
+                  {numberFromSettings(integration.settings, 'max_messages_per_session', 100)}{' '}
+                  {t('integrations.telegram.card.messagesUnit')}
+                </div>
               </Box>
 
               {integration.last_error && (
@@ -335,11 +378,21 @@ export const IntegrationsPage: React.FC = () => {
               )}
 
               <Box className="mt-4 flex flex-wrap gap-2">
-                <Button size="small" startIcon={<Settings size={15} />} onClick={() => void openEditDialog(integration)}>
-                  Settings
+                <Button
+                  size="small"
+                  startIcon={<Settings size={15} />}
+                  onClick={() => void openEditDialog(integration)}
+                >
+                  {t('integrations.telegram.actions.settings')}
                 </Button>
-                <Button size="small" startIcon={<Power size={15} />} onClick={() => toggleStatus(integration)}>
-                  {integration.status === 'active' ? 'Disable' : 'Enable'}
+                <Button
+                  size="small"
+                  startIcon={<Power size={15} />}
+                  onClick={() => toggleStatus(integration)}
+                >
+                  {integration.status === 'active'
+                    ? t('integrations.telegram.actions.disable')
+                    : t('integrations.telegram.actions.enable')}
                 </Button>
                 <Button
                   size="small"
@@ -347,7 +400,7 @@ export const IntegrationsPage: React.FC = () => {
                   startIcon={<Unplug size={15} />}
                   onClick={() => disconnect(integration)}
                 >
-                  Disconnect
+                  {t('integrations.telegram.actions.disconnect')}
                 </Button>
               </Box>
             </Box>
@@ -356,19 +409,21 @@ export const IntegrationsPage: React.FC = () => {
       )}
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? 'Telegram Settings' : 'Connect Telegram'}</DialogTitle>
+        <DialogTitle>
+          {editing ? t('integrations.telegram.settingsTitle') : t('integrations.telegram.connect')}
+        </DialogTitle>
         <DialogContent>
           <Box className="space-y-4 pt-2">
             <TextField
-              label="Name"
+              label={t('integrations.telegram.fields.name')}
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel>Agent</InputLabel>
+              <InputLabel>{t('integrations.telegram.fields.agent')}</InputLabel>
               <Select
-                label="Agent"
+                label={t('integrations.telegram.fields.agent')}
                 value={form.agentPublicId}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, agentPublicId: event.target.value }))
@@ -382,14 +437,18 @@ export const IntegrationsPage: React.FC = () => {
                     disabled={agent.status !== 'published'}
                   >
                     {agent.name}
-                    {agent.status !== 'published' ? ` (${agent.status || 'draft'})` : ''}
+                    {agent.status !== 'published'
+                      ? ` (${t(`integrations.telegram.agentStatus.${agent.status || 'draft'}`, {
+                          defaultValue: agent.status || 'draft',
+                        })})`
+                      : ''}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
             {!agentsLoading && !agentOptionsLoading && userAgents.length === 0 && (
               <Typography variant="caption" className="text-amber-600 dark:text-amber-400">
-                No user agents found. Create an agent first, then publish it before connecting Telegram.
+                {t('integrations.telegram.help.noUserAgents')}
               </Typography>
             )}
             {!agentsLoading &&
@@ -397,23 +456,57 @@ export const IntegrationsPage: React.FC = () => {
               userAgents.length > 0 &&
               publishedUserAgents.length === 0 && (
                 <Typography variant="caption" className="text-amber-600 dark:text-amber-400">
-                  Telegram requires a published agent. Publish one of your agents to continue.
+                  {t('integrations.telegram.help.noPublishedAgents')}
                 </Typography>
               )}
             {!editing && (
               <TextField
-                label="Bot token"
+                label={t('integrations.telegram.fields.botToken')}
                 value={form.botToken}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, botToken: event.target.value }))
-                }
+                onChange={(event) => setForm((prev) => ({ ...prev, botToken: event.target.value }))}
                 type="password"
                 fullWidth
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={t('integrations.telegram.botTokenHelp.ariaLabel')}
+                        edge="end"
+                        size="small"
+                        onClick={(event) => setBotTokenHelpAnchor(event.currentTarget)}
+                      >
+                        <Info size={18} />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
             )}
+            <Popover
+              open={Boolean(botTokenHelpAnchor)}
+              anchorEl={botTokenHelpAnchor}
+              onClose={() => setBotTokenHelpAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{
+                paper: {
+                  className: 'max-w-sm rounded-lg p-4 shadow-lg',
+                },
+              }}
+            >
+              <Typography className="mb-2 font-semibold text-gray-900 dark:text-slate-100">
+                {t('integrations.telegram.botTokenHelp.title')}
+              </Typography>
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-gray-600 dark:text-slate-300">
+                <li>{t('integrations.telegram.botTokenHelp.steps.openBotFather')}</li>
+                <li>{t('integrations.telegram.botTokenHelp.steps.newBot')}</li>
+                <li>{t('integrations.telegram.botTokenHelp.steps.copyToken')}</li>
+                <li>{t('integrations.telegram.botTokenHelp.steps.keepSecret')}</li>
+              </ol>
+            </Popover>
             <Box className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <TextField
-                label="Max messages"
+                label={t('integrations.telegram.fields.maxMessages')}
                 type="number"
                 value={form.maxMessagesPerSession}
                 onChange={(event) =>
@@ -424,7 +517,7 @@ export const IntegrationsPage: React.FC = () => {
                 }
               />
               <TextField
-                label="Max tokens"
+                label={t('integrations.telegram.fields.maxTokens')}
                 type="number"
                 value={form.maxTokensPerSession}
                 onChange={(event) =>
@@ -435,7 +528,7 @@ export const IntegrationsPage: React.FC = () => {
                 }
               />
               <TextField
-                label="Max age days"
+                label={t('integrations.telegram.fields.maxAgeDays')}
                 type="number"
                 value={form.maxSessionAgeDays}
                 onChange={(event) =>
@@ -446,7 +539,7 @@ export const IntegrationsPage: React.FC = () => {
                 }
               />
               <TextField
-                label="Warning percent"
+                label={t('integrations.telegram.fields.warningPercent')}
                 type="number"
                 value={form.warningThresholdPercent}
                 onChange={(event) =>
@@ -458,9 +551,9 @@ export const IntegrationsPage: React.FC = () => {
               />
             </Box>
             <FormControl fullWidth>
-              <InputLabel>Limit behavior</InputLabel>
+              <InputLabel>{t('integrations.telegram.fields.limitBehavior')}</InputLabel>
               <Select
-                label="Limit behavior"
+                label={t('integrations.telegram.fields.limitBehavior')}
                 value={form.hardLimitBehavior}
                 onChange={(event) =>
                   setForm((prev) => ({
@@ -469,13 +562,21 @@ export const IntegrationsPage: React.FC = () => {
                   }))
                 }
               >
-                <MenuItem value="auto_rollover">Auto rollover</MenuItem>
-                <MenuItem value="ask_before_rollover">Ask before rollover</MenuItem>
-                <MenuItem value="block_until_new">Block until /new</MenuItem>
+                <MenuItem value="auto_rollover">
+                  {t('integrations.telegram.limitBehavior.autoRollover')}
+                </MenuItem>
+                <MenuItem value="ask_before_rollover">
+                  {t('integrations.telegram.limitBehavior.askBeforeRollover')}
+                </MenuItem>
+                <MenuItem value="block_until_new">
+                  {t('integrations.telegram.limitBehavior.blockUntilNew')}
+                </MenuItem>
               </Select>
             </FormControl>
             <Box className="flex items-center justify-between rounded border border-gray-200 px-3 py-2 dark:border-slate-700">
-              <Typography className="text-gray-900 dark:text-slate-100">Notify channel user</Typography>
+              <Typography className="text-gray-900 dark:text-slate-100">
+                {t('integrations.telegram.fields.notifyChannelUser')}
+              </Typography>
               <Switch
                 checked={form.notifyChannelUser}
                 onChange={(event) =>
@@ -486,9 +587,15 @@ export const IntegrationsPage: React.FC = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDialogOpen(false)}>
+            {t('integrations.telegram.actions.cancel')}
+          </Button>
           <Button variant="contained" disabled={saving} onClick={submit}>
-            {saving ? 'Saving...' : editing ? 'Save' : 'Connect'}
+            {saving
+              ? t('integrations.telegram.actions.saving')
+              : editing
+                ? t('integrations.telegram.actions.save')
+                : t('integrations.telegram.actions.connect')}
           </Button>
         </DialogActions>
       </Dialog>

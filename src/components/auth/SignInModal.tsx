@@ -4,7 +4,19 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mail, Lock, Eye, EyeOff, User, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
+import {
+  X,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  User,
+  Loader2,
+  CheckCircle2,
+  ArrowLeft,
+  FileText,
+  ShieldCheck,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   USERNAME_REGEX,
@@ -28,6 +40,89 @@ interface SignInModalProps {
   initialMode?: 'signin' | 'signup';
   initialError?: string | null;
 }
+
+type LegalView = 'terms' | 'privacy';
+
+interface LegalSection {
+  title: string;
+  body: string;
+}
+
+const legalContent: Record<
+  LegalView,
+  {
+    title: string;
+    subtitle: string;
+    lastUpdated: string;
+    icon: React.ComponentType<{ className?: string }>;
+    sections: LegalSection[];
+  }
+> = {
+  terms: {
+    title: 'Terms of Service',
+    subtitle: 'Please review the rules for using AppAIHelp.',
+    lastUpdated: 'Last updated: July 24, 2026',
+    icon: FileText,
+    sections: [
+      {
+        title: '1. Using AppAIHelp',
+        body: 'You must provide accurate account information, keep your login credentials secure, and use the service only for lawful purposes.',
+      },
+      {
+        title: '2. AI-generated content',
+        body: 'AI responses may be incomplete or inaccurate. You are responsible for reviewing outputs before relying on them for important decisions.',
+      },
+      {
+        title: '3. Acceptable use',
+        body: 'Do not use AppAIHelp to create harmful, abusive, deceptive, infringing, or illegal content, or to interfere with the security or availability of the service.',
+      },
+      {
+        title: '4. Plans, credits, and limits',
+        body: 'Some features may require an active plan, credits, or usage quota. Usage limits, pricing, and feature availability may change as the product evolves.',
+      },
+      {
+        title: '5. Third-party services',
+        body: 'Connected services such as OAuth providers, integrations, models, or payment processors may apply their own terms and policies.',
+      },
+      {
+        title: '6. Changes and termination',
+        body: 'We may update these terms or suspend access when needed to protect users, comply with law, or maintain the service.',
+      },
+    ],
+  },
+  privacy: {
+    title: 'Privacy Policy',
+    subtitle: 'Learn how AppAIHelp handles account and usage data.',
+    lastUpdated: 'Last updated: July 24, 2026',
+    icon: ShieldCheck,
+    sections: [
+      {
+        title: '1. Information we collect',
+        body: 'We may collect account details, authentication data, chat activity, uploaded content, integration settings, usage logs, and billing-related information when you use the service.',
+      },
+      {
+        title: '2. How we use information',
+        body: 'We use information to provide the product, authenticate users, operate AI features, maintain security, improve reliability, provide support, and manage billing or subscriptions.',
+      },
+      {
+        title: '3. AI processing',
+        body: 'Prompts, files, and conversation context may be processed by AI model providers or infrastructure services to generate responses and operate requested features.',
+      },
+      {
+        title: '4. Cookies and sessions',
+        body: 'We use cookies or similar technologies to keep you signed in, protect sessions, remember preferences, and understand service performance.',
+      },
+      {
+        title: '5. Sharing and retention',
+        body: 'We share data only with service providers, integrations you authorize, or when required for security, legal compliance, or product operations. Data is retained as long as needed for these purposes.',
+      },
+      {
+        title: '6. Your choices',
+        body: 'You can update account information, manage integrations, request support, and use available settings to control parts of your data and product experience.',
+      },
+    ],
+  },
+};
 
 // ============================================
 // Sign In Modal Component
@@ -53,6 +148,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthProviderLoading, setOauthProviderLoading] = useState<OAuthProvider | null>(null);
+  const [activeLegalView, setActiveLegalView] = useState<LegalView | null>(null);
 
   // Username availability check states
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -65,6 +161,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
       setIsSignUp(initialMode === 'signup');
       setIsForgotPassword(false);
       setForgotPasswordSuccess(false);
+      setActiveLegalView(null);
       setIsAnimating(true);
       if (initialError) {
         notifyError(initialError, { preventDuplicate: true });
@@ -167,6 +264,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   const handleClose = () => {
     setIsAnimating(false);
     setTimeout(() => {
+      setActiveLegalView(null);
       onClose();
     }, 200); // Match animation duration
   };
@@ -304,6 +402,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
     );
   };
 
+  const legalViewContent = activeLegalView ? legalContent[activeLegalView] : null;
+  const LegalIcon = legalViewContent?.icon;
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${
@@ -334,20 +435,66 @@ export const SignInModal: React.FC<SignInModalProps> = ({
             </div>
 
             <h2 className="mt-4 text-2xl font-bold text-white">
-              {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
+              {legalViewContent
+                ? legalViewContent.title
+                : isForgotPassword
+                  ? 'Reset Password'
+                  : isSignUp
+                    ? 'Create Account'
+                    : 'Welcome Back'}
             </h2>
             <p className="mt-1 text-sm text-slate-400">
-              {isForgotPassword
-                ? 'Enter your email and we will send you a reset link'
-                : isSignUp
-                  ? 'Sign up to access all AI-powered tools'
-                  : 'Sign in to continue to your account'}
+              {legalViewContent
+                ? legalViewContent.subtitle
+                : isForgotPassword
+                  ? 'Enter your email and we will send you a reset link'
+                  : isSignUp
+                    ? 'Sign up to access all AI-powered tools'
+                    : 'Sign in to continue to your account'}
             </p>
           </div>
 
           {/* Body - Scrollable */}
           <div className="flex-1 overflow-y-auto px-8 py-6">
-            {isForgotPassword ? (
+            {legalViewContent ? (
+              <div>
+                <div className="mb-5 rounded-lg border border-slate-700/60 bg-slate-800/40 p-4">
+                  <div className="mb-3 flex items-center gap-3">
+                    {LegalIcon && (
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-300">
+                        <LegalIcon className="h-5 w-5" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-white">{legalViewContent.title}</p>
+                      <p className="text-xs text-slate-400">{legalViewContent.lastUpdated}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm leading-6 text-slate-300">
+                    This summary is provided for product use inside AppAIHelp. It should be reviewed
+                    with qualified counsel before being treated as final legal text.
+                  </p>
+                </div>
+
+                <div className="space-y-5">
+                  {legalViewContent.sections.map((section) => (
+                    <section key={section.title}>
+                      <h3 className="text-sm font-semibold text-white">{section.title}</h3>
+                      <p className="mt-1.5 text-sm leading-6 text-slate-400">{section.body}</p>
+                    </section>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveLegalView(null)}
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-teal-400 transition-colors hover:text-teal-300"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to {isSignUp ? 'sign up' : 'sign in'}
+                </button>
+              </div>
+            ) : isForgotPassword ? (
               <>
                 {forgotPasswordSuccess ? (
                   <div className="rounded-lg border border-teal-500/50 bg-teal-500/10 p-4 text-center">
@@ -665,18 +812,28 @@ export const SignInModal: React.FC<SignInModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex-shrink-0 border-t border-slate-700/50 bg-slate-800/30 px-8 py-4">
-            <p className="text-center text-xs text-slate-400">
-              By continuing, you agree to our{' '}
-              <a href="#terms" className="text-teal-400 transition-colors hover:text-teal-300">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="#privacy" className="text-teal-400 transition-colors hover:text-teal-300">
-                Privacy Policy
-              </a>
-            </p>
-          </div>
+          {!legalViewContent && (
+            <div className="flex-shrink-0 border-t border-slate-700/50 bg-slate-800/30 px-8 py-4">
+              <p className="text-center text-xs text-slate-400">
+                By continuing, you agree to our{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveLegalView('terms')}
+                  className="text-teal-400 transition-colors hover:text-teal-300"
+                >
+                  Terms of Service
+                </button>{' '}
+                and{' '}
+                <button
+                  type="button"
+                  onClick={() => setActiveLegalView('privacy')}
+                  className="text-teal-400 transition-colors hover:text-teal-300"
+                >
+                  Privacy Policy
+                </button>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
