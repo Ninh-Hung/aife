@@ -179,7 +179,19 @@
     "integrations": "Tích hợp",
     "subscription": "Gói dịch vụ",
     "feedback": "Feedback",
-    "multilanguage": "Đa ngôn ngữ"
+    "multilanguage": "Đa ngôn ngữ",
+    "conversationGroups": {
+      "telegram": "Telegram",
+      "discord": "Discord",
+      "web": "Web",
+      "api": "API",
+      "webhook": "Webhook",
+      "other": "Khác"
+    },
+    "sessionBadges": {
+      "limit": "Đạt giới hạn",
+      "nearLimit": "Gần giới hạn"
+    }
   },
   "header": {
     "translationAgent": "Translation Agent",
@@ -779,6 +791,102 @@
       "usageHistory": {
         "title": "Xem lịch sử sử dụng",
         "description": "Theo dõi mức sử dụng API và chỉ số hiệu năng"
+      }
+    }
+  },
+  "integrations": {
+    "title": "Tích hợp",
+    "telegram": {
+      "connect": "Kết nối Telegram",
+      "settingsTitle": "Cài đặt Telegram",
+      "empty": "Chưa có tích hợp Telegram",
+      "common": {
+        "unknown": "không rõ",
+        "noAgent": "Chưa có agent",
+        "stored": "đã lưu"
+      },
+      "card": {
+        "webhook": "Webhook",
+        "conversations": "Cuộc trò chuyện",
+        "token": "Token",
+        "limit": "Giới hạn",
+        "messagesUnit": "tin nhắn"
+      },
+      "fields": {
+        "name": "Tên",
+        "agent": "Agent",
+        "botToken": "Bot token",
+        "maxMessages": "Số tin nhắn tối đa",
+        "maxTokens": "Số token tối đa",
+        "maxAgeDays": "Số ngày tối đa",
+        "warningPercent": "Phần trăm cảnh báo",
+        "limitBehavior": "Cách xử lý giới hạn",
+        "notifyChannelUser": "Thông báo cho người dùng kênh"
+      },
+      "actions": {
+        "refresh": "Làm mới",
+        "settings": "Cài đặt",
+        "enable": "Bật",
+        "disable": "Tắt",
+        "disconnect": "Ngắt kết nối",
+        "cancel": "Hủy",
+        "save": "Lưu",
+        "saving": "Đang lưu...",
+        "connect": "Kết nối"
+      },
+      "status": {
+        "active": "Đang hoạt động",
+        "disabled": "Đã tắt",
+        "disabled_by_package": "Bị tắt theo gói",
+        "revoked": "Đã thu hồi",
+        "error": "Lỗi"
+      },
+      "webhookStatus": {
+        "active": "Đang hoạt động",
+        "pending": "Đang chờ",
+        "disabled": "Đã tắt",
+        "error": "Lỗi"
+      },
+      "agentStatus": {
+        "draft": "nháp",
+        "published": "đã publish",
+        "disabled": "đã tắt"
+      },
+      "limitBehavior": {
+        "autoRollover": "Tự động tạo cuộc trò chuyện mới",
+        "askBeforeRollover": "Hỏi trước khi tạo cuộc trò chuyện mới",
+        "blockUntilNew": "Chặn cho đến khi gửi /new"
+      },
+      "help": {
+        "noUserAgents": "Chưa tìm thấy agent của bạn. Hãy tạo agent trước, sau đó publish trước khi kết nối Telegram.",
+        "noPublishedAgents": "Telegram yêu cầu agent đã publish. Hãy publish một agent để tiếp tục."
+      },
+      "botTokenHelp": {
+        "ariaLabel": "Hiển thị hướng dẫn lấy bot token",
+        "title": "Cách lấy Telegram bot token",
+        "steps": {
+          "openBotFather": "Mở Telegram và tìm @BotFather.",
+          "newBot": "Gửi /newbot, sau đó làm theo hướng dẫn của BotFather để đặt tên và username cho bot.",
+          "copyToken": "Sao chép token mà BotFather trả về sau khi tạo bot.",
+          "keepSecret": "Dán token vào đây và giữ bí mật. Bất kỳ ai có token đều có thể điều khiển bot của bạn."
+        }
+      },
+      "messages": {
+        "connected": "Đã kết nối tích hợp Telegram",
+        "updated": "Đã cập nhật tích hợp Telegram",
+        "enabled": "Đã bật tích hợp",
+        "disabled": "Đã tắt tích hợp",
+        "disconnected": "Đã ngắt kết nối tích hợp Telegram"
+      },
+      "errors": {
+        "selectAgent": "Chọn một agent",
+        "publishAgent": "Hãy publish agent đã chọn trước khi kết nối Telegram",
+        "botTokenRequired": "Cần nhập Telegram bot token",
+        "loadAgentsFailed": "Không thể tải danh sách agent",
+        "loadFailed": "Không thể tải danh sách tích hợp",
+        "requestFailed": "Yêu cầu tích hợp Telegram thất bại",
+        "updateFailed": "Không thể cập nhật tích hợp",
+        "disconnectFailed": "Không thể ngắt kết nối tích hợp"
       }
     }
   },

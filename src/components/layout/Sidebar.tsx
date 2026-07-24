@@ -310,6 +310,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onDelete={handleDelete}
                 embedded
                 isLoading={isLoading}
+                groupBySource
               />
             </Box>
           </>

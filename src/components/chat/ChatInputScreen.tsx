@@ -54,6 +54,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 const MAX_ANON_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const CHAT_HEADING_ROTATION_MS = 4800;
+const CHAT_HEADING_TYPE_MS = 64;
 
 // ============================================
 // ChatInputScreen Component
@@ -78,6 +79,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const [rotatingHeading, setRotatingHeading] = useState(() =>
     getRandomChatHeading(currentLanguage)
   );
+  const [typedHeading, setTypedHeading] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const agentSelectorRef = useRef<HTMLDivElement>(null);
+  const displayHeading = heading ?? rotatingHeading;
 
   useEffect(() => {
     setLocalExecutionMode(executionMode);
@@ -108,6 +111,29 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
 
     return () => window.clearInterval(intervalId);
   }, [currentLanguage, heading]);
+
+  useEffect(() => {
+    const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (shouldReduceMotion) {
+      setTypedHeading(displayHeading);
+      return;
+    }
+
+    let nextCharacterIndex = 0;
+    setTypedHeading('');
+
+    const timeoutId = window.setInterval(() => {
+      nextCharacterIndex += 1;
+      setTypedHeading(displayHeading.slice(0, nextCharacterIndex));
+
+      if (nextCharacterIndex >= displayHeading.length) {
+        window.clearInterval(timeoutId);
+      }
+    }, CHAT_HEADING_TYPE_MS);
+
+    return () => window.clearInterval(timeoutId);
+  }, [displayHeading]);
 
   // Keep selectedAgent scoped to the current user's agent list.
   useEffect(() => {
@@ -238,9 +264,13 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   return (
     <div className="flex w-full flex-col items-center px-4">
       {/* Heading */}
-      <h1 className="mb-8 min-h-[2.5rem] overflow-hidden text-center text-3xl font-semibold text-gray-900 dark:text-white sm:min-h-[3rem] sm:text-4xl">
-        <span key={heading ?? rotatingHeading} className="chat-copy-slide inline-block">
-          {heading ?? rotatingHeading}
+      <h1
+        aria-label={displayHeading}
+        className="mb-8 min-h-[2.5rem] overflow-hidden text-center text-3xl font-semibold text-gray-900 dark:text-white sm:min-h-[3rem] sm:text-4xl"
+      >
+        <span className="chat-typewriter inline-block" aria-hidden="true">
+          {typedHeading}
+          <span className="chat-typewriter-cursor" />
         </span>
       </h1>
 

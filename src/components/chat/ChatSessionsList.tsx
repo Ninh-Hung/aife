@@ -3,7 +3,7 @@
  * Left sidebar showing list of chat sessions
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Plus,
   MessageSquare,
@@ -16,6 +16,8 @@ import {
   KeyRound,
   Webhook,
   AlertTriangle,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   Button,
@@ -31,6 +33,7 @@ import {
   TextField,
   Divider,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { ChatSession } from '../../types';
 
 interface ChatSessionsListProps {
@@ -44,7 +47,83 @@ interface ChatSessionsListProps {
   onDelete?: (sessionId: string) => void;
   embedded?: boolean;
   isLoading?: boolean;
+  groupBySource?: boolean;
 }
+
+type SessionGroupKey = 'telegram' | 'discord' | 'web' | 'api' | 'webhook' | 'other';
+
+const SESSION_GROUP_ORDER: SessionGroupKey[] = [
+  'telegram',
+  'discord',
+  'web',
+  'api',
+  'webhook',
+  'other',
+];
+
+const sessionGroupConfig = {
+  telegram: {
+    labelKey: 'sidebar.conversationGroups.telegram',
+    Icon: Bot,
+    className: 'text-sky-600 dark:text-sky-300',
+  },
+  discord: {
+    labelKey: 'sidebar.conversationGroups.discord',
+    Icon: MessageSquare,
+    className: 'text-indigo-600 dark:text-indigo-300',
+  },
+  web: {
+    labelKey: 'sidebar.conversationGroups.web',
+    Icon: MessageSquare,
+    className: 'text-emerald-600 dark:text-emerald-300',
+  },
+  api: {
+    labelKey: 'sidebar.conversationGroups.api',
+    Icon: KeyRound,
+    className: 'text-violet-600 dark:text-violet-300',
+  },
+  webhook: {
+    labelKey: 'sidebar.conversationGroups.webhook',
+    Icon: Webhook,
+    className: 'text-amber-600 dark:text-amber-300',
+  },
+  other: {
+    labelKey: 'sidebar.conversationGroups.other',
+    Icon: MessageSquare,
+    className: 'text-gray-500 dark:text-slate-400',
+  },
+} satisfies Record<
+  SessionGroupKey,
+  {
+    labelKey: string;
+    Icon: typeof MessageSquare;
+    className: string;
+  }
+>;
+
+const getSessionGroupKey = (session: ChatSession): SessionGroupKey => {
+  if (session.sourceProvider === 'telegram' || session.entrypoint === 'telegram_bot') {
+    return 'telegram';
+  }
+  if (session.sourceProvider === 'discord' || session.entrypoint === 'discord_bot') {
+    return 'discord';
+  }
+  if (session.sourceType === 'api_key' || session.entrypoint === 'third_party_api') {
+    return 'api';
+  }
+  if (session.sourceType === 'webhook' || session.entrypoint?.includes('webhook')) {
+    return 'webhook';
+  }
+  if (
+    session.sourceType === 'web' ||
+    session.sourceProvider === 'appaihelp' ||
+    !session.entrypoint ||
+    session.entrypoint === 'chat_screen'
+  ) {
+    return 'web';
+  }
+  return 'other';
+};
 
 export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
   sessions,
@@ -57,10 +136,15 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
   onDelete,
   embedded = false,
   isLoading = false,
+  groupBySource = false,
 }) => {
+  const { t } = useTranslation();
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [menuSessionId, setMenuSessionId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Partial<Record<SessionGroupKey, boolean>>>(
+    {}
+  );
 
   // Stable session ID kept alive across dialogs (set once when action is triggered)
   const [targetSessionId, setTargetSessionId] = useState<string | null>(null);
@@ -138,15 +222,115 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
 
   const getSourceBadge = (session: ChatSession) => {
     if (session.sourceProvider === 'telegram' || session.entrypoint === 'telegram_bot') {
-      return { label: 'Telegram', Icon: Bot, className: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' };
+      return {
+        label: t('sidebar.conversationGroups.telegram'),
+        Icon: Bot,
+        className: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+      };
+    }
+    if (session.sourceProvider === 'discord' || session.entrypoint === 'discord_bot') {
+      return {
+        label: t('sidebar.conversationGroups.discord'),
+        Icon: MessageSquare,
+        className: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300',
+      };
     }
     if (session.sourceType === 'api_key' || session.entrypoint === 'third_party_api') {
-      return { label: 'API', Icon: KeyRound, className: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' };
+      return {
+        label: t('sidebar.conversationGroups.api'),
+        Icon: KeyRound,
+        className: 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300',
+      };
     }
     if (session.sourceType === 'webhook') {
-      return { label: 'Webhook', Icon: Webhook, className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' };
+      return {
+        label: t('sidebar.conversationGroups.webhook'),
+        Icon: Webhook,
+        className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+      };
     }
     return null;
+  };
+
+  const groupedSessions = useMemo(
+    () =>
+      SESSION_GROUP_ORDER.map((key) => ({
+        key,
+        sessions: sessions.filter((session) => getSessionGroupKey(session) === key),
+      })).filter((group) => group.sessions.length > 0),
+    [sessions]
+  );
+
+  const toggleGroup = (key: SessionGroupKey) => {
+    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const renderSessionItem = (session: ChatSession) => {
+    const sourceBadge = getSourceBadge(session);
+    const SourceIcon = sourceBadge?.Icon;
+    const limitWarning = session.limitWarning;
+    const limitWarningLabel =
+      limitWarning?.level === 'limit_reached'
+        ? t('sidebar.sessionBadges.limit')
+        : t('sidebar.sessionBadges.nearLimit');
+    const limitWarningClass =
+      limitWarning?.level === 'limit_reached'
+        ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+        : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
+
+    return (
+      <div
+        key={session.id}
+        className={`group relative flex w-full items-center border-l-4 transition-colors ${
+          activeSessionId === session.id
+            ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-slate-700/70'
+            : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-700/50'
+        }`}
+      >
+        {/* Clickable session area */}
+        <button
+          onClick={() => onSessionSelect(session.id)}
+          className={`min-w-0 flex-1 text-left ${embedded ? 'px-5 py-2.5' : 'px-4 py-3'}`}
+        >
+          {/* Session Title */}
+          <div className="truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
+            {session.title}
+          </div>
+          {(sourceBadge || limitWarning) && (
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+              {sourceBadge && (
+                <div
+                  className={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${sourceBadge.className}`}
+                >
+                  {SourceIcon && <SourceIcon size={12} />}
+                  <span className="truncate">{sourceBadge.label}</span>
+                </div>
+              )}
+              {limitWarning && (
+                <div
+                  title={limitWarning.message}
+                  className={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${limitWarningClass}`}
+                >
+                  <AlertTriangle size={12} />
+                  <span className="truncate">{limitWarningLabel}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </button>
+
+        {/* Options button — always visible on active, hover-visible otherwise */}
+        <button
+          onClick={(e) => handleMenuOpen(e, session.id)}
+          aria-label="Session options"
+          className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-opacity hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 ${
+            activeSessionId === session.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
+        >
+          <MoreVertical size={16} />
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -198,73 +382,34 @@ export const ChatSessionsList: React.FC<ChatSessionsListProps> = ({
           </div>
         ) : (
           <div className={embedded ? 'pb-2' : 'py-2'}>
-            {sessions.map((session) => {
-              const sourceBadge = getSourceBadge(session);
-              const SourceIcon = sourceBadge?.Icon;
-              const limitWarning = session.limitWarning;
-              const limitWarningLabel =
-                limitWarning?.level === 'limit_reached' ? 'Limit' : 'Near limit';
-              const limitWarningClass =
-                limitWarning?.level === 'limit_reached'
-                  ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
+            {groupBySource
+              ? groupedSessions.map((group) => {
+                  const config = sessionGroupConfig[group.key];
+                  const GroupIcon = config.Icon;
+                  const hasActiveSession = group.sessions.some(
+                    (session) => session.id === activeSessionId
+                  );
+                  const isCollapsed = !hasActiveSession && collapsedGroups[group.key] === true;
 
-              return (
-                <div
-                  key={session.id}
-                  className={`group relative flex w-full items-center border-l-4 transition-colors ${
-                    activeSessionId === session.id
-                      ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-slate-700/70'
-                      : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-700/50'
-                  }`}
-                >
-                  {/* Clickable session area */}
-                  <button
-                    onClick={() => onSessionSelect(session.id)}
-                    className={`min-w-0 flex-1 text-left ${embedded ? 'px-5 py-2.5' : 'px-4 py-3'}`}
-                  >
-                    {/* Session Title */}
-	                    <div className="truncate pr-6 font-medium text-gray-900 dark:text-slate-100">
-	                      {session.title}
-	                    </div>
-	                    {(sourceBadge || limitWarning) && (
-	                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
-	                        {sourceBadge && (
-	                          <div
-	                            className={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${sourceBadge.className}`}
-	                          >
-	                            {SourceIcon && <SourceIcon size={12} />}
-	                            <span className="truncate">{sourceBadge.label}</span>
-	                          </div>
-	                        )}
-	                        {limitWarning && (
-	                          <div
-	                            title={limitWarning.message}
-	                            className={`inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium ${limitWarningClass}`}
-	                          >
-	                            <AlertTriangle size={12} />
-	                            <span className="truncate">{limitWarningLabel}</span>
-	                          </div>
-	                        )}
-	                      </div>
-	                    )}
-	                  </button>
-
-                  {/* Options button — always visible on active, hover-visible otherwise */}
-                  <button
-                    onClick={(e) => handleMenuOpen(e, session.id)}
-                    aria-label="Session options"
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-opacity hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 ${
-                      activeSessionId === session.id
-                        ? 'opacity-100'
-                        : 'opacity-0 group-hover:opacity-100'
-                    }`}
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                </div>
-              );
-            })}
+                  return (
+                    <div key={group.key} className="mb-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.key)}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-semibold uppercase text-gray-500 transition-colors hover:bg-gray-50 dark:text-slate-400 dark:hover:bg-slate-700/50"
+                      >
+                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                        <GroupIcon size={14} className={config.className} />
+                        <span className="min-w-0 flex-1 truncate">{t(config.labelKey)}</span>
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500 dark:bg-slate-700 dark:text-slate-300">
+                          {group.sessions.length}
+                        </span>
+                      </button>
+                      {!isCollapsed && <div>{group.sessions.map(renderSessionItem)}</div>}
+                    </div>
+                  );
+                })
+              : sessions.map(renderSessionItem)}
           </div>
         )}
       </div>

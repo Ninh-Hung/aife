@@ -179,7 +179,19 @@
     "integrations": "Integrations",
     "subscription": "Subscription",
     "feedback": "Feedback",
-    "multilanguage": "Multilanguage"
+    "multilanguage": "Multilanguage",
+    "conversationGroups": {
+      "telegram": "Telegram",
+      "discord": "Discord",
+      "web": "Web",
+      "api": "API",
+      "webhook": "Webhook",
+      "other": "Other"
+    },
+    "sessionBadges": {
+      "limit": "Limit",
+      "nearLimit": "Near limit"
+    }
   },
   "header": {
     "translationAgent": "Translation Agent",
@@ -779,6 +791,102 @@
       "usageHistory": {
         "title": "View Usage History",
         "description": "Track your API usage and performance metrics"
+      }
+    }
+  },
+  "integrations": {
+    "title": "Integrations",
+    "telegram": {
+      "connect": "Connect Telegram",
+      "settingsTitle": "Telegram Settings",
+      "empty": "No Telegram integrations",
+      "common": {
+        "unknown": "unknown",
+        "noAgent": "No agent",
+        "stored": "stored"
+      },
+      "card": {
+        "webhook": "Webhook",
+        "conversations": "Conversations",
+        "token": "Token",
+        "limit": "Limit",
+        "messagesUnit": "msg"
+      },
+      "fields": {
+        "name": "Name",
+        "agent": "Agent",
+        "botToken": "Bot token",
+        "maxMessages": "Max messages",
+        "maxTokens": "Max tokens",
+        "maxAgeDays": "Max age days",
+        "warningPercent": "Warning percent",
+        "limitBehavior": "Limit behavior",
+        "notifyChannelUser": "Notify channel user"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "settings": "Settings",
+        "enable": "Enable",
+        "disable": "Disable",
+        "disconnect": "Disconnect",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving...",
+        "connect": "Connect"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "disabled_by_package": "Disabled by package",
+        "revoked": "Revoked",
+        "error": "Error"
+      },
+      "webhookStatus": {
+        "active": "Active",
+        "pending": "Pending",
+        "disabled": "Disabled",
+        "error": "Error"
+      },
+      "agentStatus": {
+        "draft": "draft",
+        "published": "published",
+        "disabled": "disabled"
+      },
+      "limitBehavior": {
+        "autoRollover": "Auto rollover",
+        "askBeforeRollover": "Ask before rollover",
+        "blockUntilNew": "Block until /new"
+      },
+      "help": {
+        "noUserAgents": "No user agents found. Create an agent first, then publish it before connecting Telegram.",
+        "noPublishedAgents": "Telegram requires a published agent. Publish one of your agents to continue."
+      },
+      "botTokenHelp": {
+        "ariaLabel": "Show bot token instructions",
+        "title": "How to get a Telegram bot token",
+        "steps": {
+          "openBotFather": "Open Telegram and search for @BotFather.",
+          "newBot": "Send /newbot, then follow BotFather's prompts to choose a bot name and username.",
+          "copyToken": "Copy the token BotFather returns after the bot is created.",
+          "keepSecret": "Paste it here and keep it private. Anyone with the token can control your bot."
+        }
+      },
+      "messages": {
+        "connected": "Telegram integration connected",
+        "updated": "Telegram integration updated",
+        "enabled": "Integration enabled",
+        "disabled": "Integration disabled",
+        "disconnected": "Telegram integration disconnected"
+      },
+      "errors": {
+        "selectAgent": "Select an agent",
+        "publishAgent": "Publish the selected agent before connecting it to Telegram",
+        "botTokenRequired": "Telegram bot token is required",
+        "loadAgentsFailed": "Failed to load agents",
+        "loadFailed": "Failed to load integrations",
+        "requestFailed": "Telegram integration request failed",
+        "updateFailed": "Failed to update integration",
+        "disconnectFailed": "Failed to disconnect integration"
       }
     }
   },
