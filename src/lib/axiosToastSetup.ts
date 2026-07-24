@@ -15,6 +15,10 @@ export const setupAxiosToast = (axiosInstance: AxiosInstance, enqueueSnackbar: E
   const interceptorId = axiosInstance.interceptors.response.use(
     (response) => response,
     (error: AxiosError<{ message?: string; error?: string; errorCode?: string }>) => {
+      if (error.config?.skipErrorToast) {
+        return Promise.reject(error);
+      }
+
       // Don't show toast for 401 errors (handled by auth flow)
       if (error.response?.status === 401) {
         return Promise.reject(error);
