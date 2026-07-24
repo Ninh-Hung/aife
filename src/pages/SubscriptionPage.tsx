@@ -127,11 +127,11 @@ export const SubscriptionPage: React.FC = () => {
     }
   };
 
-  const handlePurchaseTokenPack = async (tokenPackPublicId: string) => {
+  const handlePurchaseTokenPack = async (tokenPackPublicId: string, currency?: string) => {
     setActionLoading(true);
 
     try {
-      const result = await purchaseTokenPack(tokenPackPublicId);
+      const result = await purchaseTokenPack(tokenPackPublicId, currency);
 
       if (result.success) {
         success('Advance tokens added successfully');
@@ -150,6 +150,31 @@ export const SubscriptionPage: React.FC = () => {
   const showCancelDialog = () => {
     setCancelDialogOpen(true);
   };
+
+  const formatTokenPackPrice = (amountMinor: string | number, currency: string) => {
+    const value = Number(amountMinor);
+    const displayValue = currency === 'USD' ? value / 100 : value;
+
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(displayValue);
+  };
+
+  const getTokenPackPrices = (tokenPack: TokenPack) =>
+    tokenPack.prices && tokenPack.prices.length > 0
+      ? tokenPack.prices
+      : [
+          {
+            publicId: `${tokenPack.publicId}_legacy_price`,
+            currency: tokenPack.currency,
+            amountMinor: Math.round(
+              tokenPack.currency === 'USD' ? tokenPack.price * 100 : tokenPack.price
+            ).toString(),
+            isActive: true,
+          },
+        ];
 
   // Loading skeleton
   if (loading) {
@@ -221,16 +246,33 @@ export const SubscriptionPage: React.FC = () => {
                     {tokenPack.tokenAmount.toLocaleString()} tokens
                   </p>
                 </div>
-                <div className="mb-4 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {tokenPack.price.toLocaleString()} {tokenPack.currency}
+                <div className="mb-4 space-y-2">
+                  {getTokenPackPrices(tokenPack).map((price) => (
+                    <div
+                      key={price.currency}
+                      className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-slate-700/50"
+                    >
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                        {price.currency}
+                      </span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-slate-100">
+                        {formatTokenPackPrice(price.amountMinor, price.currency)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  onClick={() => handlePurchaseTokenPack(tokenPack.publicId)}
-                >
-                  Buy Tokens
-                </Button>
+                <div className="space-y-2">
+                  {getTokenPackPrices(tokenPack).map((price) => (
+                    <Button
+                      key={price.currency}
+                      variant="outlined"
+                      fullWidth
+                      onClick={() => handlePurchaseTokenPack(tokenPack.publicId, price.currency)}
+                    >
+                      Buy with {price.currency}
+                    </Button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

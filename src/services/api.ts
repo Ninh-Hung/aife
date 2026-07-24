@@ -942,11 +942,13 @@ export const getTokenPacks = async (): Promise<ApiResponse<TokenPack[]>> => {
 };
 
 export const purchaseTokenPack = async (
-  tokenPackPublicId: string
+  tokenPackPublicId: string,
+  currency?: string
 ): Promise<ApiResponse<TokenPackPurchaseResult>> => {
   try {
     const response = await axiosInstance.post(
-      `/v1/subscriptions/token-packs/${tokenPackPublicId}/purchase`
+      `/v1/subscriptions/token-packs/${tokenPackPublicId}/purchase`,
+      currency ? { currency } : undefined
     );
 
     return {
@@ -2140,7 +2142,9 @@ export type PublishAgentResponse = Pick<
  * @param publicId - The public ID of the agent to publish
  * @returns Promise with the published agent metadata
  */
-export const publishAgent = async (publicId: string): Promise<ApiResponse<PublishAgentResponse>> => {
+export const publishAgent = async (
+  publicId: string
+): Promise<ApiResponse<PublishAgentResponse>> => {
   try {
     const response = await axiosInstance.post(`/v1/agents/${publicId}/publish`);
 

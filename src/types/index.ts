@@ -552,6 +552,14 @@ export interface TokenPack {
   tokenAmount: number;
   price: number;
   currency: string;
+  prices?: TokenPackPrice[];
+  isActive: boolean;
+}
+
+export interface TokenPackPrice {
+  publicId: string;
+  currency: string;
+  amountMinor: string;
   isActive: boolean;
 }
 
