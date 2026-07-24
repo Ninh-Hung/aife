@@ -126,6 +126,7 @@ export interface Agent {
   userId?: string;
   isActive?: boolean;
   status?: 'draft' | 'published' | 'archived' | 'disabled' | string;
+  version?: number;
   publishedVersion?: number | null;
   publishedAt?: Date | string | null;
   isDefault: boolean;

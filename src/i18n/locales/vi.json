@@ -305,6 +305,7 @@
       "reportResponseTitle": "Báo cáo phản hồi",
       "type": "Loại",
       "feedbackTitle": "Tiêu đề",
+      "contactEmail": "Email liên hệ",
       "details": "Chi tiết",
       "reportedResponse": "Phản hồi bị báo cáo",
       "evidenceAlt": "Bằng chứng {{index}}"
@@ -331,7 +332,9 @@
       "URGENT": "Khẩn cấp"
     },
     "validation": {
-      "detailsRequired": "Vui lòng nhập chi tiết feedback."
+      "detailsRequired": "Vui lòng nhập chi tiết feedback.",
+      "contactEmailRequired": "Vui lòng nhập email liên hệ.",
+      "contactEmailInvalid": "Email liên hệ không hợp lệ."
     },
     "messages": {
       "submitted": "Đã gửi feedback.",
@@ -472,14 +475,17 @@
     },
     "messages": {
       "deleted": "Đã xóa agent thành công",
-      "defaultUpdated": "Đã cập nhật agent mặc định"
+      "defaultUpdated": "Đã cập nhật agent mặc định",
+      "published": "Đã publish agent thành công"
     },
     "errors": {
       "editOwnOnly": "Chỉ có thể chỉnh sửa agent của bạn",
       "deleteOwnOnly": "Chỉ có thể xóa agent của bạn",
       "defaultOwnOnly": "Chỉ có thể chọn agent của bạn làm mặc định",
+      "publishOwnOnly": "Chỉ có thể publish agent của bạn",
       "deleteFailed": "Không thể xóa agent",
       "createChatFailed": "Không thể tạo phiên chat",
+      "publishFailed": "Không thể publish agent",
       "setDefaultFailed": "Không thể đặt agent mặc định",
       "subscriptionCheckFailed": "Không thể kiểm tra giới hạn tạo agent"
     },
@@ -497,6 +503,16 @@
       "behaviors": "Hành vi",
       "knowledge": "Kiến thức",
       "chatNow": "Chat ngay",
+      "publish": "Publish",
+      "republish": "Publish lại",
+      "publishing": "Đang publish...",
+      "status": {
+        "draft": "Bản nháp",
+        "published": "Đã publish",
+        "unpublishedChanges": "Có thay đổi chưa publish",
+        "archived": "Đã lưu trữ",
+        "disabled": "Đã tắt"
+      },
       "avatarAlt": "Avatar của {{name}}"
     },
     "drawer": {

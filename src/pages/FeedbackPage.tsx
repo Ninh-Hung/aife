@@ -15,6 +15,7 @@ import {
 import { Eye, MessageCircleWarning, Plus, RefreshCw, Send, X } from 'lucide-react';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import {
   FeedbackAttachment,
   FeedbackMessage,
@@ -283,6 +284,7 @@ const FeedbackDetailDialog: React.FC<{
 export const FeedbackPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const { isAnonymous } = useAuth();
   const [feedback, setFeedback] = useState<FeedbackTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +297,13 @@ export const FeedbackPage: React.FC = () => {
   const [replyError, setReplyError] = useState<string | null>(null);
 
   const loadFeedback = useCallback(async () => {
+    if (isAnonymous) {
+      setFeedback([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     const response = await listMyFeedback();
@@ -308,7 +317,7 @@ export const FeedbackPage: React.FC = () => {
       );
     }
     setIsLoading(false);
-  }, [t]);
+  }, [isAnonymous, t]);
 
   useEffect(() => {
     void loadFeedback();
@@ -411,14 +420,16 @@ export const FeedbackPage: React.FC = () => {
           </Typography>
         </Box>
         <Box className="flex gap-2">
-          <Button
-            variant="outlined"
-            startIcon={<RefreshCw size={16} />}
-            onClick={() => void loadFeedback()}
-            disabled={isLoading}
-          >
-            {t('feedback.actions.refresh')}
-          </Button>
+          {!isAnonymous && (
+            <Button
+              variant="outlined"
+              startIcon={<RefreshCw size={16} />}
+              onClick={() => void loadFeedback()}
+              disabled={isLoading}
+            >
+              {t('feedback.actions.refresh')}
+            </Button>
+          )}
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={handleCreateFeedback}>
             {t('feedback.actions.create')}
           </Button>

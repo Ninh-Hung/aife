@@ -130,7 +130,7 @@ const HomePage: React.FC = () => {
       <header className="relative z-10 flex flex-shrink-0 items-center justify-between px-6 py-4">
         {/* Logo + App name */}
         <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
+          <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
           <span className="text-base font-semibold text-white">AppAIHelp</span>
         </div>
 

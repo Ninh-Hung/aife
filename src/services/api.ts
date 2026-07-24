@@ -70,6 +70,7 @@ export interface CreateFeedbackInput {
   type: FeedbackType;
   title?: string;
   description: string;
+  contactEmail?: string;
   evidenceImages?: File[];
   targetType?: FeedbackTargetType;
   conversationId?: string;
@@ -329,6 +330,7 @@ export const createFeedback = async (input: CreateFeedbackInput): Promise<ApiRes
 
     const fields: Array<keyof CreateFeedbackInput> = [
       'title',
+      'contactEmail',
       'targetType',
       'conversationId',
       'messageId',
@@ -2122,6 +2124,42 @@ export const updateAgent = async (
       success: false,
       message: axiosError.response?.data?.message || 'Failed to update agent',
       error: axiosError.response?.data?.message || 'Failed to update agent',
+    };
+  }
+};
+
+export type PublishAgentResponse = Pick<
+  Agent,
+  'publicId' | 'status' | 'publishedVersion' | 'publishedAt'
+> & {
+  version: number;
+};
+
+/**
+ * Publishes the current draft configuration of an agent for external runtimes.
+ * @param publicId - The public ID of the agent to publish
+ * @returns Promise with the published agent metadata
+ */
+export const publishAgent = async (publicId: string): Promise<ApiResponse<PublishAgentResponse>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/agents/${publicId}/publish`);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message || 'Agent published successfully',
+    };
+  } catch (error) {
+    console.error('Publish agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      message: axiosError.response?.data?.message || 'Failed to publish agent',
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to publish agent',
     };
   }
 };

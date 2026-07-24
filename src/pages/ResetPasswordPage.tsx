@@ -61,8 +61,8 @@ export const ResetPasswordPage: React.FC = () => {
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-700/50 bg-[#0F1F38] shadow-2xl">
         <div className="border-b border-slate-700/50 px-8 pb-6 pt-8">
           <div className="mb-6 flex items-center gap-2">
-            <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
-            <span className="text-lg font-semibold text-white">AppAIHelp.com</span>
+            <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
+            <span className="text-lg font-semibold text-white">AppAIHelp</span>
           </div>
           <h1 className="text-2xl font-bold text-white">Reset Password</h1>
           <p className="mt-1 text-sm text-slate-400">Create a new password for your account.</p>

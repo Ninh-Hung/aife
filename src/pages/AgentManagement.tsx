@@ -83,6 +83,7 @@ export const AgentManagement: React.FC = () => {
     fetchAgents,
     createAgent,
     updateAgent,
+    publishAgent,
     deleteAgent,
     setDefaultAgent,
   } = useAgents();
@@ -91,6 +92,7 @@ export const AgentManagement: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isCheckingAgentLimit, setIsCheckingAgentLimit] = useState(false);
+  const [publishingAgentId, setPublishingAgentId] = useState<string | null>(null);
   const [agentLimitModal, setAgentLimitModal] = useState<AgentLimitModalState>({
     open: false,
     reason: 'limit',
@@ -187,6 +189,25 @@ export const AgentManagement: React.FC = () => {
       return;
     } else {
       showError(response.error || t('agents.errors.createChatFailed'));
+    }
+  };
+
+  const handlePublish = async (agent: Agent) => {
+    if (agent.ownerType && agent.ownerType !== 'USER') {
+      showError(t('agents.errors.publishOwnOnly'));
+      return;
+    }
+
+    setPublishingAgentId(agent.publicId);
+
+    try {
+      await publishAgent(agent.publicId);
+      await fetchAgents();
+      success(t('agents.messages.published'));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t('agents.errors.publishFailed'));
+    } finally {
+      setPublishingAgentId(null);
     }
   };
 
@@ -327,6 +348,8 @@ export const AgentManagement: React.FC = () => {
                   onDelete={handleDelete}
                   onChat={handleChat}
                   onSetDefault={handleSetDefault}
+                  onPublish={handlePublish}
+                  publishDisabled={publishingAgentId === agent.publicId}
                 />
               ))}
             </div>

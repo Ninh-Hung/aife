@@ -21,6 +21,7 @@ interface AgentsContextValue {
   createAgent: (input: CreateAgentInput) => Promise<Agent>;
   updateAgent: (id: string, input: Partial<CreateAgentInput>) => Promise<void>;
   updateAgentAvatar: (publicId: string, avatarUrl: string | null) => Promise<void>;
+  publishAgent: (publicId: string) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
   setDefaultAgent: (publicId: string) => Promise<void>;
 }
@@ -181,6 +182,30 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     );
   };
 
+  const publishAgent = async (publicId: string): Promise<void> => {
+    const response = await agentApi.publishAgent(publicId);
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || response.error || 'Failed to publish agent');
+    }
+
+    const publishedAgent = response.data;
+
+    setAgents((prev) =>
+      prev.map((agent) =>
+        agent.publicId === publicId
+          ? {
+              ...agent,
+              status: publishedAgent.status,
+              version: publishedAgent.version,
+              publishedVersion: publishedAgent.publishedVersion,
+              publishedAt: publishedAgent.publishedAt,
+            }
+          : agent
+      )
+    );
+  };
+
   const deleteAgent = async (id: string): Promise<void> => {
     const response = await agentApi.deleteAgent(id);
 
@@ -217,6 +242,7 @@ export const AgentsProvider: React.FC<AgentsProviderProps> = ({ children }) => {
     createAgent,
     updateAgent,
     updateAgentAvatar,
+    publishAgent,
     deleteAgent,
     setDefaultAgent,
   };

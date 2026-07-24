@@ -14,6 +14,7 @@ import {
 import { ImagePlus, X } from 'lucide-react';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
 import { createFeedback, FeedbackTargetType, FeedbackType } from '../../services/api';
 
 export type FeedbackOpenDetail = {
@@ -36,14 +37,18 @@ declare global {
 
 const MAX_FILES = 3;
 const DEFAULT_CREATE_FEEDBACK_ERROR = 'Failed to submit feedback';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const FeedbackDialog: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { t } = useTranslation();
+  const { isAnonymous } = useAuth();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>('FEEDBACK');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactEmailError, setContactEmailError] = useState('');
   const [context, setContext] = useState<FeedbackOpenDetail>({});
   const [files, setFiles] = useState<File[]>([]);
   const [filePreviewUrls, setFilePreviewUrls] = useState<string[]>([]);
@@ -56,13 +61,15 @@ export const FeedbackDialog: React.FC = () => {
       setType(detail.type || 'FEEDBACK');
       setTitle(detail.title || '');
       setDescription('');
+      setContactEmail('');
+      setContactEmailError('');
       setFiles([]);
       setOpen(true);
     };
 
     window.addEventListener('feedback:open', handleOpen);
     return () => window.removeEventListener('feedback:open', handleOpen);
-  }, []);
+  }, [isAnonymous]);
 
   const fileNames = useMemo(() => files.map((file) => file.name).join(', '), [files]);
 
@@ -89,9 +96,37 @@ export const FeedbackDialog: React.FC = () => {
     event.target.value = '';
   };
 
+  const getContactEmailValidationError = (email: string) => {
+    const normalizedEmail = email.trim();
+
+    if (isAnonymous && !normalizedEmail) {
+      return t('feedback.validation.contactEmailRequired');
+    }
+
+    if (normalizedEmail && !EMAIL_PATTERN.test(normalizedEmail)) {
+      return t('feedback.validation.contactEmailInvalid');
+    }
+
+    return '';
+  };
+
+  const validateContactEmail = (email: string) => {
+    const message = getContactEmailValidationError(email);
+    setContactEmailError(message);
+    return !message;
+  };
+
   const handleSubmit = async () => {
     if (!description.trim()) {
       enqueueSnackbar(t('feedback.validation.detailsRequired'), { variant: 'warning' });
+      return;
+    }
+
+    const normalizedContactEmail = contactEmail.trim();
+    const emailError = getContactEmailValidationError(normalizedContactEmail);
+    setContactEmailError(emailError);
+    if (emailError) {
+      enqueueSnackbar(emailError, { variant: 'warning' });
       return;
     }
 
@@ -101,6 +136,7 @@ export const FeedbackDialog: React.FC = () => {
       type,
       title: title.trim() || undefined,
       description: description.trim(),
+      contactEmail: isAnonymous ? normalizedContactEmail : undefined,
       evidenceImages: files,
       targetType: context.targetType || 'APP',
       currentPageUrl: window.location.href,
@@ -152,6 +188,25 @@ export const FeedbackDialog: React.FC = () => {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
         />
+        {isAnonymous && (
+          <TextField
+            fullWidth
+            required
+            size="small"
+            type="email"
+            label={t('feedback.dialog.contactEmail')}
+            value={contactEmail}
+            error={Boolean(contactEmailError)}
+            helperText={contactEmailError || ' '}
+            onBlur={(event) => validateContactEmail(event.target.value)}
+            onChange={(event) => {
+              setContactEmail(event.target.value);
+              if (contactEmailError) {
+                setContactEmailError('');
+              }
+            }}
+          />
+        )}
         <TextField
           fullWidth
           required

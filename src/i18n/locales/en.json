@@ -305,6 +305,7 @@
       "reportResponseTitle": "Report response",
       "type": "Type",
       "feedbackTitle": "Title",
+      "contactEmail": "Contact email",
       "details": "Details",
       "reportedResponse": "Reported response",
       "evidenceAlt": "Evidence {{index}}"
@@ -331,7 +332,9 @@
       "URGENT": "Urgent"
     },
     "validation": {
-      "detailsRequired": "Please enter feedback details."
+      "detailsRequired": "Please enter feedback details.",
+      "contactEmailRequired": "Please enter a contact email.",
+      "contactEmailInvalid": "Please enter a valid contact email."
     },
     "messages": {
       "submitted": "Feedback submitted.",
@@ -472,14 +475,17 @@
     },
     "messages": {
       "deleted": "Agent deleted successfully",
-      "defaultUpdated": "Default agent updated successfully"
+      "defaultUpdated": "Default agent updated successfully",
+      "published": "Agent published successfully"
     },
     "errors": {
       "editOwnOnly": "Only your own agents can be edited",
       "deleteOwnOnly": "Only your own agents can be deleted",
       "defaultOwnOnly": "Only your own agents can be selected as default",
+      "publishOwnOnly": "Only your own agents can be published",
       "deleteFailed": "Failed to delete agent",
       "createChatFailed": "Failed to create chat session",
+      "publishFailed": "Failed to publish agent",
       "setDefaultFailed": "Failed to set default agent",
       "subscriptionCheckFailed": "Failed to check your agent creation limit"
     },
@@ -497,6 +503,16 @@
       "behaviors": "Behaviors",
       "knowledge": "Knowledge",
       "chatNow": "Chat Now",
+      "publish": "Publish",
+      "republish": "Republish",
+      "publishing": "Publishing...",
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "unpublishedChanges": "Unpublished changes",
+        "archived": "Archived",
+        "disabled": "Disabled"
+      },
       "avatarAlt": "{{name}} avatar"
     },
     "drawer": {

@@ -122,7 +122,7 @@ const LandingPage: React.FC = () => {
 
         <header className="relative z-20 flex items-center justify-between px-5 py-4 md:px-8">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
+            <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
             <span className="text-base font-semibold">AppAIHelp</span>
           </Link>
 

@@ -111,8 +111,8 @@ export const EmailVerification: React.FC = () => {
 
           {/* Branding */}
           <div className="mt-6 flex items-center justify-center gap-2">
-            <img src="/logo.svg" alt="" className="h-6 w-6 rounded-md" />
-            <span className="text-sm text-slate-400">AppAIHelp.com</span>
+            <img src="/logo.png" alt="" className="h-6 w-6 rounded-md" />
+            <span className="text-sm text-slate-400">AppAIHelp</span>
           </div>
         </div>
       </div>
@@ -168,8 +168,8 @@ export const EmailVerification: React.FC = () => {
 
           {/* Branding */}
           <div className="mt-6 flex items-center justify-center gap-2">
-            <img src="/logo.svg" alt="" className="h-6 w-6 rounded-md" />
-            <span className="text-sm text-slate-400">AppAIHelp.com</span>
+            <img src="/logo.png" alt="" className="h-6 w-6 rounded-md" />
+            <span className="text-sm text-slate-400">AppAIHelp</span>
           </div>
         </div>
       </div>
@@ -229,8 +229,8 @@ export const EmailVerification: React.FC = () => {
 
         {/* Branding */}
         <div className="mt-6 flex items-center justify-center gap-2">
-          <img src="/logo.svg" alt="" className="h-6 w-6 rounded-md" />
-          <span className="text-sm text-slate-400">AppAIHelp.com</span>
+          <img src="/logo.png" alt="" className="h-6 w-6 rounded-md" />
+          <span className="text-sm text-slate-400">AppAIHelp</span>
         </div>
       </div>
     </div>

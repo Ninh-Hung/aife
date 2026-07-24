@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Bot, Sparkles, Brain, Settings, MessageCircle, Trash2 } from 'lucide-react';
+import { Bot, Sparkles, Brain, Settings, MessageCircle, Trash2, Rocket } from 'lucide-react';
 import { Agent } from '../../types';
 import { IconButton, Chip, Switch, FormControlLabel } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,8 @@ interface AgentCardProps {
   onDelete: (agentId: string) => void;
   onChat?: (agent: Agent) => void;
   onSetDefault?: (publicId: string) => void;
+  onPublish?: (agent: Agent) => void;
+  publishDisabled?: boolean;
 }
 
 // ============================================
@@ -65,10 +67,25 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   onDelete,
   onChat,
   onSetDefault,
+  onPublish,
+  publishDisabled = false,
 }) => {
   const { t } = useTranslation();
   const isSystemAgent = agent.ownerType === 'SYSTEM';
   const canManageAgent = !agent.ownerType || agent.ownerType === 'USER';
+  const status = agent.status || 'draft';
+  const hasUnpublishedChanges =
+    status === 'published' &&
+    typeof agent.version === 'number' &&
+    typeof agent.publishedVersion === 'number' &&
+    agent.version > agent.publishedVersion;
+  const isPublished = status === 'published' && !hasUnpublishedChanges;
+  const canPublish =
+    canManageAgent &&
+    agent.isActive !== false &&
+    Boolean(onPublish) &&
+    (status !== 'published' || hasUnpublishedChanges);
+  const statusLabelKey = hasUnpublishedChanges ? 'unpublishedChanges' : status;
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -88,6 +105,12 @@ export const AgentCard: React.FC<AgentCardProps> = ({
     if (onChat) {
       onChat(agent);
     }
+  };
+
+  const handlePublish = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canPublish || publishDisabled) return;
+    onPublish?.(agent);
   };
 
   const handleDefaultToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,6 +200,16 @@ export const AgentCard: React.FC<AgentCardProps> = ({
         )}
 
         <div className="mb-2 flex flex-wrap gap-1.5">
+          <Chip
+            label={t(`agents.card.status.${statusLabelKey}`, { defaultValue: statusLabelKey })}
+            size="small"
+            className={
+              isPublished
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+            }
+            sx={{ height: '22px', fontSize: '0.7rem' }}
+          />
           {agent.isActive === false && (
             <Chip
               label={t('agents.card.inactive')}
@@ -212,6 +245,19 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           </p>
         </div>
       </div>
+
+      {canPublish && (
+        <button
+          onClick={handlePublish}
+          disabled={publishDisabled}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
+        >
+          <Rocket size={16} />
+          {publishDisabled
+            ? t('agents.card.publishing')
+            : t(hasUnpublishedChanges ? 'agents.card.republish' : 'agents.card.publish')}
+        </button>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2">

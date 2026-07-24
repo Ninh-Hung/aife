@@ -221,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="flex items-center gap-2 no-underline"
             onClick={handleNavigation}
           >
-            <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
+            <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
             <Typography
               variant="h6"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text font-bold text-transparent dark:from-blue-400 dark:to-cyan-400"
@@ -236,7 +236,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="no-underline"
             onClick={handleNavigation}
           >
-            <img src="/logo.svg" alt="AppAIHelp" className="h-8 w-8 rounded-lg" />
+            <img src="/logo.png" alt="AppAIHelp" className="h-8 w-8 rounded-lg" />
           </Link>
         )}
         {/* Hide collapse button in mobile drawer mode */}
