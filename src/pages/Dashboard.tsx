@@ -4,7 +4,15 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Card, Typography, LinearProgress, Chip, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Card,
+  Typography,
+  LinearProgress,
+  Chip,
+  CircularProgress,
+  Skeleton,
+} from '@mui/material';
 import { Activity, BarChart3, Coins, CreditCard, Network, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -69,7 +77,7 @@ export const Dashboard: React.FC = () => {
   const { agents } = useAgents();
   const [usagePeriod, setUsagePeriod] = useState<TokenUsagePeriod>('day');
   const [usagePoints, setUsagePoints] = useState<TokenUsagePoint[]>([]);
-  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageLoading, setUsageLoading] = useState(true);
   const [usageError, setUsageError] = useState<string | null>(null);
   const [thirdPartyByTenant, setThirdPartyByTenant] = useState<ThirdPartyUsageRow[]>([]);
   const [thirdPartyByAgent, setThirdPartyByAgent] = useState<ThirdPartyUsageRow[]>([]);
@@ -82,11 +90,13 @@ export const Dashboard: React.FC = () => {
   const [dashboardSubscription, setDashboardSubscription] = useState<SubscriptionInfo | null>(
     subscription ?? user?.subscription ?? null
   );
+  const [dashboardSummaryLoading, setDashboardSummaryLoading] = useState(true);
 
   const subscriptionCode = dashboardSubscription?.packageCode.toLowerCase();
   const subscriptionPlanName =
     dashboardSubscription?.packageName || t('dashboard.subscription.free');
   const currentQuota = dashboardQuota ?? quota ?? user?.quota ?? null;
+  const showQuotaSkeleton = dashboardSummaryLoading && !currentQuota;
   const userAgents = useMemo(
     () => agents.filter((agent) => agent.ownerType !== 'SYSTEM'),
     [agents]
@@ -145,6 +155,8 @@ export const Dashboard: React.FC = () => {
     let isActive = true;
 
     const loadDashboardSummary = async () => {
+      setDashboardSummaryLoading(true);
+
       try {
         const [quotaData, subscriptionData] = await Promise.allSettled([
           getQuota(),
@@ -174,6 +186,10 @@ export const Dashboard: React.FC = () => {
         }
       } catch {
         // Keep the context-backed fallback when dashboard summary refresh is unavailable.
+      } finally {
+        if (isActive) {
+          setDashboardSummaryLoading(false);
+        }
       }
     };
 
@@ -370,95 +386,101 @@ export const Dashboard: React.FC = () => {
               >
                 {t('dashboard.stats.usageQuota')}
               </Typography>
-              <Typography variant="h5" className="font-bold text-gray-900 dark:text-white">
-                {usageData.used.toLocaleString()} / {usageData.total.toLocaleString()}
-              </Typography>
-              <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                {t('dashboard.stats.tokensUsed', {
-                  remaining: usageData.availableTokens.toLocaleString(),
-                })}
-              </Typography>
-              <Box className="mt-4 grid grid-cols-1 gap-2 text-sm">
-                <Box className="flex items-center justify-between gap-3">
-                  <span className="text-gray-500 dark:text-slate-400">
-                    {t('dashboard.stats.packageQuota')}
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {usageData.packageRemaining.toLocaleString()}
-                  </span>
-                </Box>
-                <Box className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1 text-gray-500 dark:text-slate-400">
-                    <Coins size={14} className="text-amber-500" />
-                    {t('dashboard.stats.walletToken')}
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {usageData.walletTokens.toLocaleString()}
-                  </span>
-                </Box>
-                <Box className="flex items-center justify-between gap-3 border-t border-gray-100 pt-2 dark:border-slate-700">
-                  <span className="text-gray-500 dark:text-slate-400">
-                    {t('dashboard.stats.availableToken')}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {usageData.availableTokens.toLocaleString()}
-                  </span>
-                </Box>
-                <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                  {t('dashboard.stats.nextReset', {
-                    date: usageData.nextReset || t('dashboard.stats.nextResetUnknown'),
-                  })}
-                </Typography>
-                {usageData.walletTokens > 0 && usageData.walletSourceSummary && (
-                  <Box className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 p-2 text-xs dark:bg-slate-900/60">
-                    <span className="text-gray-500 dark:text-slate-400">
-                      {t('dashboard.walletSources.purchased')}
-                    </span>
-                    <span className="text-right text-gray-700 dark:text-slate-200">
-                      {usageData.walletSourceSummary.purchased.toLocaleString()}
-                    </span>
-                    <span className="text-gray-500 dark:text-slate-400">
-                      {t('dashboard.walletSources.adminGranted')}
-                    </span>
-                    <span className="text-right text-gray-700 dark:text-slate-200">
-                      {usageData.walletSourceSummary.adminGranted.toLocaleString()}
-                    </span>
-                    <span className="text-gray-500 dark:text-slate-400">
-                      {t('dashboard.walletSources.carryOver')}
-                    </span>
-                    <span className="text-right text-gray-700 dark:text-slate-200">
-                      {usageData.walletSourceSummary.carryOver.toLocaleString()}
-                    </span>
-                    <span className="text-gray-500 dark:text-slate-400">
-                      {t('dashboard.walletSources.adjustment')}
-                    </span>
-                    <span className="text-right text-gray-700 dark:text-slate-200">
-                      {usageData.walletSourceSummary.refundAdjustment.toLocaleString()}
-                    </span>
+              {showQuotaSkeleton ? (
+                <UsageQuotaSkeleton />
+              ) : (
+                <>
+                  <Typography variant="h5" className="font-bold text-gray-900 dark:text-white">
+                    {usageData.used.toLocaleString()} / {usageData.total.toLocaleString()}
+                  </Typography>
+                  <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                    {t('dashboard.stats.tokensUsed', {
+                      remaining: usageData.availableTokens.toLocaleString(),
+                    })}
+                  </Typography>
+                  <Box className="mt-4 grid grid-cols-1 gap-2 text-sm">
+                    <Box className="flex items-center justify-between gap-3">
+                      <span className="text-gray-500 dark:text-slate-400">
+                        {t('dashboard.stats.packageQuota')}
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {usageData.packageRemaining.toLocaleString()}
+                      </span>
+                    </Box>
+                    <Box className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1 text-gray-500 dark:text-slate-400">
+                        <Coins size={14} className="text-amber-500" />
+                        {t('dashboard.stats.walletToken')}
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {usageData.walletTokens.toLocaleString()}
+                      </span>
+                    </Box>
+                    <Box className="flex items-center justify-between gap-3 border-t border-gray-100 pt-2 dark:border-slate-700">
+                      <span className="text-gray-500 dark:text-slate-400">
+                        {t('dashboard.stats.availableToken')}
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {usageData.availableTokens.toLocaleString()}
+                      </span>
+                    </Box>
+                    <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+                      {t('dashboard.stats.nextReset', {
+                        date: usageData.nextReset || t('dashboard.stats.nextResetUnknown'),
+                      })}
+                    </Typography>
+                    {usageData.walletTokens > 0 && usageData.walletSourceSummary && (
+                      <Box className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 p-2 text-xs dark:bg-slate-900/60">
+                        <span className="text-gray-500 dark:text-slate-400">
+                          {t('dashboard.walletSources.purchased')}
+                        </span>
+                        <span className="text-right text-gray-700 dark:text-slate-200">
+                          {usageData.walletSourceSummary.purchased.toLocaleString()}
+                        </span>
+                        <span className="text-gray-500 dark:text-slate-400">
+                          {t('dashboard.walletSources.adminGranted')}
+                        </span>
+                        <span className="text-right text-gray-700 dark:text-slate-200">
+                          {usageData.walletSourceSummary.adminGranted.toLocaleString()}
+                        </span>
+                        <span className="text-gray-500 dark:text-slate-400">
+                          {t('dashboard.walletSources.carryOver')}
+                        </span>
+                        <span className="text-right text-gray-700 dark:text-slate-200">
+                          {usageData.walletSourceSummary.carryOver.toLocaleString()}
+                        </span>
+                        <span className="text-gray-500 dark:text-slate-400">
+                          {t('dashboard.walletSources.adjustment')}
+                        </span>
+                        <span className="text-right text-gray-700 dark:text-slate-200">
+                          {usageData.walletSourceSummary.refundAdjustment.toLocaleString()}
+                        </span>
+                      </Box>
+                    )}
                   </Box>
-                )}
-              </Box>
-              {/* Progress Bar */}
-              <Box className="mt-3">
-                <LinearProgress
-                  variant="determinate"
-                  value={usageData.percentage}
-                  className="h-2 rounded-full"
-                  sx={{
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    '& .MuiLinearProgress-bar': {
-                      backgroundColor: '#3B82F6',
-                      borderRadius: '9999px',
-                    },
-                  }}
-                />
-                <Typography
-                  variant="caption"
-                  className="mt-1 block text-right text-gray-500 dark:text-slate-400"
-                >
-                  {t('dashboard.stats.percentUsed', { percent: usageData.percentage })}
-                </Typography>
-              </Box>
+                  {/* Progress Bar */}
+                  <Box className="mt-3">
+                    <LinearProgress
+                      variant="determinate"
+                      value={usageData.percentage}
+                      className="h-2 rounded-full"
+                      sx={{
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: '#3B82F6',
+                          borderRadius: '9999px',
+                        },
+                      }}
+                    />
+                    <Typography
+                      variant="caption"
+                      className="mt-1 block text-right text-gray-500 dark:text-slate-400"
+                    >
+                      {t('dashboard.stats.percentUsed', { percent: usageData.percentage })}
+                    </Typography>
+                  </Box>
+                </>
+              )}
             </Box>
             <Box className="ml-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
               <Activity className="text-blue-600 dark:text-blue-400" size={24} />
@@ -477,11 +499,15 @@ export const Dashboard: React.FC = () => {
             <Typography variant="h6" className="font-semibold text-gray-900 dark:text-white">
               {t('dashboard.tokenUsage.title')}
             </Typography>
-            <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
-              {t('dashboard.tokenUsage.subtitle', {
-                total: formatTokens(periodTotal),
-              })}
-            </Typography>
+            {usageLoading ? (
+              <Skeleton variant="text" width={220} height={24} className="mt-1" />
+            ) : (
+              <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
+                {t('dashboard.tokenUsage.subtitle', {
+                  total: formatTokens(periodTotal),
+                })}
+              </Typography>
+            )}
           </Box>
 
           <Box
@@ -511,13 +537,7 @@ export const Dashboard: React.FC = () => {
           </Box>
         </Box>
 
-        {usageLoading && (
-          <Box className="flex h-72 items-center justify-center rounded-lg border border-dashed border-gray-200 dark:border-slate-700">
-            <Typography variant="body2" className="text-gray-500 dark:text-slate-400">
-              {t('dashboard.tokenUsage.loading')}
-            </Typography>
-          </Box>
-        )}
+        {usageLoading && <TokenUsageChartSkeleton />}
 
         {!usageLoading && usageError && (
           <Box className="flex h-72 items-center justify-center rounded-lg border border-dashed border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20">
@@ -823,6 +843,78 @@ interface ThirdPartyUsageListProps {
   rows: ThirdPartyUsageRow[];
   getLabel: (row: ThirdPartyUsageRow) => string;
 }
+
+const UsageQuotaSkeleton: React.FC = () => (
+  <Box aria-hidden="true">
+    <Skeleton variant="text" width="72%" height={36} />
+    <Skeleton variant="text" width="62%" height={20} />
+    <Box className="mt-4 grid grid-cols-1 gap-2">
+      {[0, 1, 2].map((item) => (
+        <Box key={item} className="flex items-center justify-between gap-3">
+          <Skeleton variant="text" width={item === 1 ? 120 : 96} height={22} />
+          <Skeleton variant="text" width={72} height={22} />
+        </Box>
+      ))}
+      <Skeleton variant="text" width="68%" height={20} />
+    </Box>
+    <Box className="mt-3">
+      <Skeleton variant="rectangular" height={8} className="rounded-full" />
+      <Box className="mt-1 flex justify-end">
+        <Skeleton variant="text" width={48} height={18} />
+      </Box>
+    </Box>
+  </Box>
+);
+
+const TokenUsageChartSkeleton: React.FC = () => (
+  <Box aria-hidden="true" className="min-w-0">
+    <Box className="mb-3 flex items-center gap-2">
+      <Skeleton variant="circular" width={18} height={18} />
+      <Skeleton variant="text" width={160} height={24} />
+    </Box>
+    <Box className="overflow-x-auto rounded-lg border border-gray-100 p-4 dark:border-slate-700">
+      <Box className="min-w-[620px]">
+        <Box className="relative h-64 overflow-hidden">
+          <Box className="absolute inset-x-0 top-[10%] border-t border-gray-100 dark:border-slate-800" />
+          <Box className="absolute inset-x-0 top-1/2 border-t border-gray-100 dark:border-slate-800" />
+          <Box className="absolute inset-x-0 bottom-[10%] border-t border-gray-200 dark:border-slate-700" />
+          <Box className="absolute inset-x-0 bottom-[10%] top-[10%] flex items-end justify-between gap-3">
+            {[48, 72, 36, 88, 58, 64, 42, 78, 54, 68, 46, 82].map((height, index) => (
+              <Skeleton
+                key={`${height}-${index}`}
+                variant="rectangular"
+                width={24}
+                height={`${height}%`}
+                className="rounded-t"
+              />
+            ))}
+          </Box>
+          <Skeleton
+            variant="rectangular"
+            width="86%"
+            height={4}
+            className="absolute left-[7%] top-[46%] rounded-full"
+          />
+        </Box>
+        <Box className="mt-2 flex justify-between gap-2">
+          {[0, 1, 2, 3, 4].map((item) => (
+            <Skeleton key={item} variant="text" width={64} height={18} />
+          ))}
+        </Box>
+        <Box className="mt-4 flex flex-wrap items-center gap-4">
+          <Box className="flex items-center gap-2">
+            <Skeleton variant="rectangular" width={12} height={12} className="rounded-sm" />
+            <Skeleton variant="text" width={96} height={18} />
+          </Box>
+          <Box className="flex items-center gap-2">
+            <Skeleton variant="rectangular" width={20} height={4} className="rounded-full" />
+            <Skeleton variant="text" width={112} height={18} />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  </Box>
+);
 
 const ThirdPartyUsageList: React.FC<ThirdPartyUsageListProps> = ({
   title,

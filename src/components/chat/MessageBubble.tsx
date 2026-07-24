@@ -38,6 +38,39 @@ interface MessageBubbleProps {
 
 type MessageAttachment = NonNullable<ChatMessage['attachments']>[number];
 
+const STREAM_PROGRESS_PREFIX = '[progress]';
+
+function splitProgressFromReasoning(reasoning: string | null): {
+  progressMessages: string[];
+  reasoning: string | null;
+} {
+  if (!reasoning) {
+    return { progressMessages: [], reasoning: null };
+  }
+
+  const progressMessages: string[] = [];
+  const reasoningLines: string[] = [];
+
+  for (const line of reasoning.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith(STREAM_PROGRESS_PREFIX)) {
+      const progress = trimmed.slice(STREAM_PROGRESS_PREFIX.length).trim();
+      if (progress) {
+        progressMessages.push(progress);
+      }
+      continue;
+    }
+
+    reasoningLines.push(line);
+  }
+
+  const cleanedReasoning = reasoningLines.join('\n').trim();
+  return {
+    progressMessages,
+    reasoning: cleanedReasoning || null,
+  };
+}
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   agentAvatar,
@@ -69,8 +102,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           .filter((part, index, parts) => parts.indexOf(part) === index)
           .join('\n\n'),
       };
+  const progressAwareReasoning = splitProgressFromReasoning(parsedMessage.reasoning);
   const displayContent = parsedMessage.content;
-  const reasoning = parsedMessage.reasoning?.trim() || null;
+  const reasoning = progressAwareReasoning.reasoning;
+  const latestProgressMessage = !isUser
+    ? progressAwareReasoning.progressMessages[progressAwareReasoning.progressMessages.length - 1] ||
+      null
+    : null;
   const sources = isUser ? [] : message.sources || [];
   const attachments = message.attachments || [];
   const isAnonymousLimitMessage =
@@ -257,6 +295,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                       />
                     </div>
                   )}
+                </div>
+              )}
+
+              {!displayContent && latestProgressMessage && (
+                <div className="text-sm italic leading-relaxed text-gray-500 dark:text-slate-400">
+                  {latestProgressMessage}
                 </div>
               )}
 

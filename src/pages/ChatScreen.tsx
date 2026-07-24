@@ -21,8 +21,9 @@ import { cancelChatResponse, getChatSession, listChatMessages, getAgent } from '
 import { parseAgentResponse } from '../utils/agentResponse';
 
 const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
-const FIRST_RESPONSE_TITLE_SYNC_DELAYS_MS = [0, 700, 1200, 1800, 2600, 3600];
-const RESPONSE_METADATA_SYNC_DELAYS_MS = [150, 700, 1600, 3000];
+const FIRST_RESPONSE_TITLE_SYNC_DELAYS_MS = [900, 2500];
+const RESPONSE_METADATA_SYNC_DELAYS_MS = [1200];
+const STREAM_PROGRESS_PREFIX = '[progress]';
 
 const isDefaultConversationTitle = (title: string | null | undefined) => {
   const normalized = title?.trim().toLowerCase() ?? '';
@@ -116,6 +117,16 @@ const enrichLiveMessagesWithPersistedMetadata = (
   return enrichedReversed.reverse();
 };
 
+const stripStreamProgressLines = (value: string | null | undefined) => {
+  if (!value) return '';
+
+  return value
+    .split(/\r?\n/)
+    .filter((line) => !line.trim().startsWith(STREAM_PROGRESS_PREFIX))
+    .join('\n')
+    .trim();
+};
+
 const hasRenderableMessageContent = (message: ChatMessage) => {
   if (message.role === 'user') {
     return message.content.trim().length > 0 || Boolean(message.attachments?.length);
@@ -123,7 +134,7 @@ const hasRenderableMessageContent = (message: ChatMessage) => {
 
   return (
     parseAgentResponse(message.content).content.trim().length > 0 ||
-    Boolean(message.reasoning?.trim())
+    stripStreamProgressLines(message.reasoning).length > 0
   );
 };
 
