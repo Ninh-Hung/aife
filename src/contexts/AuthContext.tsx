@@ -70,6 +70,8 @@ type AuthUserData = {
 const ANONYMOUS_AUTH_PROVIDER = 'ANONYMOUS';
 export const ANONYMOUS_CURRENT_SESSION_STORAGE_KEY = 'anonymousCurrentSessionId';
 export const ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY = 'anonymousPendingMergeSessionId';
+const ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY = 'anonymousBootstrapCooldownUntil';
+const ANONYMOUS_BOOTSTRAP_COOLDOWN_MS = 30_000;
 const ENABLE_SUBSCRIPTION_QUOTA_CHECKS = false;
 const PRESERVED_STORAGE_KEYS = new Set(['theme-mode']);
 const USER_SCOPED_STORAGE_KEY_PATTERNS = [
@@ -109,6 +111,37 @@ const clearUserScopedClientStorage = () => {
 
   clearStorageByPattern(window.localStorage);
   clearStorageByPattern(window.sessionStorage);
+};
+
+const getAnonymousBootstrapCooldownUntil = () => {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+
+  const rawValue = window.sessionStorage.getItem(ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY);
+  const parsedValue = Number(rawValue);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
+const isAnonymousBootstrapCooldownActive = () => Date.now() < getAnonymousBootstrapCooldownUntil();
+
+const rememberAnonymousBootstrapFailure = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY,
+    String(Date.now() + ANONYMOUS_BOOTSTRAP_COOLDOWN_MS)
+  );
+};
+
+const clearAnonymousBootstrapCooldown = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.removeItem(ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY);
 };
 
 const isAnonymousUser = (user: User | null): boolean => {
@@ -162,31 +195,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return mappedUser;
   }, []);
 
-  const fetchAndApplyCurrentUser = useCallback(async (): Promise<User> => {
-    const userResponse = await axiosInstance.get('/auth/me');
-    console.log('[AuthContext] User response:', userResponse.data);
+  const fetchAndApplyCurrentUser = useCallback(
+    async (config?: { skipAuthRefresh?: boolean; skipErrorToast?: boolean }): Promise<User> => {
+      const userResponse = await axiosInstance.get('/auth/me', config);
+      console.log('[AuthContext] User response:', userResponse.data);
 
-    if (userResponse.data.success && userResponse.data.data?.user) {
-      return applyUserData(userResponse.data.data.user);
-    }
+      if (userResponse.data.success && userResponse.data.data?.user) {
+        return applyUserData(userResponse.data.data.user);
+      }
 
-    throw new Error('User response invalid format');
-  }, [applyUserData]);
+      throw new Error('User response invalid format');
+    },
+    [applyUserData]
+  );
 
   const createAnonymousSession = useCallback(async () => {
-    const anonymousResponse = await axiosInstance.post('/auth/anonymous');
-    console.log('[AuthContext] Anonymous auth response:', anonymousResponse.data);
+    try {
+      const anonymousResponse = await axiosInstance.post('/auth/anonymous', undefined, {
+        skipAuthRefresh: true,
+        skipErrorToast: true,
+      });
+      console.log('[AuthContext] Anonymous auth response:', anonymousResponse.data);
 
-    if (!anonymousResponse.data.success || !anonymousResponse.data.data?.accessToken) {
-      throw new Error('Anonymous auth response invalid format');
-    }
+      if (!anonymousResponse.data.success || !anonymousResponse.data.data?.accessToken) {
+        throw new Error('Anonymous auth response invalid format');
+      }
 
-    setAccessToken(anonymousResponse.data.data.accessToken);
+      clearAnonymousBootstrapCooldown();
+      setAccessToken(anonymousResponse.data.data.accessToken);
 
-    if (anonymousResponse.data.data.user) {
-      applyUserData(anonymousResponse.data.data.user);
-    } else {
-      await fetchAndApplyCurrentUser();
+      if (anonymousResponse.data.data.user) {
+        applyUserData(anonymousResponse.data.data.user);
+      } else {
+        await fetchAndApplyCurrentUser({
+          skipAuthRefresh: true,
+          skipErrorToast: true,
+        });
+      }
+    } catch (error) {
+      rememberAnonymousBootstrapFailure();
+      throw error;
     }
   }, [applyUserData, fetchAndApplyCurrentUser]);
 
@@ -216,16 +264,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         console.log('[AuthContext] Starting auth initialization...');
 
+        if (isAnonymousBootstrapCooldownActive()) {
+          console.info('[AuthContext] Anonymous bootstrap is cooling down; skipping auth retry');
+          return;
+        }
+
         try {
           // Attempt to refresh access token using HttpOnly refresh token
           await refreshAccessToken();
           console.log('[AuthContext] Access token set successfully');
-          await fetchAndApplyCurrentUser();
+          await fetchAndApplyCurrentUser({
+            skipAuthRefresh: true,
+            skipErrorToast: true,
+          });
+          clearAnonymousBootstrapCooldown();
         } catch (refreshError) {
           console.log(
             '[AuthContext] No valid session, creating anonymous session...',
             refreshError
           );
+
+          if (isAnonymousBootstrapCooldownActive()) {
+            console.info('[AuthContext] Anonymous bootstrap is cooling down; skipping retry');
+            return;
+          }
 
           await createAnonymousSession();
         }

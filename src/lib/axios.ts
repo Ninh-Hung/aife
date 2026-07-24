@@ -6,6 +6,13 @@
 import axios, { AxiosHeaders, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { getStoredAppLocale, LANGUAGE_HEADER } from '../i18n/types';
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipAuthRefresh?: boolean;
+    skipErrorToast?: boolean;
+  }
+}
+
 // ============================================
 // Axios Instance Configuration
 // ============================================
@@ -82,9 +89,7 @@ const shouldSkipRefreshForRequest = (url?: string) => {
   const baseUrl =
     import.meta.env.VITE_SERVER_URL ||
     (typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
-  const pathname = url.startsWith('http')
-    ? new URL(url).pathname
-    : new URL(url, baseUrl).pathname;
+  const pathname = url.startsWith('http') ? new URL(url).pathname : new URL(url, baseUrl).pathname;
 
   return AUTH_REFRESH_EXCLUDED_PATHS.has(pathname);
 };
@@ -100,7 +105,10 @@ refreshClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 export const refreshAccessToken = async (): Promise<string> => {
   if (!refreshPromise) {
     refreshPromise = refreshClient
-      .post('/auth/refresh')
+      .post('/auth/refresh', undefined, {
+        skipAuthRefresh: true,
+        skipErrorToast: true,
+      })
       .then((response) => {
         const newAccessToken = response.data.data?.accessToken;
 
@@ -203,7 +211,11 @@ axiosInstance.interceptors.response.use(
     }
 
     // If error is 401 and we haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest.skipAuthRefresh &&
+      !originalRequest._retry
+    ) {
       // Auth bootstrap calls must resolve/reject directly. Retrying refresh from a
       // failed refresh request can leave app initialization waiting forever.
       if (shouldSkipRefreshForRequest(originalRequest.url)) {

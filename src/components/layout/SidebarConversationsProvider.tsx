@@ -29,7 +29,7 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
   children,
 }) => {
   const { error: showError } = useNotification();
-  const { isAnonymous, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isAnonymous, isLoading: authLoading } = useAuth();
   const showErrorRef = useRef(showError);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +39,7 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
   }, [showError]);
 
   const refreshConversations = useCallback(async () => {
-    if (isAnonymous) {
+    if (!isAuthenticated || isAnonymous) {
       setSessions([]);
       setIsLoading(false);
       return;
@@ -61,19 +61,19 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
     } finally {
       setIsLoading(false);
     }
-  }, [isAnonymous]);
+  }, [isAuthenticated, isAnonymous]);
 
   useEffect(() => {
     if (authLoading) return;
 
-    if (isAnonymous) {
+    if (!isAuthenticated || isAnonymous) {
       setSessions([]);
       setIsLoading(false);
       return;
     }
 
     void refreshConversations();
-  }, [authLoading, isAnonymous, refreshConversations]);
+  }, [authLoading, isAuthenticated, isAnonymous, refreshConversations]);
 
   const addOrUpdateConversation = useCallback((session: ChatSession) => {
     if (session.status && session.status !== 'ACTIVE') {
