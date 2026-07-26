@@ -53,6 +53,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   isMobileDrawer?: boolean; // If true, render as drawer content (no fixed positioning)
   onNavigate?: () => void; // Callback when navigation item is clicked (for closing drawer)
+  onOpenSettings?: () => void;
 }
 
 // ============================================
@@ -90,6 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   isMobileDrawer = false,
   onNavigate,
+  onOpenSettings,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -167,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleUserSettings = () => {
     handleMenuClose();
     handleNavigation();
-    navigate('/settings');
+    onOpenSettings?.();
   };
 
   const handleFeedback = () => {

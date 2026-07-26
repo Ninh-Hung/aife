@@ -22,7 +22,11 @@ import { useNotification } from '../hooks/useNotification';
 const MAX_AVATAR_SIZE_MB = 5;
 const AVATAR_ACCEPT = 'image/jpeg,image/png,image/svg+xml,image/gif,image/webp,image/avif';
 
-export const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+  variant?: 'page' | 'modal';
+}
+
+export const SettingsPage: React.FC<SettingsPageProps> = ({ variant = 'page' }) => {
   const { t } = useTranslation();
   const { user, isAnonymous, updateProfile } = useAuth();
   const { success, error } = useNotification();
@@ -87,6 +91,10 @@ export const SettingsPage: React.FC = () => {
     Boolean(currentPassword && newPassword && confirmPassword) &&
     !passwordValidationError &&
     !confirmPasswordError;
+  const isModal = variant === 'modal';
+  const cardClassName = `${
+    isModal ? 'w-full' : 'max-w-2xl'
+  } mb-4 border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800`;
 
   const clearObjectPreview = () => {
     if (objectUrlRef.current) {
@@ -215,24 +223,23 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
-      <Box className="mb-6 md:mb-8">
-        <Typography
-          variant="h4"
-          className="font-bold text-gray-900 dark:text-white"
-          sx={{ fontSize: { xs: '1.5rem', md: '2rem' } }}
-        >
-          {t('settings.title')}
-        </Typography>
-        <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
-          {t('settings.subtitle')}
-        </Typography>
-      </Box>
+    <div className={isModal ? 'space-y-4 pb-1' : 'p-4 md:p-6 lg:p-8'}>
+      {!isModal && (
+        <Box className="mb-6 md:mb-8">
+          <Typography
+            variant="h4"
+            className="font-bold text-gray-900 dark:text-white"
+            sx={{ fontSize: { xs: '1.5rem', md: '2rem' } }}
+          >
+            {t('settings.title')}
+          </Typography>
+          <Typography variant="body2" className="mt-1 text-gray-500 dark:text-slate-400">
+            {t('settings.subtitle')}
+          </Typography>
+        </Box>
+      )}
 
-      <Card
-        className="mb-4 max-w-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
-        elevation={0}
-      >
+      <Card className={cardClassName} elevation={0}>
         <Box className="mb-5 flex min-w-0 items-start gap-3">
           <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
             <UserRound className="text-emerald-600 dark:text-emerald-400" size={20} />
@@ -325,10 +332,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {canChangePassword && (
-        <Card
-          className="mb-4 max-w-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
-          elevation={0}
-        >
+        <Card className={cardClassName} elevation={0}>
           <Box className="mb-5 flex min-w-0 items-start gap-3">
             <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
               <LockKeyhole className="text-amber-600 dark:text-amber-400" size={20} />
@@ -418,10 +422,7 @@ export const SettingsPage: React.FC = () => {
         </Card>
       )}
 
-      <Card
-        className="mb-4 max-w-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
-        elevation={0}
-      >
+      <Card className={cardClassName} elevation={0}>
         <Box className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Box className="flex min-w-0 items-start gap-3">
             <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -443,7 +444,7 @@ export const SettingsPage: React.FC = () => {
         </Box>
       </Card>
 
-      <UserMemorySettings />
+      <UserMemorySettings variant={variant} />
     </div>
   );
 };

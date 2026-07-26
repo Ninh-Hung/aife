@@ -42,6 +42,14 @@ import { SharedConversationPage } from './pages/SharedConversationPage';
 import NewChatPage from './pages/NewChatPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import {
+  Box,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Typography,
+} from '@mui/material';
+import {
   Bot,
   LayoutDashboard,
   Users,
@@ -54,6 +62,7 @@ import {
   MessageCircleWarning,
   Plug,
   BrainCircuit,
+  X,
 } from 'lucide-react';
 import { CreateAgentInput } from './types';
 import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
@@ -95,6 +104,51 @@ const ChatScreenRoute: React.FC = () => {
   return <ChatScreen key={sessionId ?? 'missing-session'} />;
 };
 
+interface SettingsDialogProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
+  const { t } = useTranslation();
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="lg"
+      PaperProps={{
+        className: 'max-h-[92vh] rounded-xl bg-gray-50 dark:bg-slate-900',
+      }}
+    >
+      <DialogTitle className="border-b border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800">
+        <Box className="flex min-w-0 items-center justify-between gap-4">
+          <Box className="flex min-w-0 items-center gap-3">
+            <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-500">
+              <Settings className="text-white" size={22} />
+            </Box>
+            <Box className="min-w-0">
+              <Typography variant="h6" className="font-semibold text-gray-900 dark:text-white">
+                {t('settings.title')}
+              </Typography>
+              <Typography variant="body2" className="truncate text-gray-500 dark:text-slate-400">
+                {t('settings.subtitle')}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton type="button" onClick={onClose} aria-label={t('common.close')}>
+            <X size={20} />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent dividers className="bg-gray-50 p-4 dark:bg-slate-900 md:p-6">
+        <SettingsPage variant="modal" />
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ============================================
 // Main App Component (with contexts)
 // ============================================
@@ -104,6 +158,7 @@ const AppContent: React.FC = () => {
   const { agents, createAgent } = useAgents();
   const { user, isAnonymous } = useAuth();
   const [isAgentDrawerOpen, setIsAgentDrawerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pendingMergeSessionId, setPendingMergeSessionId] = useState<string | null>(null);
   const [isMergingAnonymousSession, setIsMergingAnonymousSession] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
@@ -131,6 +186,14 @@ const AppContent: React.FC = () => {
 
   const handleCloseAgentDrawer = () => {
     setIsAgentDrawerOpen(false);
+  };
+
+  const handleOpenSettings = () => {
+    setIsSettingsOpen(true);
+  };
+
+  const handleCloseSettings = () => {
+    setIsSettingsOpen(false);
   };
 
   const handleSaveAgent = async (input: CreateAgentInput) => {
@@ -287,14 +350,6 @@ const AppContent: React.FC = () => {
             icon={<Plug className="text-white" size={24} />}
           />
         );
-      case '/settings':
-        return (
-          <Header
-            title={t('settings.title')}
-            subtitle={t('settings.subtitle')}
-            icon={<Settings className="text-white" size={24} />}
-          />
-        );
       case '/feedback':
         return (
           <Header
@@ -341,7 +396,7 @@ const AppContent: React.FC = () => {
           path="/*"
           element={
             <ProtectedRoute>
-              <Layout header={getHeader()}>
+              <Layout header={getHeader()} onOpenSettings={handleOpenSettings}>
                 <Routes>
                   {/* Translation Service */}
                   <Route
@@ -368,7 +423,7 @@ const AppContent: React.FC = () => {
                   <Route path="/agents" element={<AgentManagement />} />
                   <Route path="/characteristics" element={<CharacteristicManagement />} />
                   <Route path="/knowledge" element={<KnowledgeManagement />} />
-                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/settings" element={<Navigate to="/new-chat" replace />} />
                   <Route path="/feedback" element={<FeedbackPage />} />
                   <Route path="/chat/:sessionId" element={<ChatScreenRoute />} />
                   <Route path="/subscription" element={<SubscriptionPage />} />
@@ -404,6 +459,8 @@ const AppContent: React.FC = () => {
           }
         />
       </Routes>
+
+      <SettingsDialog open={isSettingsOpen} onClose={handleCloseSettings} />
 
       {/* Global Upgrade Modal - Triggered by quota errors */}
       <UpgradeModal

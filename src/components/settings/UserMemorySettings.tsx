@@ -78,7 +78,11 @@ const formatDate = (value?: Date | string | null) => {
   return date.toLocaleString();
 };
 
-export const UserMemorySettings: React.FC = () => {
+interface UserMemorySettingsProps {
+  variant?: 'page' | 'modal';
+}
+
+export const UserMemorySettings: React.FC<UserMemorySettingsProps> = ({ variant = 'page' }) => {
   const { t } = useTranslation();
   const { success, error: notifyError } = useNotification();
   const [memories, setMemories] = useState<UserMemory[]>([]);
@@ -214,11 +218,12 @@ export const UserMemorySettings: React.FC = () => {
     setDeletingId(null);
   };
 
+  const cardClassName = `${
+    variant === 'modal' ? 'w-full' : 'max-w-5xl'
+  } mt-4 border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800`;
+
   return (
-    <Card
-      className="mt-4 max-w-5xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
-      elevation={0}
-    >
+    <Card className={cardClassName} elevation={0}>
       <Box className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <Box className="flex min-w-0 items-start gap-3">
           <Box className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">

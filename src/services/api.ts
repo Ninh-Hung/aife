@@ -493,6 +493,13 @@ import type {
   ChannelIntegration,
   CreateApiKeyInput,
   CreateApiKeyResponse,
+  EmailAccount,
+  EmailAgentBinding,
+  EmailBlacklistRule,
+  EmailDraftApproval,
+  EmailMessage,
+  EmailProvider,
+  EmailSummary,
   IntegrationClient,
 } from '../types';
 
@@ -727,6 +734,331 @@ export const disconnectTelegramIntegration = async (
         axiosError.response?.data?.message ||
         'Failed to disconnect Telegram integration',
     };
+  }
+};
+
+const apiError = (error: unknown, fallback: string): ApiResponse => {
+  const axiosError = error as AxiosError<{ message?: string; error?: string; errorCode?: string }>;
+  return {
+    success: false,
+    errorCode: axiosError.response?.data?.errorCode,
+    error: axiosError.response?.data?.error || axiosError.response?.data?.message || fallback,
+  };
+};
+
+export const listEmailAccounts = async (): Promise<ApiResponse<EmailAccount[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/email-integrations/accounts');
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List email accounts error:', error);
+    return apiError(error, 'Failed to load email accounts') as ApiResponse<EmailAccount[]>;
+  }
+};
+
+export const startEmailOAuth = async (input: {
+  provider: EmailProvider;
+  agent_public_id?: string;
+  redirect_after?: string;
+}): Promise<ApiResponse<{ authorization_url: string; provider: EmailProvider }>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/${input.provider}/oauth/start`,
+      {
+        agent_public_id: input.agent_public_id,
+        redirect_after: input.redirect_after,
+      }
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Start email OAuth error:', error);
+    return apiError(error, 'Failed to start email connection') as ApiResponse<{
+      authorization_url: string;
+      provider: EmailProvider;
+    }>;
+  }
+};
+
+export const updateEmailAccount = async (
+  accountPublicId: string,
+  input: {
+    status?: string;
+    raw_retention_days?: number;
+    content_retention_days?: number;
+    vector_retention_days?: number;
+    blacklist_default_action?: string;
+  }
+): Promise<ApiResponse<EmailAccount>> => {
+  try {
+    const response = await axiosInstance.patch(
+      `/v1/email-integrations/accounts/${accountPublicId}`,
+      input
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Update email account error:', error);
+    return apiError(error, 'Failed to update email account') as ApiResponse<EmailAccount>;
+  }
+};
+
+export const disconnectEmailAccount = async (
+  accountPublicId: string
+): Promise<ApiResponse<EmailAccount>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/accounts/${accountPublicId}/disconnect`
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Disconnect email account error:', error);
+    return apiError(error, 'Failed to disconnect email account') as ApiResponse<EmailAccount>;
+  }
+};
+
+export const syncEmailAccountNow = async (
+  accountPublicId: string
+): Promise<ApiResponse<{ queued_count: number; messages: EmailMessage[] }>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/accounts/${accountPublicId}/sync-now`
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Sync email account error:', error);
+    return apiError(error, 'Failed to sync email account') as ApiResponse<{
+      queued_count: number;
+      messages: EmailMessage[];
+    }>;
+  }
+};
+
+export const upsertEmailAgentBinding = async (
+  accountPublicId: string,
+  input: {
+    agent_public_id: string;
+    access_level: string;
+    summary_mode: string;
+    is_default_handler?: boolean;
+    digest_schedule?: string | null;
+    filters_json?: Record<string, unknown>;
+  }
+): Promise<ApiResponse<EmailAgentBinding>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/accounts/${accountPublicId}/agent-bindings`,
+      input
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Save email binding error:', error);
+    return apiError(error, 'Failed to save email agent binding') as ApiResponse<EmailAgentBinding>;
+  }
+};
+
+export const listEmailBlacklistRules = async (
+  accountPublicId?: string
+): Promise<ApiResponse<EmailBlacklistRule[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/email-integrations/blacklist-rules', {
+      params: accountPublicId ? { account_public_id: accountPublicId } : undefined,
+    });
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List email blacklist rules error:', error);
+    return apiError(error, 'Failed to load blacklist rules') as ApiResponse<EmailBlacklistRule[]>;
+  }
+};
+
+export const createEmailBlacklistRule = async (input: {
+  account_public_id?: string;
+  pattern_type: string;
+  pattern_value: string;
+  action: string;
+  enabled?: boolean;
+}): Promise<ApiResponse<EmailBlacklistRule>> => {
+  try {
+    const response = await axiosInstance.post('/v1/email-integrations/blacklist-rules', input);
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Create email blacklist rule error:', error);
+    return apiError(error, 'Failed to create blacklist rule') as ApiResponse<EmailBlacklistRule>;
+  }
+};
+
+export const updateEmailBlacklistRule = async (
+  rulePublicId: string,
+  input: { enabled?: boolean; action?: string; pattern_type?: string; pattern_value?: string }
+): Promise<ApiResponse<EmailBlacklistRule>> => {
+  try {
+    const response = await axiosInstance.patch(
+      `/v1/email-integrations/blacklist-rules/${rulePublicId}`,
+      input
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Update email blacklist rule error:', error);
+    return apiError(error, 'Failed to update blacklist rule') as ApiResponse<EmailBlacklistRule>;
+  }
+};
+
+export const listEmailMessages = async (params?: {
+  account_public_id?: string;
+  status?: string;
+}): Promise<ApiResponse<EmailMessage[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/email-integrations/messages', { params });
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List email messages error:', error);
+    return apiError(error, 'Failed to load email messages') as ApiResponse<EmailMessage[]>;
+  }
+};
+
+export const listEmailSummaries = async (params?: {
+  account_public_id?: string;
+  source_public_id?: string;
+  summary_type?: string;
+}): Promise<ApiResponse<EmailSummary[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/email-integrations/summaries', { params });
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List email summaries error:', error);
+    return apiError(error, 'Failed to load email summaries') as ApiResponse<EmailSummary[]>;
+  }
+};
+
+export const listEmailDigests = async (params?: {
+  account_public_id?: string;
+  source_public_id?: string;
+}): Promise<ApiResponse<EmailSummary[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/email-integrations/digests', { params });
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List email digests error:', error);
+    return apiError(error, 'Failed to load email digests') as ApiResponse<EmailSummary[]>;
+  }
+};
+
+export const runEmailDigest = async (input?: {
+  account_public_id?: string;
+  agent_public_id?: string;
+  window_hours?: number;
+  instruction?: string;
+}): Promise<ApiResponse<EmailSummary | EmailSummary[]>> => {
+  try {
+    const response = await axiosInstance.post('/v1/email-integrations/digests/run', input || {});
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Run email digest error:', error);
+    return apiError(error, 'Failed to run email digest') as ApiResponse<EmailSummary | EmailSummary[]>;
+  }
+};
+
+export const summarizeEmailMessage = async (
+  messagePublicId: string,
+  input?: { question?: string; agent_public_id?: string }
+): Promise<ApiResponse<EmailSummary>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/messages/${messagePublicId}/summarize`,
+      input || {}
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Summarize email message error:', error);
+    return apiError(error, 'Failed to summarize email') as ApiResponse<EmailSummary>;
+  }
+};
+
+export const draftEmailReply = async (
+  messagePublicId: string,
+  input?: { instruction?: string; agent_public_id?: string }
+): Promise<ApiResponse<EmailDraftApproval>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/messages/${messagePublicId}/draft-reply`,
+      input || {}
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Draft email reply error:', error);
+    return apiError(error, 'Failed to draft email reply') as ApiResponse<EmailDraftApproval>;
+  }
+};
+
+export const listEmailDrafts = async (
+  status?: string
+): Promise<ApiResponse<EmailDraftApproval[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/email-integrations/drafts', {
+      params: status ? { status } : undefined,
+    });
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List email drafts error:', error);
+    return apiError(error, 'Failed to load email drafts') as ApiResponse<EmailDraftApproval[]>;
+  }
+};
+
+export const updateEmailDraft = async (
+  draftPublicId: string,
+  input: { title?: string; draft_text?: string }
+): Promise<ApiResponse<EmailDraftApproval>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/email-integrations/drafts/${draftPublicId}`, input);
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Update email draft error:', error);
+    return apiError(error, 'Failed to update email draft') as ApiResponse<EmailDraftApproval>;
+  }
+};
+
+export const approveEmailDraft = async (
+  draftPublicId: string,
+  input: { draft_reply?: string; send_now?: boolean },
+  idempotencyKey = crypto.randomUUID()
+): Promise<ApiResponse<EmailDraftApproval>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/drafts/${draftPublicId}/approve`,
+      input,
+      { headers: { 'Idempotency-Key': idempotencyKey } }
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Approve email draft error:', error);
+    return apiError(error, 'Failed to approve email draft') as ApiResponse<EmailDraftApproval>;
+  }
+};
+
+export const retrySendEmailDraft = async (
+  draftPublicId: string,
+  idempotencyKey = crypto.randomUUID()
+): Promise<ApiResponse<EmailDraftApproval>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/drafts/${draftPublicId}/retry-send`,
+      {},
+      { headers: { 'Idempotency-Key': idempotencyKey } }
+    );
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Retry email draft send error:', error);
+    return apiError(error, 'Failed to retry email draft send') as ApiResponse<EmailDraftApproval>;
+  }
+};
+
+export const rejectEmailDraft = async (
+  draftPublicId: string
+): Promise<ApiResponse<EmailDraftApproval>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/email-integrations/drafts/${draftPublicId}/reject`);
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Reject email draft error:', error);
+    return apiError(error, 'Failed to reject email draft') as ApiResponse<EmailDraftApproval>;
   }
 };
 
