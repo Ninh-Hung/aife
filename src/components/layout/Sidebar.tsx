@@ -15,6 +15,7 @@ import {
   Tooltip,
   Menu,
   MenuItem,
+  ListSubheader,
 } from '@mui/material';
 import {
   LayoutDashboard,
@@ -60,26 +61,56 @@ interface SidebarProps {
 // Navigation Configuration
 // ============================================
 
-const profileMenuItems = [
-  { id: 'dashboard', labelKey: 'sidebar.dashboard', path: '/dashboard', Icon: LayoutDashboard },
-  { id: 'agents', labelKey: 'sidebar.agents', path: '/agents', Icon: Users },
+const profileMenuGroups = [
   {
-    id: 'characteristics',
-    labelKey: 'sidebar.characteristics',
-    path: '/characteristics',
-    Icon: BrainCircuit,
+    id: 'workspace',
+    labelKey: 'sidebar.menuGroups.workspace',
+    items: [
+      { id: 'dashboard', labelKey: 'sidebar.dashboard', path: '/dashboard', Icon: LayoutDashboard },
+      { id: 'agents', labelKey: 'sidebar.agents', path: '/agents', Icon: Users },
+      {
+        id: 'characteristics',
+        labelKey: 'sidebar.characteristics',
+        path: '/characteristics',
+        Icon: BrainCircuit,
+      },
+      { id: 'knowledge', labelKey: 'sidebar.knowledge', path: '/knowledge', Icon: BookOpen },
+    ],
   },
-  { id: 'knowledge', labelKey: 'sidebar.knowledge', path: '/knowledge', Icon: BookOpen },
-  { id: 'api-keys', labelKey: 'sidebar.apiKeys', path: '/api-keys', Icon: KeyRound },
-  { id: 'integrations', labelKey: 'sidebar.integrations', path: '/integrations', Icon: Plug },
-  { id: 'subscription', labelKey: 'sidebar.subscription', path: '/subscription', Icon: CreditCard },
   {
-    id: 'translate',
-    labelKey: 'sidebar.multilanguage',
-    path: '/translate',
-    Icon: Languages,
+    id: 'services',
+    labelKey: 'sidebar.menuGroups.services',
+    items: [
+      {
+        id: 'translate',
+        labelKey: 'sidebar.multilanguage',
+        path: '/translate',
+        Icon: Languages,
+      },
+      { id: 'integrations', labelKey: 'sidebar.integrations', path: '/integrations', Icon: Plug },
+    ],
+  },
+  {
+    id: 'developer',
+    labelKey: 'sidebar.menuGroups.developer',
+    items: [{ id: 'api-keys', labelKey: 'sidebar.apiKeys', path: '/api-keys', Icon: KeyRound }],
+  },
+  {
+    id: 'account',
+    labelKey: 'sidebar.menuGroups.account',
+    items: [
+      {
+        id: 'subscription',
+        labelKey: 'sidebar.subscription',
+        path: '/subscription',
+        Icon: CreditCard,
+      },
+    ],
   },
 ];
+
+const profileMenuGroupLabelClassName =
+  'bg-transparent px-4 pb-1 pt-2 text-xs font-medium italic tracking-normal text-gray-400 dark:text-slate-500';
 
 // ============================================
 // Sidebar Component
@@ -432,30 +463,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }}
             slotProps={{
               paper: {
-                className: 'mt-2 min-w-[200px] rounded-lg shadow-lg',
+                className: 'mt-2 min-w-[200px] rounded-lg shadow-lg dark:bg-slate-800',
               },
             }}
           >
-            {profileMenuItems.map(({ id, labelKey, path, Icon }) => (
-              <MenuItem
-                key={id}
-                component={Link}
-                to={path}
-                onClick={handleMenuNavigation}
-                selected={isActive(path)}
-                className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                <Icon size={18} className="text-gray-500 dark:text-slate-400" />
-                <Typography variant="body2">{t(labelKey)}</Typography>
-              </MenuItem>
+            {profileMenuGroups.map(({ id: groupId, labelKey: groupLabelKey, items }, index) => (
+              <React.Fragment key={groupId}>
+                {index > 0 && <Divider className="my-1" />}
+                <ListSubheader
+                  disableSticky
+                  className={profileMenuGroupLabelClassName}
+                  sx={{ bgcolor: 'transparent', lineHeight: '1.25rem' }}
+                >
+                  {t(groupLabelKey)}
+                </ListSubheader>
+                {items.map(({ id, labelKey, path, Icon }) => (
+                  <MenuItem
+                    key={id}
+                    component={Link}
+                    to={path}
+                    onClick={handleMenuNavigation}
+                    selected={isActive(path)}
+                    className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <Icon size={18} className="text-gray-500 dark:text-slate-400" />
+                    <Typography variant="body2">{t(labelKey)}</Typography>
+                  </MenuItem>
+                ))}
+                {groupId === 'account' && (
+                  <MenuItem
+                    onClick={handleUserSettings}
+                    className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <Settings size={18} className="text-gray-500 dark:text-slate-400" />
+                    <Typography variant="body2">{t('common.settings')}</Typography>
+                  </MenuItem>
+                )}
+              </React.Fragment>
             ))}
-            <MenuItem
-              onClick={handleUserSettings}
-              className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            <Divider className="my-1" />
+            <ListSubheader
+              disableSticky
+              className={profileMenuGroupLabelClassName}
+              sx={{ bgcolor: 'transparent', lineHeight: '1.25rem' }}
             >
-              <Settings size={18} className="text-gray-500 dark:text-slate-400" />
-              <Typography variant="body2">{t('common.settings')}</Typography>
-            </MenuItem>
+              {t('sidebar.menuGroups.support')}
+            </ListSubheader>
             <MenuItem
               onClick={handleFeedback}
               className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"

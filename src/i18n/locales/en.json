@@ -179,7 +179,14 @@
     "integrations": "Integrations",
     "subscription": "Subscription",
     "feedback": "Feedback",
-    "multilanguage": "Multilanguage",
+    "multilanguage": "Translation multilang",
+    "menuGroups": {
+      "workspace": "workspace",
+      "services": "services",
+      "developer": "developer",
+      "account": "account",
+      "support": "support"
+    },
     "conversationGroups": {
       "telegram": "Telegram",
       "discord": "Discord",
