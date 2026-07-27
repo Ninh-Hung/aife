@@ -633,6 +633,109 @@ export interface ChannelIntegration {
   last_webhook_at?: string | null;
 }
 
+export type EmailProvider = 'gmail' | 'outlook';
+
+export interface EmailAgentBinding {
+  public_id: string;
+  agent_public_id?: string | null;
+  agent_name?: string | null;
+  agent_status?: string | null;
+  agent_active?: boolean;
+  access_level: 'read' | 'summarize' | 'draft_action' | 'execute_action' | string;
+  summary_mode: 'off' | 'on_demand' | 'proactive_digest' | 'immediate' | string;
+  digest_schedule?: string | null;
+  is_default_handler: boolean;
+  status: 'active' | 'disabled' | string;
+  filters?: Record<string, unknown> | null;
+  settings?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailAccount {
+  public_id: string;
+  provider: EmailProvider | string;
+  email_address: string;
+  display_name?: string | null;
+  status: 'active' | 'disabled' | 'disabled_by_package' | 'revoked' | 'error' | string;
+  source_public_id?: string | null;
+  source_status?: string | null;
+  history_id?: string | null;
+  last_synced_at?: string | null;
+  last_error?: string | null;
+  settings?: Record<string, unknown> | null;
+  retention?: {
+    raw_days?: number;
+    content_days?: number;
+    vector_days?: number;
+  };
+  bindings?: EmailAgentBinding[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailBlacklistRule {
+  public_id: string;
+  email_account_id?: number | null;
+  pattern_type: 'exact_sender' | 'domain' | 'regex' | string;
+  pattern_value: string;
+  normalized_value: string;
+  action: 'skip_only' | 'auto_delete' | string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailMessage {
+  public_id: string;
+  provider_message_id: string;
+  provider_thread_id?: string | null;
+  from_address: string;
+  from_domain: string;
+  subject?: string | null;
+  snippet?: string | null;
+  status: string;
+  received_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  error_message?: string | null;
+}
+
+export interface EmailSummary {
+  public_id: string;
+  summary_type: string;
+  trigger_type: string;
+  status: string;
+  title?: string | null;
+  question?: string | null;
+  summary?: string | null;
+  item_count: number;
+  model_used?: string | null;
+  generated_at?: string | null;
+  created_at: string;
+}
+
+export interface EmailDraftApproval {
+  public_id: string;
+  action_type: string;
+  status: string;
+  title?: string | null;
+  draft_text?: string | null;
+  risk_level: string;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  executed_at?: string | null;
+  error_message?: string | null;
+  message?: {
+    public_id?: string;
+    from_address?: string;
+    subject?: string | null;
+    received_at?: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ChatMessage {
   id: string;
   sessionId: string;

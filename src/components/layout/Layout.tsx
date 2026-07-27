@@ -20,13 +20,14 @@ import { useTranslation } from 'react-i18next';
 interface LayoutProps {
   children: React.ReactNode;
   header?: React.ReactNode;
+  onOpenSettings?: () => void;
 }
 
 // ============================================
 // Layout Component
 // ============================================
 
-export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, header, onOpenSettings }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const theme = useTheme();
@@ -64,6 +65,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
             user={user}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={handleToggleSidebar}
+            onOpenSettings={onOpenSettings}
           />
         )}
 
@@ -88,6 +90,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, header }) => {
                 onToggleCollapse={() => {}} // No-op for drawer
                 isMobileDrawer={true}
                 onNavigate={handleMobileMenuClose}
+                onOpenSettings={onOpenSettings}
               />
             </Drawer>
           </>
