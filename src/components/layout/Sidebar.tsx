@@ -34,6 +34,7 @@ import {
   BookOpen,
   MessageCircleWarning,
   BrainCircuit,
+  Code2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -93,7 +94,15 @@ const profileMenuGroups = [
   {
     id: 'developer',
     labelKey: 'sidebar.menuGroups.developer',
-    items: [{ id: 'api-keys', labelKey: 'sidebar.apiKeys', path: '/api-keys', Icon: KeyRound }],
+    items: [
+      { id: 'api-keys', labelKey: 'sidebar.apiKeys', path: '/api-keys', Icon: KeyRound },
+      {
+        id: 'embed-widgets',
+        labelKey: 'sidebar.embedWidgets',
+        path: '/embed-widgets',
+        Icon: Code2,
+      },
+    ],
   },
   {
     id: 'account',

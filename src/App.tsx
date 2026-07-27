@@ -30,6 +30,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { ApiKeyManagement } from './pages/ApiKeyManagement';
+import { EmbedWidgetManagement } from './pages/EmbedWidgetManagement';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { AgentManagement } from './pages/AgentManagement';
@@ -342,6 +343,14 @@ const AppContent: React.FC = () => {
             icon={<KeyRound className="text-white" size={24} />}
           />
         );
+      case '/embed-widgets':
+        return (
+          <Header
+            title="Embed Widgets"
+            subtitle="Website chat widgets for published agents"
+            icon={<Code className="text-white" size={24} />}
+          />
+        );
       case '/integrations':
         return (
           <Header
@@ -418,6 +427,7 @@ const AppContent: React.FC = () => {
 
                   {/* API Key Management */}
                   <Route path="/api-keys" element={<ApiKeyManagement />} />
+                  <Route path="/embed-widgets" element={<EmbedWidgetManagement />} />
                   <Route path="/integrations" element={<IntegrationsPage />} />
 
                   <Route path="/agents" element={<AgentManagement />} />

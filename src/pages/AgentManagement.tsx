@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { useAgents } from '../contexts/AgentsContext';
 import { AgentCard } from '../components/agents/AgentCard';
 import { AgentDrawer } from '../components/agents/AgentDrawer';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { Agent, CreateAgentInput } from '../types';
 import { useNotification } from '../hooks/useNotification';
@@ -93,6 +94,8 @@ export const AgentManagement: React.FC = () => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isCheckingAgentLimit, setIsCheckingAgentLimit] = useState(false);
   const [publishingAgentId, setPublishingAgentId] = useState<string | null>(null);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
+  const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
   const [agentLimitModal, setAgentLimitModal] = useState<AgentLimitModalState>({
     open: false,
     reason: 'limit',
@@ -162,18 +165,42 @@ export const AgentManagement: React.FC = () => {
     setIsDrawerOpen(true);
   };
 
-  const handleDelete = async (agentId: string) => {
+  const handleRequestDelete = (agentId: string) => {
+    const agent = agents.find((item) => item.publicId === agentId);
+
+    if (!agent) {
+      showError(t('agents.errors.deleteFailed'));
+      return;
+    }
+
+    if (agent.ownerType && agent.ownerType !== 'USER') {
+      showError(t('agents.errors.deleteOwnOnly'));
+      return;
+    }
+
+    setAgentToDelete(agent);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (deletingAgentId) return;
+    setAgentToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    const agent = agentToDelete;
+    if (!agent) return;
+
+    setDeletingAgentId(agent.publicId);
+
     try {
-      const agent = agents.find((item) => item.publicId === agentId);
-      if (agent?.ownerType && agent.ownerType !== 'USER') {
-        showError(t('agents.errors.deleteOwnOnly'));
-        return;
-      }
-      await deleteAgent(agentId);
+      await deleteAgent(agent.publicId);
       await fetchAgents();
+      setAgentToDelete(null);
       success(t('agents.messages.deleted'));
     } catch (err) {
       showError(err instanceof Error ? err.message : t('agents.errors.deleteFailed'));
+    } finally {
+      setDeletingAgentId(null);
     }
   };
 
@@ -345,7 +372,7 @@ export const AgentManagement: React.FC = () => {
                   key={agent.id}
                   agent={agent}
                   onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  onDelete={handleRequestDelete}
                   onChat={handleChat}
                   onSetDefault={handleSetDefault}
                   onPublish={handlePublish}
@@ -363,6 +390,25 @@ export const AgentManagement: React.FC = () => {
           onSave={handleSaveAgent}
           agent={selectedAgent}
           onUpdate={handleUpdateAgent}
+        />
+
+        <ConfirmDialog
+          open={Boolean(agentToDelete)}
+          title={t('agents.deleteDialog.title')}
+          message={
+            <>
+              {t('agents.deleteDialog.beforeName')}{' '}
+              <span className="font-medium text-gray-900 dark:text-slate-100">
+                {agentToDelete?.name}
+              </span>{' '}
+              {t('agents.deleteDialog.afterName')}
+            </>
+          }
+          confirmText={t('agents.deleteDialog.confirm')}
+          confirmColor="error"
+          loading={Boolean(agentToDelete && deletingAgentId === agentToDelete.publicId)}
+          onClose={handleCloseDeleteDialog}
+          onConfirm={() => void handleConfirmDelete()}
         />
 
         <Dialog

@@ -490,6 +490,66 @@ export interface IntegrationClient {
   updated_at?: string;
 }
 
+export interface EmbedWidget {
+  public_id: string;
+  name: string;
+  key_prefix: string | null;
+  environment: string;
+  status: string;
+  agent: {
+    public_id: string;
+    name: string;
+    status: string | null;
+    is_active: boolean | null;
+    avatar_url?: string | null;
+  } | null;
+  allowed_origins: string[];
+  theme: {
+    position: string;
+    primary_color: string;
+    accent_color: string;
+    border_radius: string;
+    size: string;
+  };
+  behavior: {
+    greeting: string | null;
+    placeholder: string;
+    auto_open: boolean;
+    delay_seconds: number;
+    sound_enabled: boolean;
+    show_branding: boolean;
+  };
+  limits: {
+    max_messages_per_session: number;
+    max_sessions_per_day: number;
+  };
+  created_at: string;
+  updated_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface CreateEmbedWidgetInput {
+  name?: string;
+  agent_public_id: string;
+  allowed_origins: string[];
+  widget_position?: string;
+  primary_color?: string;
+  accent_color?: string;
+  custom_welcome_message?: string;
+  custom_placeholder?: string;
+  auto_open?: boolean;
+  sound_enabled?: boolean;
+  max_messages_per_session?: number;
+  max_sessions_per_day?: number;
+}
+
+export interface CreateEmbedWidgetResponse {
+  widget: EmbedWidget;
+  widget_key: string;
+  embed_snippet: string;
+}
+
 // ============================================
 // Subscription & Billing
 // ============================================
@@ -594,8 +654,8 @@ export interface ChatSession {
   messageCount?: number;
   tokenCount?: number;
   entrypoint?: string | null;
-  sourceType?: 'web' | 'channel' | 'api_key' | 'webhook' | 'other' | string;
-  sourceProvider?: 'appaihelp' | 'telegram' | 'discord' | 'api_key' | string;
+  sourceType?: 'web' | 'channel' | 'api_key' | 'embed' | 'webhook' | 'other' | string;
+  sourceProvider?: 'appaihelp' | 'telegram' | 'discord' | 'api_key' | 'embed_widget' | string;
   sourcePublicId?: string | null;
   sourceDisplayName?: string | null;
   externalTenantType?: string | null;
@@ -658,9 +718,12 @@ export interface EmailAccount {
   email_address: string;
   display_name?: string | null;
   status: 'active' | 'disabled' | 'disabled_by_package' | 'revoked' | 'error' | string;
+  sync_mode?: string | null;
   source_public_id?: string | null;
   source_status?: string | null;
+  sync_cursor?: string | null;
   history_id?: string | null;
+  watch_expiration?: string | null;
   last_synced_at?: string | null;
   last_error?: string | null;
   settings?: Record<string, unknown> | null;
@@ -668,6 +731,9 @@ export interface EmailAccount {
     raw_days?: number;
     content_days?: number;
     vector_days?: number;
+  };
+  reconciliation?: {
+    stale_after_minutes?: number;
   };
   bindings?: EmailAgentBinding[];
   created_at: string;
@@ -682,6 +748,7 @@ export interface EmailBlacklistRule {
   normalized_value: string;
   action: 'skip_only' | 'auto_delete' | string;
   enabled: boolean;
+  last_matched_count?: number;
   created_at: string;
   updated_at: string;
 }

@@ -176,6 +176,7 @@
     "characteristics": "Characteristics",
     "knowledge": "Knowledge",
     "apiKeys": "API Keys",
+    "embedWidgets": "Embed Widgets",
     "integrations": "Integrations",
     "subscription": "Subscription",
     "feedback": "Feedback",
@@ -514,6 +515,12 @@
       "reachedMessage": "Your current {{packageName}} plan allows up to {{maxAgents}} active agents. You currently have {{currentAgents}}.",
       "subscriptionRequiredMessage": "You need an active subscription before creating a new agent.",
       "viewPlans": "View Plans"
+    },
+    "deleteDialog": {
+      "title": "Delete agent?",
+      "beforeName": "Are you sure you want to delete",
+      "afterName": "?",
+      "confirm": "Delete"
     },
     "card": {
       "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
@@ -895,6 +902,155 @@
         "updateFailed": "Failed to update integration",
         "disconnectFailed": "Failed to disconnect integration"
       }
+    }
+  },
+  "embedWidgets": {
+    "title": "Embed Widgets",
+    "subtitle": "Publish website chat widgets for your agents.",
+    "create": "Create Widget",
+    "empty": {
+      "title": "No embed widgets"
+    },
+    "defaults": {
+      "placeholder": "Type a message..."
+    },
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled",
+      "revoked": "Revoked"
+    },
+    "card": {
+      "unknownAgent": "Unknown agent",
+      "noKey": "No key"
+    },
+    "actions": {
+      "preview": "Preview",
+      "conversations": "Conversations",
+      "edit": "Edit settings",
+      "rotate": "Rotate key",
+      "disable": "Disable",
+      "enable": "Enable"
+    },
+    "positions": {
+      "bottomRight": "Bottom right",
+      "bottomLeft": "Bottom left",
+      "topRight": "Top right",
+      "topLeft": "Top left"
+    },
+    "modal": {
+      "createTitle": "Create Embed Widget",
+      "editTitle": "Edit Embed Widget",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save",
+      "saving": "Saving...",
+      "helpAriaLabel": "Show help for {{field}}",
+      "color": {
+        "hexInput": "HEX code",
+        "or": "or",
+        "picker": "Picker"
+      },
+      "fields": {
+        "name": {
+          "title": "Widget name",
+          "label": "Name",
+          "help": "Use a clear internal name so you can recognize where this widget is installed."
+        },
+        "agent": {
+          "title": "Agent",
+          "label": "Agent",
+          "help": "Choose the published agent that visitors will chat with through this widget."
+        },
+        "position": {
+          "title": "Launcher position",
+          "label": "Position",
+          "help": "Pick the corner where the chat button should appear on the customer website."
+        },
+        "allowedOrigins": {
+          "title": "Allowed origins",
+          "label": "Allowed origins",
+          "placeholder": "https://example.com",
+          "help": "Add one website origin per line. Only these domains can load and use the widget key."
+        },
+        "greeting": {
+          "title": "Greeting",
+          "label": "Greeting",
+          "help": "Set the first message visitors see when the widget opens."
+        },
+        "primaryColor": {
+          "title": "Primary color",
+          "help": "Controls the launcher and widget header. Enter a HEX code or use the picker."
+        },
+        "accentColor": {
+          "title": "Accent color",
+          "help": "Controls visitor message highlights. Enter a HEX code or use the picker."
+        },
+        "placeholder": {
+          "title": "Input placeholder",
+          "label": "Placeholder",
+          "help": "Text shown inside the message box before the visitor starts typing."
+        },
+        "autoOpen": {
+          "title": "Auto open",
+          "label": "Auto open",
+          "help": "Open the chat panel automatically after the widget loads."
+        },
+        "sound": {
+          "title": "Sound",
+          "label": "Sound",
+          "help": "Allow the widget to play notification sounds for new messages."
+        },
+        "limits": {
+          "title": "Usage limits",
+          "help": "Set guardrails for visitor conversations created by this widget.",
+          "messagesPerSession": "Messages/session",
+          "sessionsPerDay": "Sessions/day"
+        }
+      }
+    },
+    "preview": {
+      "title": "Widget Preview",
+      "done": "Done",
+      "defaultGreeting": "Hi, how can I help?",
+      "sampleUserMessage": "I need help with my account.",
+      "launcherLabel": "Widget launcher preview"
+    },
+    "oneTime": {
+      "title": "Widget Key",
+      "warning": "This key is shown once. Existing snippets stop working after rotate.",
+      "copy": "Copy",
+      "done": "Done"
+    },
+    "conversations": {
+      "title": "Widget Conversations",
+      "originFilter": "Domain",
+      "allOrigins": "All domains",
+      "empty": "No conversations found for this widget.",
+      "untitled": "Untitled conversation",
+      "unknownOrigin": "Unknown domain",
+      "unknownVisitor": "Unknown visitor",
+      "metricConversations": "Conversations",
+      "metricMessages": "Messages",
+      "metricTokens": "Tokens",
+      "metricCredits": "Credits",
+      "messages": "{{count}} messages",
+      "tokens": "{{count}} tokens",
+      "open": "Open conversation"
+    },
+    "messages": {
+      "copied": "Copied"
+    },
+    "validation": {
+      "agentAndOrigin": "Select an agent and add at least one allowed origin",
+      "colorHex": "Primary color and accent color must be valid HEX values, for example #2563eb."
+    },
+    "errors": {
+      "loadFailed": "Failed to load embed widgets",
+      "saveFailed": "Failed to save embed widget",
+      "rotateFailed": "Failed to rotate widget key",
+      "updateFailed": "Failed to update widget",
+      "conversationsLoadFailed": "Failed to load widget conversations",
+      "copyFailed": "Copy failed"
     }
   },
   "apiKeys": {
