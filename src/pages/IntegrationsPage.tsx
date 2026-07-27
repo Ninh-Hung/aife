@@ -58,6 +58,7 @@ import {
   summarizeEmailMessage,
   syncEmailAccountNow,
   updateEmailAccount,
+  updateEmailBlacklistRule,
   updateEmailDraft,
   updateTelegramIntegration,
   upsertEmailAgentBinding,
@@ -124,6 +125,25 @@ const isEmailSelectableAgent = (agent: Agent) => {
   );
 };
 
+const listFromEmailFilter = (
+  filters: Record<string, unknown> | null | undefined,
+  keys: string[]
+) => {
+  for (const key of keys) {
+    const value = filters?.[key];
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === 'string').join(', ');
+    }
+  }
+  return '';
+};
+
+const csvToList = (value: string) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 export const IntegrationsPage: React.FC = () => {
   const { t } = useTranslation();
   const { agents, loading: agentsLoading } = useAgents();
@@ -148,6 +168,11 @@ export const IntegrationsPage: React.FC = () => {
   const [emailBindingAgentId, setEmailBindingAgentId] = useState('');
   const [emailAccessLevel, setEmailAccessLevel] = useState('draft_action');
   const [emailSummaryMode, setEmailSummaryMode] = useState('on_demand');
+  const [emailDigestSchedule, setEmailDigestSchedule] = useState('daily');
+  const [emailFilterKeywords, setEmailFilterKeywords] = useState('');
+  const [emailFilterSenders, setEmailFilterSenders] = useState('');
+  const [emailFilterDomains, setEmailFilterDomains] = useState('');
+  const [emailMessageStatusFilter, setEmailMessageStatusFilter] = useState('');
   const [blacklistPatternType, setBlacklistPatternType] = useState('domain');
   const [blacklistPatternValue, setBlacklistPatternValue] = useState('');
   const [blacklistAction, setBlacklistAction] = useState('skip_only');
@@ -189,6 +214,17 @@ export const IntegrationsPage: React.FC = () => {
       );
       setEmailAccessLevel(defaultBinding?.access_level || 'draft_action');
       setEmailSummaryMode(defaultBinding?.summary_mode || 'on_demand');
+      setEmailDigestSchedule(defaultBinding?.digest_schedule || 'daily');
+      setEmailFilterKeywords(
+        listFromEmailFilter(defaultBinding?.filters, ['keywords', 'subject_keywords', 'include_keywords'])
+      );
+      setEmailFilterSenders(
+        listFromEmailFilter(defaultBinding?.filters, ['allowed_senders', 'senders', 'from_addresses'])
+      );
+      setEmailFilterDomains(
+        listFromEmailFilter(defaultBinding?.filters, ['allowed_domains', 'domains', 'from_domains'])
+      );
+      setEmailMessageStatusFilter('');
       setEmailMessages([]);
       setEmailDrafts([]);
       setEmailDigests([]);
@@ -247,7 +283,10 @@ export const IntegrationsPage: React.FC = () => {
         await Promise.all([
           listEmailAccounts(),
           selectedEmailAccountId
-            ? listEmailMessages({ account_public_id: selectedEmailAccountId })
+            ? listEmailMessages({
+                account_public_id: selectedEmailAccountId,
+                status: emailMessageStatusFilter || undefined,
+              })
             : Promise.resolve(emptyMessagesResponse),
           selectedEmailAccountId ? listEmailDrafts() : Promise.resolve(emptyDraftsResponse),
           selectedEmailAccountId
@@ -284,7 +323,7 @@ export const IntegrationsPage: React.FC = () => {
     } finally {
       setEmailLoading(false);
     }
-  }, [notification, selectedEmailAccountId]);
+  }, [emailMessageStatusFilter, notification, selectedEmailAccountId]);
 
   useEffect(() => {
     void loadIntegrations();
@@ -481,11 +520,18 @@ export const IntegrationsPage: React.FC = () => {
       return;
     }
     setEmailActionLoading(true);
+    const filters = {
+      keywords: csvToList(emailFilterKeywords),
+      allowed_senders: csvToList(emailFilterSenders),
+      allowed_domains: csvToList(emailFilterDomains),
+    };
     const response = await upsertEmailAgentBinding(selectedEmailAccountId, {
       agent_public_id: emailBindingAgentId,
       access_level: emailAccessLevel,
       summary_mode: emailSummaryMode,
       is_default_handler: true,
+      digest_schedule: emailSummaryMode === 'proactive_digest' ? emailDigestSchedule : null,
+      filters_json: filters,
     });
     setEmailActionLoading(false);
     if (response.success) {
@@ -522,7 +568,11 @@ export const IntegrationsPage: React.FC = () => {
     const response = await syncEmailAccountNow(accountPublicId);
     setEmailActionLoading(false);
     if (response.success) {
-      notification.success(`Đã queue ${response.data?.queued_count ?? 0} email`);
+      notification.success(
+        response.data?.sync_queued
+          ? 'Đã gửi yêu cầu đồng bộ email nền'
+          : `Đã queue ${response.data?.queued_count ?? 0} email`
+      );
       await loadEmailData();
       return;
     }
@@ -565,6 +615,16 @@ export const IntegrationsPage: React.FC = () => {
       return;
     }
     notification.error(response.error || 'Không tạo được blacklist rule');
+  };
+
+  const toggleEmailBlacklistRule = async (rule: EmailBlacklistRule) => {
+    const response = await updateEmailBlacklistRule(rule.public_id, { enabled: !rule.enabled });
+    if (response.success) {
+      const rules = await listEmailBlacklistRules(selectedEmailAccountId || undefined);
+      if (rules.success && rules.data) setEmailRules(rules.data);
+      return;
+    }
+    notification.error(response.error || 'Không cập nhật được blacklist rule');
   };
 
   const summarizeMessage = async (message: EmailMessage) => {
@@ -917,10 +977,26 @@ export const IntegrationsPage: React.FC = () => {
                     </Box>
                     <Box className="mt-3 grid grid-cols-1 gap-1.5 text-sm text-gray-700 dark:text-slate-300">
                       <div>
+                        Auto sync:{' '}
+                        {account.status === 'active'
+                          ? `${account.sync_mode || 'push'} + reconciliation`
+                          : 'paused'}
+                      </div>
+                      <div>
                         Last sync:{' '}
                         {account.last_synced_at
                           ? new Date(account.last_synced_at).toLocaleString()
                           : '-'}
+                      </div>
+                      <div>
+                        Watch expires:{' '}
+                        {account.watch_expiration
+                          ? new Date(account.watch_expiration).toLocaleString()
+                          : 'pending'}
+                      </div>
+                      <div>
+                        Reconcile: stale after{' '}
+                        {account.reconciliation?.stale_after_minutes ?? 60} minutes
                       </div>
                       <div>Raw: {account.retention?.raw_days ?? 30} days</div>
                       <div>Content: {account.retention?.content_days ?? 180} days</div>
@@ -944,7 +1020,7 @@ export const IntegrationsPage: React.FC = () => {
                           void syncSelectedEmail(account.public_id);
                         }}
                       >
-                        Sync
+                        Manual sync
                       </Button>
                       <Button
                         size="small"
@@ -1035,6 +1111,48 @@ export const IntegrationsPage: React.FC = () => {
                                         <MenuItem value="immediate">immediate</MenuItem>
                                       </Select>
                                     </FormControl>
+                                    <FormControl fullWidth size="small">
+                                      <InputLabel>Digest schedule</InputLabel>
+                                      <Select
+                                        label="Digest schedule"
+                                        value={emailDigestSchedule}
+                                        disabled={emailSummaryMode !== 'proactive_digest'}
+                                        onChange={(event) =>
+                                          setEmailDigestSchedule(event.target.value)
+                                        }
+                                      >
+                                        <MenuItem value="hourly">hourly</MenuItem>
+                                        <MenuItem value="daily">daily</MenuItem>
+                                        <MenuItem value="weekly">weekly</MenuItem>
+                                      </Select>
+                                    </FormControl>
+                                    <TextField
+                                      size="small"
+                                      fullWidth
+                                      label="Filter keywords"
+                                      value={emailFilterKeywords}
+                                      onChange={(event) =>
+                                        setEmailFilterKeywords(event.target.value)
+                                      }
+                                    />
+                                    <TextField
+                                      size="small"
+                                      fullWidth
+                                      label="Allowed senders"
+                                      value={emailFilterSenders}
+                                      onChange={(event) =>
+                                        setEmailFilterSenders(event.target.value)
+                                      }
+                                    />
+                                    <TextField
+                                      size="small"
+                                      fullWidth
+                                      label="Allowed domains"
+                                      value={emailFilterDomains}
+                                      onChange={(event) =>
+                                        setEmailFilterDomains(event.target.value)
+                                      }
+                                    />
                                     <Button
                                       fullWidth
                                       variant="contained"
@@ -1164,16 +1282,32 @@ export const IntegrationsPage: React.FC = () => {
                                       {emailRules.map((rule) => (
                                         <Box
                                           key={rule.public_id}
-                                          className="flex items-center justify-between border-t border-gray-100 py-2 dark:border-slate-700"
+                                          className="grid grid-cols-[1fr_auto] items-center gap-2 border-t border-gray-100 py-2 dark:border-slate-700"
                                         >
-                                          <span className="truncate">
-                                            {rule.pattern_type}: {rule.pattern_value}
-                                          </span>
-                                          <Chip
-                                            size="small"
-                                            label={rule.action}
-                                            variant="outlined"
-                                          />
+                                          <Box className="min-w-0">
+                                            <Typography variant="body2" className="truncate">
+                                              {rule.pattern_type}: {rule.pattern_value}
+                                            </Typography>
+                                            <Typography
+                                              variant="caption"
+                                              className="text-gray-500 dark:text-slate-400"
+                                            >
+                                              matched {rule.last_matched_count ?? 0} · {rule.action}
+                                            </Typography>
+                                          </Box>
+                                          <Box className="flex items-center gap-1">
+                                            <Chip
+                                              size="small"
+                                              label={rule.enabled ? 'enabled' : 'disabled'}
+                                              color={rule.enabled ? 'success' : 'default'}
+                                              variant="outlined"
+                                            />
+                                            <Switch
+                                              size="small"
+                                              checked={rule.enabled}
+                                              onChange={() => void toggleEmailBlacklistRule(rule)}
+                                            />
+                                          </Box>
                                         </Box>
                                       ))}
                                     </Box>
@@ -1348,13 +1482,32 @@ export const IntegrationsPage: React.FC = () => {
                                       Inbox
                                     </Typography>
                                   </Box>
-                                  <Button
-                                    size="small"
-                                    startIcon={<RefreshCw size={15} />}
-                                    onClick={() => void syncSelectedEmail()}
-                                  >
-                                    Sync now
-                                  </Button>
+                                  <Box className="flex flex-wrap items-center gap-2">
+                                    <FormControl size="small" className="min-w-[140px]">
+                                      <InputLabel>Status</InputLabel>
+                                      <Select
+                                        label="Status"
+                                        value={emailMessageStatusFilter}
+                                        onChange={(event) =>
+                                          setEmailMessageStatusFilter(event.target.value)
+                                        }
+                                      >
+                                        <MenuItem value="">all</MenuItem>
+                                        <MenuItem value="queued">queued</MenuItem>
+                                        <MenuItem value="ingesting">ingesting</MenuItem>
+                                        <MenuItem value="ingested">ingested</MenuItem>
+                                        <MenuItem value="blacklisted">blacklisted</MenuItem>
+                                        <MenuItem value="failed">failed</MenuItem>
+                                      </Select>
+                                    </FormControl>
+                                    <Button
+                                      size="small"
+                                      startIcon={<RefreshCw size={15} />}
+                                      onClick={() => void syncSelectedEmail()}
+                                    >
+                                      Manual sync
+                                    </Button>
+                                  </Box>
                                 </Box>
                                 {latestSummary && (
                                   <Box className="mb-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">

@@ -493,6 +493,8 @@ import type {
   ChannelIntegration,
   CreateApiKeyInput,
   CreateApiKeyResponse,
+  CreateEmbedWidgetInput,
+  CreateEmbedWidgetResponse,
   EmailAccount,
   EmailAgentBinding,
   EmailBlacklistRule,
@@ -500,6 +502,7 @@ import type {
   EmailMessage,
   EmailProvider,
   EmailSummary,
+  EmbedWidget,
   IntegrationClient,
 } from '../types';
 
@@ -606,6 +609,81 @@ export const listIntegrationClients = async (): Promise<ApiResponse<IntegrationC
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to load integration clients',
+    };
+  }
+};
+
+export const listEmbedWidgets = async (): Promise<ApiResponse<EmbedWidget[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/embed-widgets');
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('List embed widgets error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load embed widgets',
+    };
+  }
+};
+
+export const createEmbedWidget = async (
+  input: CreateEmbedWidgetInput
+): Promise<ApiResponse<CreateEmbedWidgetResponse>> => {
+  try {
+    const response = await axiosInstance.post('/v1/embed-widgets', input);
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Create embed widget error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create embed widget',
+    };
+  }
+};
+
+export const updateEmbedWidget = async (
+  publicId: string,
+  input: Partial<CreateEmbedWidgetInput> & { status?: string }
+): Promise<ApiResponse<EmbedWidget>> => {
+  try {
+    const response = await axiosInstance.patch(`/v1/embed-widgets/${publicId}`, input);
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Update embed widget error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update embed widget',
+    };
+  }
+};
+
+export const rotateEmbedWidgetKey = async (
+  publicId: string
+): Promise<ApiResponse<CreateEmbedWidgetResponse>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/embed-widgets/${publicId}/rotate-key`);
+    return { success: true, data: response.data.data || response.data };
+  } catch (error) {
+    console.error('Rotate embed widget key error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to rotate embed widget key',
     };
   }
 };
@@ -817,7 +895,7 @@ export const disconnectEmailAccount = async (
 
 export const syncEmailAccountNow = async (
   accountPublicId: string
-): Promise<ApiResponse<{ queued_count: number; messages: EmailMessage[] }>> => {
+): Promise<ApiResponse<{ accepted: boolean; sync_queued: boolean; queued_count: number; trace_id?: string }>> => {
   try {
     const response = await axiosInstance.post(
       `/v1/email-integrations/accounts/${accountPublicId}/sync-now`
@@ -826,8 +904,10 @@ export const syncEmailAccountNow = async (
   } catch (error) {
     console.error('Sync email account error:', error);
     return apiError(error, 'Failed to sync email account') as ApiResponse<{
+      accepted: boolean;
+      sync_queued: boolean;
       queued_count: number;
-      messages: EmailMessage[];
+      trace_id?: string;
     }>;
   }
 };
@@ -1872,6 +1952,8 @@ export const listChatSessions = async (
     source?: string;
     entrypoint?: string;
     source_provider?: string;
+    client_id?: string;
+    external_tenant_id?: string;
   }
 ): Promise<ApiResponse<ChatSession[]>> => {
   try {
@@ -1881,6 +1963,10 @@ export const listChatSessions = async (
         ...(filters?.source ? { source: filters.source } : {}),
         ...(filters?.entrypoint ? { entrypoint: filters.entrypoint } : {}),
         ...(filters?.source_provider ? { source_provider: filters.source_provider } : {}),
+        ...(filters?.client_id ? { client_id: filters.client_id } : {}),
+        ...(filters?.external_tenant_id
+          ? { external_tenant_id: filters.external_tenant_id }
+          : {}),
       },
     });
 

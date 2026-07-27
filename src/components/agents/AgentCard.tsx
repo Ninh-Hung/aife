@@ -96,9 +96,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!canManageAgent) return;
-    if (window.confirm(t('agents.card.deleteConfirm', { name: agent.name }))) {
-      onDelete(agent.publicId);
-    }
+    onDelete(agent.publicId);
   };
 
   const handleChat = () => {

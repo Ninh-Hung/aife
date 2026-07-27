@@ -176,6 +176,7 @@
     "characteristics": "Đặc điểm",
     "knowledge": "Kiến thức",
     "apiKeys": "Khóa API",
+    "embedWidgets": "Widget nhúng",
     "integrations": "Tích hợp",
     "subscription": "Gói dịch vụ",
     "feedback": "Phản hồi",
@@ -514,6 +515,12 @@
       "reachedMessage": "Gói {{packageName}} hiện tại cho phép tối đa {{maxAgents}} agent đang hoạt động. Bạn hiện có {{currentAgents}}.",
       "subscriptionRequiredMessage": "Bạn cần có gói dịch vụ đang hoạt động trước khi tạo agent mới.",
       "viewPlans": "Xem gói dịch vụ"
+    },
+    "deleteDialog": {
+      "title": "Xóa agent?",
+      "beforeName": "Bạn có chắc muốn xóa",
+      "afterName": "không?",
+      "confirm": "Xóa"
     },
     "card": {
       "deleteConfirm": "Bạn có chắc muốn xóa \"{{name}}\"?",
@@ -895,6 +902,155 @@
         "updateFailed": "Không thể cập nhật tích hợp",
         "disconnectFailed": "Không thể ngắt kết nối tích hợp"
       }
+    }
+  },
+  "embedWidgets": {
+    "title": "Widget nhúng",
+    "subtitle": "Xuất bản widget chat trên website cho các agent của bạn.",
+    "create": "Tạo widget",
+    "empty": {
+      "title": "Chưa có widget nhúng"
+    },
+    "defaults": {
+      "placeholder": "Nhập tin nhắn..."
+    },
+    "status": {
+      "active": "Đang hoạt động",
+      "disabled": "Đã tắt",
+      "revoked": "Đã thu hồi"
+    },
+    "card": {
+      "unknownAgent": "Không rõ agent",
+      "noKey": "Chưa có key"
+    },
+    "actions": {
+      "preview": "Xem trước",
+      "conversations": "Hội thoại",
+      "edit": "Sửa cài đặt",
+      "rotate": "Đổi key",
+      "disable": "Tắt",
+      "enable": "Bật"
+    },
+    "positions": {
+      "bottomRight": "Dưới bên phải",
+      "bottomLeft": "Dưới bên trái",
+      "topRight": "Trên bên phải",
+      "topLeft": "Trên bên trái"
+    },
+    "modal": {
+      "createTitle": "Tạo widget nhúng",
+      "editTitle": "Sửa widget nhúng",
+      "cancel": "Hủy",
+      "create": "Tạo",
+      "save": "Lưu",
+      "saving": "Đang lưu...",
+      "helpAriaLabel": "Xem hướng dẫn cho {{field}}",
+      "color": {
+        "hexInput": "Mã HEX",
+        "or": "hoặc",
+        "picker": "Chọn màu"
+      },
+      "fields": {
+        "name": {
+          "title": "Tên widget",
+          "label": "Tên",
+          "help": "Đặt tên nội bộ rõ ràng để dễ nhận biết widget đang được gắn ở website nào."
+        },
+        "agent": {
+          "title": "Agent",
+          "label": "Agent",
+          "help": "Chọn agent đã publish mà khách truy cập sẽ chat thông qua widget này."
+        },
+        "position": {
+          "title": "Vị trí nút chat",
+          "label": "Vị trí",
+          "help": "Chọn góc hiển thị nút chat trên website của khách hàng."
+        },
+        "allowedOrigins": {
+          "title": "Domain được phép",
+          "label": "Origin được phép",
+          "placeholder": "https://example.com",
+          "help": "Nhập mỗi origin website trên một dòng. Chỉ các domain này được tải và sử dụng widget key."
+        },
+        "greeting": {
+          "title": "Lời chào",
+          "label": "Lời chào",
+          "help": "Thiết lập tin nhắn đầu tiên khách truy cập nhìn thấy khi mở widget."
+        },
+        "primaryColor": {
+          "title": "Màu chính",
+          "help": "Áp dụng cho nút mở chat và header widget. Có thể nhập mã HEX hoặc chọn từ bảng màu."
+        },
+        "accentColor": {
+          "title": "Màu nhấn",
+          "help": "Áp dụng cho màu nổi bật của tin nhắn khách truy cập. Có thể nhập mã HEX hoặc chọn từ bảng màu."
+        },
+        "placeholder": {
+          "title": "Placeholder ô nhập",
+          "label": "Placeholder",
+          "help": "Nội dung hiển thị trong ô nhập trước khi khách truy cập bắt đầu gõ tin nhắn."
+        },
+        "autoOpen": {
+          "title": "Tự mở",
+          "label": "Tự mở",
+          "help": "Tự động mở khung chat sau khi widget được tải."
+        },
+        "sound": {
+          "title": "Âm thanh",
+          "label": "Âm thanh",
+          "help": "Cho phép widget phát âm báo khi có tin nhắn mới."
+        },
+        "limits": {
+          "title": "Giới hạn sử dụng",
+          "help": "Đặt giới hạn an toàn cho các cuộc trò chuyện khách truy cập tạo từ widget này.",
+          "messagesPerSession": "Tin nhắn/phiên",
+          "sessionsPerDay": "Phiên/ngày"
+        }
+      }
+    },
+    "preview": {
+      "title": "Xem trước widget",
+      "done": "Xong",
+      "defaultGreeting": "Xin chào, tôi có thể hỗ trợ gì?",
+      "sampleUserMessage": "Tôi cần hỗ trợ về tài khoản.",
+      "launcherLabel": "Xem trước nút mở widget"
+    },
+    "oneTime": {
+      "title": "Widget key",
+      "warning": "Key này chỉ hiển thị một lần. Các snippet cũ sẽ ngừng hoạt động sau khi rotate.",
+      "copy": "Copy",
+      "done": "Xong"
+    },
+    "conversations": {
+      "title": "Hội thoại của widget",
+      "originFilter": "Domain",
+      "allOrigins": "Tất cả domain",
+      "empty": "Chưa có hội thoại nào cho widget này.",
+      "untitled": "Hội thoại chưa đặt tên",
+      "unknownOrigin": "Không rõ domain",
+      "unknownVisitor": "Không rõ visitor",
+      "metricConversations": "Hội thoại",
+      "metricMessages": "Tin nhắn",
+      "metricTokens": "Token",
+      "metricCredits": "Credit",
+      "messages": "{{count}} tin nhắn",
+      "tokens": "{{count}} token",
+      "open": "Mở hội thoại"
+    },
+    "messages": {
+      "copied": "Đã copy"
+    },
+    "validation": {
+      "agentAndOrigin": "Vui lòng chọn agent và thêm ít nhất một origin được phép",
+      "colorHex": "Màu chính và màu nhấn phải là mã HEX hợp lệ, ví dụ #2563eb."
+    },
+    "errors": {
+      "loadFailed": "Không thể tải widget nhúng",
+      "saveFailed": "Không thể lưu widget nhúng",
+      "rotateFailed": "Không thể rotate widget key",
+      "updateFailed": "Không thể cập nhật widget",
+      "conversationsLoadFailed": "Không thể tải hội thoại của widget",
+      "copyFailed": "Copy thất bại"
     }
   },
   "apiKeys": {
