@@ -902,6 +902,212 @@
         "updateFailed": "Không thể cập nhật tích hợp",
         "disconnectFailed": "Không thể ngắt kết nối tích hợp"
       }
+    },
+    "email": {
+      "title": "Email",
+      "emptyAccounts": "Chưa có email account",
+      "common": {
+        "default": "mặc định",
+        "noDefaultAgent": "chưa có agent mặc định",
+        "pending": "đang chờ",
+        "enabled": "đang bật",
+        "disabled": "đã tắt"
+      },
+      "list": {
+        "total": "{{count}} mục"
+      },
+      "account": {
+        "autoSync": "Tự đồng bộ",
+        "autoSyncActive": "{{mode}} + reconciliation",
+        "paused": "đã tạm dừng",
+        "lastSync": "Đồng bộ lần cuối",
+        "watchExpires": "Watch hết hạn",
+        "reconcile": "Reconcile",
+        "staleAfter": "stale sau {{minutes}} phút"
+      },
+      "binding": {
+        "title": "Agent binding",
+        "agent": "Agent",
+        "access": "Quyền truy cập",
+        "summaryMode": "Chế độ summary",
+        "digestSchedule": "Lịch digest",
+        "noAgents": "Cần tạo hoặc bật agent trước khi theo dõi email.",
+        "filterKeywords": "Từ khóa lọc",
+        "allowedSenders": "Sender được phép",
+        "allowedDomains": "Domain được phép",
+        "commaSeparated": "Nhập nhiều giá trị bằng dấu phẩy."
+      },
+      "access": {
+        "read": "Chỉ đọc",
+        "summarize": "Đọc và tóm tắt",
+        "draftAction": "Tạo draft chờ duyệt",
+        "executeAction": "Được gửi sau khi có quyền execute"
+      },
+      "summaryMode": {
+        "off": "Tắt",
+        "onDemand": "Theo yêu cầu",
+        "proactiveDigest": "Digest chủ động",
+        "immediate": "Ngay khi có email"
+      },
+      "digestSchedule": {
+        "hourly": "Hàng giờ",
+        "daily": "Hàng ngày",
+        "weekly": "Hàng tuần"
+      },
+      "retention": {
+        "title": "Retention",
+        "rawDays": "Raw days (7-180)",
+        "contentDays": "Content days (30-365)",
+        "vectorDays": "Vector days (30-365)",
+        "rawShort": "Raw: {{days}} ngày",
+        "contentShort": "Content: {{days}} ngày",
+        "vectorShort": "Vector: {{days}} ngày"
+      },
+      "blacklist": {
+        "title": "Blacklist",
+        "pattern": "Pattern",
+        "value": "Giá trị",
+        "action": "Hành động",
+        "searchPlaceholder": "Tìm rule blacklist",
+        "empty": "Không có blacklist rule",
+        "matched": "matched {{count}} · {{action}}",
+        "patternTypes": {
+          "exactSender": "Email sender chính xác",
+          "domain": "Domain",
+          "regex": "Regex"
+        },
+        "actions": {
+          "skipOnly": "Bỏ qua",
+          "autoDelete": "Tự động xóa"
+        }
+      },
+      "drafts": {
+        "title": "Draft approvals",
+        "searchPlaceholder": "Tìm draft",
+        "empty": "Không có draft approval",
+        "defaultTitle": "Draft reply"
+      },
+      "draftStatus": {
+        "pending_approval": "Chờ duyệt",
+        "approved": "Đã duyệt",
+        "rejected": "Đã reject",
+        "executed": "Đã gửi",
+        "failed": "Gửi lỗi"
+      },
+      "digest": {
+        "title": "Lịch sử digest",
+        "defaultTitle": "Email digest",
+        "itemCount": "{{count}} email",
+        "noSummary": "Chưa có summary",
+        "empty": "Chưa có digest"
+      },
+      "inbox": {
+        "title": "Inbox",
+        "status": "Trạng thái",
+        "searchPlaceholder": "Tìm email theo subject, sender hoặc snippet",
+        "empty": "Không có email",
+        "noSubject": "(không có subject)"
+      },
+      "status": {
+        "active": "Đang hoạt động",
+        "disabled": "Đã tắt",
+        "disabled_by_package": "Bị tắt theo gói",
+        "revoked": "Đã thu hồi",
+        "error": "Lỗi"
+      },
+      "statusFilter": {
+        "all": "Tất cả",
+        "queued": "Queued",
+        "ingesting": "Ingesting",
+        "ingested": "Ingested",
+        "blacklisted": "Blacklisted",
+        "failed": "Failed"
+      },
+      "messageStatus": {
+        "queued": "Queued",
+        "ingesting": "Ingesting",
+        "ingested": "Ingested",
+        "blacklisted": "Blacklisted",
+        "failed": "Failed"
+      },
+      "actions": {
+        "refresh": "Làm mới",
+        "manualSync": "Sync thủ công",
+        "disconnect": "Ngắt kết nối",
+        "saveBinding": "Lưu binding",
+        "saveRetention": "Lưu retention",
+        "addRule": "Thêm rule",
+        "retrySend": "Gửi lại",
+        "send": "Gửi",
+        "edit": "Sửa",
+        "approveSend": "Duyệt/gửi",
+        "reject": "Reject",
+        "runDigest": "Chạy digest",
+        "summarize": "Tóm tắt",
+        "draftReply": "Draft reply",
+        "close": "Đóng",
+        "save": "Lưu"
+      },
+      "draftEditor": {
+        "title": "Sửa email draft",
+        "fields": {
+          "title": "Tiêu đề",
+          "reply": "Nội dung trả lời"
+        }
+      },
+      "tooltips": {
+        "agentBinding": "Chọn agent xử lý email, mức quyền được phép và điều kiện lọc email trước khi agent nhìn thấy nội dung.",
+        "agentBindingAria": "Giải thích agent binding",
+        "retention": "Cấu hình số ngày lưu raw email, nội dung đã xử lý và vector dùng cho tìm kiếm/AI.",
+        "retentionAria": "Giải thích retention",
+        "blacklist": "Rule blacklist giúp bỏ qua hoặc tự xóa email từ sender/domain/pattern không muốn ingest.",
+        "blacklistAria": "Giải thích blacklist",
+        "draftApprovals": "Danh sách các draft do agent tạo, cần duyệt trước khi gửi nếu binding chưa cho phép execute tự động.",
+        "draftApprovalsAria": "Giải thích draft approvals",
+        "digestHistory": "Các bản tóm tắt email đã tạo theo lịch hoặc chạy thủ công.",
+        "digestHistoryAria": "Giải thích digest history",
+        "inbox": "Danh sách email đã đồng bộ vào app để agent đọc, tóm tắt hoặc tạo draft reply.",
+        "inboxAria": "Giải thích inbox"
+      },
+      "messages": {
+        "bindingSaved": "Đã lưu agent binding cho email",
+        "retentionSaved": "Đã lưu retention settings",
+        "syncBackgroundQueued": "Đã gửi yêu cầu đồng bộ email nền",
+        "syncQueued": "Đã queue {{count}} email",
+        "disconnected": "Đã disconnect email account",
+        "ruleCreated": "Đã tạo blacklist rule",
+        "summaryCreated": "Đã tạo summary",
+        "digestCreated": "Đã tạo email digest",
+        "draftCreated": "Đã tạo draft chờ duyệt",
+        "draftSent": "Đã approve và gửi email",
+        "draftNotSent": "Draft chưa được gửi. Trạng thái hiện tại: {{status}}",
+        "draftSaved": "Đã lưu draft",
+        "draftRejected": "Đã reject draft"
+      },
+      "errors": {
+        "loadAccountsFailed": "Không tải được danh sách email",
+        "defaultAgentRequired": "Cần tạo hoặc bật default agent trước khi kết nối email",
+        "startOAuthFailed": "Không bắt đầu được kết nối email",
+        "selectAccountAndAgent": "Chọn email account và agent trước",
+        "bindingSaveFailed": "Không lưu được agent binding",
+        "selectAccount": "Chọn email account trước",
+        "retentionSaveFailed": "Không lưu được retention settings",
+        "syncFailed": "Không sync được email",
+        "disconnectFailed": "Không disconnect được email account",
+        "blacklistPatternRequired": "Nhập pattern blacklist",
+        "ruleCreateFailed": "Không tạo được blacklist rule",
+        "ruleUpdateFailed": "Không cập nhật được blacklist rule",
+        "summaryFailed": "Không summarize được email",
+        "digestFailed": "Không tạo được email digest",
+        "draftCreateFailed": "Không tạo được draft reply",
+        "draftSendFailed": "Không gửi được draft",
+        "draftSaveFailed": "Không lưu được draft",
+        "draftRejectFailed": "Không reject được draft",
+        "draftRetryFailed": "Không retry gửi draft được"
+      },
+      "confirm": {
+        "autoDeleteBlacklist": "Rule này sẽ tự chuyển email match vào Trash/Deleted Items. Tiếp tục?"
+      }
     }
   },
   "embedWidgets": {
