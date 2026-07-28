@@ -902,6 +902,212 @@
         "updateFailed": "Failed to update integration",
         "disconnectFailed": "Failed to disconnect integration"
       }
+    },
+    "email": {
+      "title": "Email",
+      "emptyAccounts": "No email accounts",
+      "common": {
+        "default": "default",
+        "noDefaultAgent": "no default agent",
+        "pending": "pending",
+        "enabled": "enabled",
+        "disabled": "disabled"
+      },
+      "list": {
+        "total": "{{count}} items"
+      },
+      "account": {
+        "autoSync": "Auto sync",
+        "autoSyncActive": "{{mode}} + reconciliation",
+        "paused": "paused",
+        "lastSync": "Last sync",
+        "watchExpires": "Watch expires",
+        "reconcile": "Reconcile",
+        "staleAfter": "stale after {{minutes}} minutes"
+      },
+      "binding": {
+        "title": "Agent binding",
+        "agent": "Agent",
+        "access": "Access",
+        "summaryMode": "Summary mode",
+        "digestSchedule": "Digest schedule",
+        "noAgents": "Create or enable an agent before monitoring email.",
+        "filterKeywords": "Filter keywords",
+        "allowedSenders": "Allowed senders",
+        "allowedDomains": "Allowed domains",
+        "commaSeparated": "Separate multiple values with commas."
+      },
+      "access": {
+        "read": "Read only",
+        "summarize": "Read and summarize",
+        "draftAction": "Create drafts for approval",
+        "executeAction": "Send after execute permission"
+      },
+      "summaryMode": {
+        "off": "Off",
+        "onDemand": "On demand",
+        "proactiveDigest": "Proactive digest",
+        "immediate": "Immediate"
+      },
+      "digestSchedule": {
+        "hourly": "Hourly",
+        "daily": "Daily",
+        "weekly": "Weekly"
+      },
+      "retention": {
+        "title": "Retention",
+        "rawDays": "Raw days (7-180)",
+        "contentDays": "Content days (30-365)",
+        "vectorDays": "Vector days (30-365)",
+        "rawShort": "Raw: {{days}} days",
+        "contentShort": "Content: {{days}} days",
+        "vectorShort": "Vector: {{days}} days"
+      },
+      "blacklist": {
+        "title": "Blacklist",
+        "pattern": "Pattern",
+        "value": "Value",
+        "action": "Action",
+        "searchPlaceholder": "Search blacklist rules",
+        "empty": "No blacklist rules",
+        "matched": "matched {{count}} · {{action}}",
+        "patternTypes": {
+          "exactSender": "Exact sender",
+          "domain": "Domain",
+          "regex": "Regex"
+        },
+        "actions": {
+          "skipOnly": "Skip only",
+          "autoDelete": "Auto delete"
+        }
+      },
+      "drafts": {
+        "title": "Draft approvals",
+        "searchPlaceholder": "Search drafts",
+        "empty": "No draft approvals",
+        "defaultTitle": "Draft reply"
+      },
+      "draftStatus": {
+        "pending_approval": "Pending approval",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "executed": "Sent",
+        "failed": "Failed"
+      },
+      "digest": {
+        "title": "Digest history",
+        "defaultTitle": "Email digest",
+        "itemCount": "{{count}} emails",
+        "noSummary": "No summary",
+        "empty": "No digests yet"
+      },
+      "inbox": {
+        "title": "Inbox",
+        "status": "Status",
+        "searchPlaceholder": "Search by subject, sender, or snippet",
+        "empty": "No email messages",
+        "noSubject": "(no subject)"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "disabled_by_package": "Disabled by package",
+        "revoked": "Revoked",
+        "error": "Error"
+      },
+      "statusFilter": {
+        "all": "All",
+        "queued": "Queued",
+        "ingesting": "Ingesting",
+        "ingested": "Ingested",
+        "blacklisted": "Blacklisted",
+        "failed": "Failed"
+      },
+      "messageStatus": {
+        "queued": "Queued",
+        "ingesting": "Ingesting",
+        "ingested": "Ingested",
+        "blacklisted": "Blacklisted",
+        "failed": "Failed"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "manualSync": "Manual sync",
+        "disconnect": "Disconnect",
+        "saveBinding": "Save binding",
+        "saveRetention": "Save retention",
+        "addRule": "Add rule",
+        "retrySend": "Retry send",
+        "send": "Send",
+        "edit": "Edit",
+        "approveSend": "Approve/send",
+        "reject": "Reject",
+        "runDigest": "Run digest",
+        "summarize": "Summarize",
+        "draftReply": "Draft reply",
+        "close": "Close",
+        "save": "Save"
+      },
+      "draftEditor": {
+        "title": "Edit email draft",
+        "fields": {
+          "title": "Title",
+          "reply": "Reply"
+        }
+      },
+      "tooltips": {
+        "agentBinding": "Choose which agent handles this mailbox, what permission level it has, and which email filters apply before the agent sees content.",
+        "agentBindingAria": "Explain agent binding",
+        "retention": "Configure how long to keep raw email, processed content, and vectors used for search and AI.",
+        "retentionAria": "Explain retention",
+        "blacklist": "Blacklist rules skip or auto-delete email from unwanted senders, domains, or patterns.",
+        "blacklistAria": "Explain blacklist",
+        "draftApprovals": "Drafts generated by the agent that need approval before sending when the binding does not allow automatic execution.",
+        "draftApprovalsAria": "Explain draft approvals",
+        "digestHistory": "Email summaries created on schedule or from manual digest runs.",
+        "digestHistoryAria": "Explain digest history",
+        "inbox": "Email messages synced into the app so agents can read, summarize, or draft replies.",
+        "inboxAria": "Explain inbox"
+      },
+      "messages": {
+        "bindingSaved": "Email agent binding saved",
+        "retentionSaved": "Retention settings saved",
+        "syncBackgroundQueued": "Background email sync queued",
+        "syncQueued": "Queued {{count}} emails",
+        "disconnected": "Email account disconnected",
+        "ruleCreated": "Blacklist rule created",
+        "summaryCreated": "Summary created",
+        "digestCreated": "Email digest created",
+        "draftCreated": "Draft created for approval",
+        "draftSent": "Approved and sent email",
+        "draftNotSent": "Draft was not sent. Current status: {{status}}",
+        "draftSaved": "Draft saved",
+        "draftRejected": "Draft rejected"
+      },
+      "errors": {
+        "loadAccountsFailed": "Failed to load email accounts",
+        "defaultAgentRequired": "Create or enable a default agent before connecting email",
+        "startOAuthFailed": "Failed to start email connection",
+        "selectAccountAndAgent": "Select an email account and agent first",
+        "bindingSaveFailed": "Failed to save agent binding",
+        "selectAccount": "Select an email account first",
+        "retentionSaveFailed": "Failed to save retention settings",
+        "syncFailed": "Failed to sync email",
+        "disconnectFailed": "Failed to disconnect email account",
+        "blacklistPatternRequired": "Enter a blacklist pattern",
+        "ruleCreateFailed": "Failed to create blacklist rule",
+        "ruleUpdateFailed": "Failed to update blacklist rule",
+        "summaryFailed": "Failed to summarize email",
+        "digestFailed": "Failed to create email digest",
+        "draftCreateFailed": "Failed to create draft reply",
+        "draftSendFailed": "Failed to send draft",
+        "draftSaveFailed": "Failed to save draft",
+        "draftRejectFailed": "Failed to reject draft",
+        "draftRetryFailed": "Failed to retry draft send"
+      },
+      "confirm": {
+        "autoDeleteBlacklist": "This rule will move matching email to Trash/Deleted Items. Continue?"
+      }
     }
   },
   "embedWidgets": {
