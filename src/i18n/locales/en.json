@@ -589,6 +589,74 @@
         "nameRequired": "Agent name is required"
       }
     },
+    "wizard": {
+      "title": "Create agent",
+      "subtitle": "Answer a few questions and AI will prepare the setup for review.",
+      "steps": {
+        "name": "Name",
+        "purpose": "Purpose",
+        "personality": "Personality",
+        "knowledge": "Knowledge",
+        "constraints": "Rules"
+      },
+      "questions": {
+        "agentName": "What should this agent be called?",
+        "purpose": "What should this agent help people do?",
+        "personality": "How should this agent sound and behave?",
+        "knowledge": "What information should this agent know?",
+        "constraints": "What should this agent avoid or hand off?"
+      },
+      "fields": {
+        "agentName": "Agent name",
+        "purpose": "Purpose",
+        "mainTasks": "Main tasks",
+        "targetUsers": "Target users",
+        "personality": "Personality",
+        "tone": "Tone",
+        "languageStyle": "Language style",
+        "knowledgeSummary": "Knowledge summary",
+        "faq": "FAQ",
+        "processes": "Processes",
+        "policies": "Policies",
+        "constraints": "Constraints",
+        "handoffRules": "Handoff rules"
+      },
+      "placeholders": {
+        "agentName": "Example: Customer Support Assistant",
+        "purpose": "Example: Help customers understand services, choose a plan, book appointments, and answer common questions.",
+        "personality": "Example: Friendly, patient, concise, and avoids technical terms unless needed.",
+        "knowledge": "Example: Pricing, booking flow, refund policy, product FAQ, operating hours.",
+        "constraints": "Example: Do not promise discounts. Escalate legal questions or serious complaints to staff."
+      },
+      "actions": {
+        "skip": "Skip",
+        "close": "Close",
+        "back": "Back",
+        "next": "Next",
+        "generateDraft": "Generate draft",
+        "drafting": "Generating...",
+        "retry": "Retry",
+        "create": "Create agent",
+        "creating": "Creating...",
+        "advancedEdit": "Advanced edit"
+      },
+      "review": {
+        "agent": "Agent",
+        "characteristics": "Behavior setup",
+        "knowledge": "Knowledge setup",
+        "noKnowledge": "No knowledge source will be created from this draft."
+      },
+      "validation": {
+        "required": "Please provide the required information before continuing."
+      },
+      "messages": {
+        "created": "Agent created successfully!"
+      },
+      "errors": {
+        "draftFailed": "Failed to generate agent draft",
+        "createFailed": "Failed to create agent from draft"
+      }
+    },
     "characteristics": {
       "title": "Behavior & Persona",
       "subtitle": "Define how your agent behaves using reusable characteristics",

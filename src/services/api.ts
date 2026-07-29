@@ -2342,7 +2342,7 @@ export const forkPublicChatShare = async (
 // Agents API
 // ============================================
 
-import type { Agent, CreateAgentInput } from '../types';
+import type { Agent, AgentWizardAnswers, AgentWizardDraft, CreateAgentInput } from '../types';
 
 const normalizeAgent = (item: Record<string, unknown>): Agent =>
   ({
@@ -2379,6 +2379,33 @@ export const listAgents = async (): Promise<ApiResponse<Agent[]>> => {
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to load agents',
+    };
+  }
+};
+
+export const createAgentWizardDraft = async (input: {
+  answers: AgentWizardAnswers;
+  locale?: string;
+}): Promise<ApiResponse<AgentWizardDraft>> => {
+  try {
+    const response = await axiosInstance.post('/v1/agents/wizard/draft', input);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Agent draft generated successfully',
+    };
+  } catch (error) {
+    console.error('Create agent wizard draft error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to generate agent draft',
+      message: axiosError.response?.data?.message,
     };
   }
 };

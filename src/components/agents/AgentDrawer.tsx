@@ -28,9 +28,23 @@ import {
   ListItemText,
 } from '@mui/material';
 import { X, Sparkles, Save, ChevronDown, Upload, Trash2, UserCircle, Settings } from 'lucide-react';
-import { Agent, CreateAgentInput, Characteristic, Knowledge } from '../../types';
+import {
+  Agent,
+  CreateAgentInput,
+  Characteristic,
+  Knowledge,
+  CreateCharacteristicInput,
+  CreateKnowledgeInput,
+} from '../../types';
 import { useNotification } from '../../hooks/useNotification';
-import { uploadAgentAvatar, getAgent, listDefaultAvatars, DefaultAvatar } from '../../services/api';
+import {
+  uploadAgentAvatar,
+  getAgent,
+  listDefaultAvatars,
+  createCharacteristic,
+  createKnowledge,
+  DefaultAvatar,
+} from '../../services/api';
 import { CharacteristicsSection } from './CharacteristicsSection';
 import { KnowledgeSection } from './KnowledgeSection';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +73,9 @@ interface AgentDrawerProps {
   onSave: (agent: CreateAgentInput) => Promise<void>;
   agent?: Agent | null;
   onUpdate?: (id: string, agent: Partial<CreateAgentInput>) => Promise<void>;
+  initialData?: Partial<CreateAgentInput>;
+  pendingCharacteristicDrafts?: CreateCharacteristicInput[];
+  pendingKnowledgeDrafts?: CreateKnowledgeInput[];
 }
 
 // ============================================
@@ -228,6 +245,9 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
   onSave,
   agent,
   onUpdate,
+  initialData,
+  pendingCharacteristicDrafts = [],
+  pendingKnowledgeDrafts = [],
 }) => {
   const { t } = useTranslation();
   const { success, error } = useNotification();
@@ -257,7 +277,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
 
   const isEditMode = !!agent;
 
-  // Pre-fill form when editing — fetch full agent details (including association IDs)
+  // Pre-fill form when editing, or from wizard draft when creating.
   useEffect(() => {
     if (agent && open) {
       setIsLoadingAgent(true);
@@ -292,6 +312,20 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
           setAvatarType(detectAvatarType(agent.avatarUrl ?? null));
         })
         .finally(() => setIsLoadingAgent(false));
+    } else if (open && !agent && initialData) {
+      const draftAvatarUrl = initialData.avatarUrl ?? null;
+      setFormData({
+        ...initialFormState,
+        ...initialData,
+        name: initialData.name ?? '',
+        description: initialData.description ?? '',
+        avatarUrl: draftAvatarUrl,
+        characteristicIds: initialData.characteristicIds ?? [],
+        knowledgeIds: initialData.knowledgeIds ?? [],
+        ownerType: 'USER',
+      });
+      setAvatarPreview(draftAvatarUrl);
+      setAvatarType(detectAvatarType(draftAvatarUrl));
     } else if (!open) {
       // Reset form when drawer closes
       setFormData(initialFormState);
@@ -300,7 +334,7 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
       setAvatarType(null);
       setIsLoadingAgent(false);
     }
-  }, [agent, open]);
+  }, [agent, open, initialData]);
 
   // ============================================
   // Avatar Setup Menu Handlers
@@ -468,7 +502,21 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
         await onUpdate(agent.publicId, formData);
         success(t('agents.drawer.messages.updated'));
       } else {
-        await onSave(formData);
+        const createdCharacteristicIds = await createPendingCharacteristics(
+          pendingCharacteristicDrafts
+        );
+        const createdKnowledgeIds = await createPendingKnowledges(pendingKnowledgeDrafts);
+        await onSave({
+          ...formData,
+          characteristicIds: [
+            ...formData.characteristicIds,
+            ...createdCharacteristicIds.filter((id) => !formData.characteristicIds.includes(id)),
+          ],
+          knowledgeIds: [
+            ...formData.knowledgeIds,
+            ...createdKnowledgeIds.filter((id) => !formData.knowledgeIds.includes(id)),
+          ],
+        });
         success(t('agents.drawer.messages.created'));
       }
       // Reset form and close drawer on success
@@ -481,6 +529,36 @@ export const AgentDrawer: React.FC<AgentDrawerProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const createPendingCharacteristics = async (
+    drafts: CreateCharacteristicInput[]
+  ): Promise<string[]> => {
+    const ids: string[] = [];
+
+    for (const draft of drafts) {
+      const result = await createCharacteristic(draft);
+      if (!result.success || !result.data?.publicId) {
+        throw new Error(result.error || t('agents.drawer.errors.saveFailed'));
+      }
+      ids.push(result.data.publicId);
+    }
+
+    return ids;
+  };
+
+  const createPendingKnowledges = async (drafts: CreateKnowledgeInput[]): Promise<string[]> => {
+    const ids: string[] = [];
+
+    for (const draft of drafts) {
+      const result = await createKnowledge(draft);
+      if (!result.success || !result.data?.publicId) {
+        throw new Error(result.error || t('agents.drawer.errors.saveFailed'));
+      }
+      ids.push(result.data.publicId);
+    }
+
+    return ids;
   };
 
   const handleClose = () => {
