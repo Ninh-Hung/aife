@@ -18,11 +18,17 @@ import { useTranslation } from 'react-i18next';
 import { useAgents } from '../contexts/AgentsContext';
 import { AgentCard } from '../components/agents/AgentCard';
 import { AgentDrawer } from '../components/agents/AgentDrawer';
+import { AgentCreationWizard } from '../components/agents/AgentCreationWizard';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
-import { Agent, CreateAgentInput } from '../types';
+import { Agent, AgentWizardDraft, CreateAgentInput } from '../types';
 import { useNotification } from '../hooks/useNotification';
-import { createChatSession, getCurrentSubscription } from '../services/api';
+import {
+  createCharacteristic,
+  createChatSession,
+  createKnowledge,
+  getCurrentSubscription,
+} from '../services/api';
 
 const isAnonymousLimitResponse = (response: { errorCode?: string; error?: string }) =>
   response.errorCode === 'ANONYMOUS_LIMIT_EXCEEDED' ||
@@ -90,8 +96,10 @@ export const AgentManagement: React.FC = () => {
   } = useAgents();
   const { success, error: showError } = useNotification();
   const { addOrUpdateConversation } = useSidebarConversations();
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [wizardDraft, setWizardDraft] = useState<AgentWizardDraft | null>(null);
   const [isCheckingAgentLimit, setIsCheckingAgentLimit] = useState(false);
   const [publishingAgentId, setPublishingAgentId] = useState<string | null>(null);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
@@ -148,7 +156,8 @@ export const AgentManagement: React.FC = () => {
       }
 
       setSelectedAgent(null);
-      setIsDrawerOpen(true);
+      setWizardDraft(null);
+      setIsWizardOpen(true);
     } catch (err) {
       showError(err instanceof Error ? err.message : t('agents.errors.subscriptionCheckFailed'));
     } finally {
@@ -241,6 +250,26 @@ export const AgentManagement: React.FC = () => {
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setSelectedAgent(null);
+    setWizardDraft(null);
+  };
+
+  const handleCloseWizard = () => {
+    setIsWizardOpen(false);
+    setWizardDraft(null);
+  };
+
+  const handleSkipWizard = () => {
+    setIsWizardOpen(false);
+    setWizardDraft(null);
+    setSelectedAgent(null);
+    setIsDrawerOpen(true);
+  };
+
+  const handleAdvancedEditDraft = (draft: AgentWizardDraft) => {
+    setWizardDraft(draft);
+    setSelectedAgent(null);
+    setIsWizardOpen(false);
+    setIsDrawerOpen(true);
   };
 
   const handleCloseAgentLimitModal = () => {
@@ -256,6 +285,52 @@ export const AgentManagement: React.FC = () => {
     // AgentDrawer handles the error display and drawer closing
     await createAgent(input);
     await fetchAgents();
+  };
+
+  const handleCreateFromWizard = async (draft: AgentWizardDraft) => {
+    const characteristicIds = await createDraftCharacteristics(draft);
+    const knowledgeIds = await createDraftKnowledges(draft);
+
+    await createAgent({
+      name: draft.agent.name,
+      description: draft.agent.description,
+      avatarUrl: draft.agent.avatarUrl ?? null,
+      characteristicIds,
+      knowledgeIds,
+      ownerType: 'USER',
+    });
+    await fetchAgents();
+    setIsWizardOpen(false);
+    setWizardDraft(null);
+    success(t('agents.wizard.messages.created'));
+  };
+
+  const createDraftCharacteristics = async (draft: AgentWizardDraft): Promise<string[]> => {
+    const ids: string[] = [];
+
+    for (const characteristic of draft.characteristics) {
+      const response = await createCharacteristic(characteristic);
+      if (!response.success || !response.data?.publicId) {
+        throw new Error(response.error || t('agents.wizard.errors.createFailed'));
+      }
+      ids.push(response.data.publicId);
+    }
+
+    return ids;
+  };
+
+  const createDraftKnowledges = async (draft: AgentWizardDraft): Promise<string[]> => {
+    const ids: string[] = [];
+
+    for (const knowledge of draft.knowledges) {
+      const response = await createKnowledge(knowledge);
+      if (!response.success || !response.data?.publicId) {
+        throw new Error(response.error || t('agents.wizard.errors.createFailed'));
+      }
+      ids.push(response.data.publicId);
+    }
+
+    return ids;
   };
 
   const handleUpdateAgent = async (id: string, input: Partial<CreateAgentInput>) => {
@@ -383,6 +458,14 @@ export const AgentManagement: React.FC = () => {
           </>
         )}
 
+        <AgentCreationWizard
+          open={isWizardOpen}
+          onClose={handleCloseWizard}
+          onSkip={handleSkipWizard}
+          onCreate={handleCreateFromWizard}
+          onAdvancedEdit={handleAdvancedEditDraft}
+        />
+
         {/* Agent Drawer */}
         <AgentDrawer
           open={isDrawerOpen}
@@ -390,6 +473,9 @@ export const AgentManagement: React.FC = () => {
           onSave={handleSaveAgent}
           agent={selectedAgent}
           onUpdate={handleUpdateAgent}
+          initialData={wizardDraft?.agent}
+          pendingCharacteristicDrafts={wizardDraft?.characteristics}
+          pendingKnowledgeDrafts={wizardDraft?.knowledges}
         />
 
         <ConfirmDialog

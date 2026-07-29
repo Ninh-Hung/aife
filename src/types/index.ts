@@ -150,6 +150,29 @@ export interface CreateAgentInput {
   ownerId?: number;
 }
 
+export interface AgentWizardAnswers {
+  agentName: string;
+  purpose: string;
+  mainTasks: string;
+  targetUsers: string;
+  personality: string;
+  tone: string;
+  languageStyle: string;
+  knowledgeSummary: string;
+  faq: string;
+  processes: string;
+  policies: string;
+  constraints: string;
+  handoffRules: string;
+}
+
+export interface AgentWizardDraft {
+  agent: Pick<CreateAgentInput, 'name' | 'description' | 'avatarUrl'>;
+  characteristics: CreateCharacteristicInput[];
+  knowledges: CreateKnowledgeInput[];
+  warnings: string[];
+}
+
 // Deprecated - kept for backward compatibility during migration
 export interface LegacyAgent {
   id: string;

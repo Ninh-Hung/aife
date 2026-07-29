@@ -589,6 +589,74 @@
         "nameRequired": "Tên agent là bắt buộc"
       }
     },
+    "wizard": {
+      "title": "Tạo agent",
+      "subtitle": "Trả lời vài câu hỏi, AI sẽ chuẩn bị cấu hình để bạn review.",
+      "steps": {
+        "name": "Tên",
+        "purpose": "Nhiệm vụ",
+        "personality": "Tính cách",
+        "knowledge": "Kiến thức",
+        "constraints": "Quy tắc"
+      },
+      "questions": {
+        "agentName": "Bạn muốn đặt tên agent là gì?",
+        "purpose": "Agent này sẽ hỗ trợ người dùng làm gì?",
+        "personality": "Bạn muốn agent nói chuyện và hành xử như thế nào?",
+        "knowledge": "Agent cần biết những thông tin nào?",
+        "constraints": "Agent cần tránh điều gì hoặc chuyển tiếp khi nào?"
+      },
+      "fields": {
+        "agentName": "Tên agent",
+        "purpose": "Mục đích",
+        "mainTasks": "Nhiệm vụ chính",
+        "targetUsers": "Người dùng mục tiêu",
+        "personality": "Tính cách",
+        "tone": "Giọng điệu",
+        "languageStyle": "Phong cách ngôn ngữ",
+        "knowledgeSummary": "Tóm tắt kiến thức",
+        "faq": "FAQ",
+        "processes": "Quy trình",
+        "policies": "Chính sách",
+        "constraints": "Ràng buộc",
+        "handoffRules": "Quy tắc chuyển tiếp"
+      },
+      "placeholders": {
+        "agentName": "Ví dụ: Trợ lý CSKH",
+        "purpose": "Ví dụ: Hỗ trợ khách hàng hiểu dịch vụ, chọn gói phù hợp, đặt lịch và trả lời câu hỏi thường gặp.",
+        "personality": "Ví dụ: Thân thiện, kiên nhẫn, ngắn gọn, tránh thuật ngữ kỹ thuật nếu không cần.",
+        "knowledge": "Ví dụ: Bảng giá, quy trình đặt lịch, chính sách hoàn tiền, FAQ sản phẩm, giờ làm việc.",
+        "constraints": "Ví dụ: Không tự cam kết giảm giá. Chuyển tiếp câu hỏi pháp lý hoặc khiếu nại nghiêm trọng cho nhân viên."
+      },
+      "actions": {
+        "skip": "Bỏ qua",
+        "close": "Đóng",
+        "back": "Quay lại",
+        "next": "Tiếp tục",
+        "generateDraft": "Tạo bản nháp",
+        "drafting": "Đang tạo...",
+        "retry": "Tạo lại",
+        "create": "Tạo agent",
+        "creating": "Đang tạo...",
+        "advancedEdit": "Chỉnh nâng cao"
+      },
+      "review": {
+        "agent": "Agent",
+        "characteristics": "Thiết lập hành vi",
+        "knowledge": "Thiết lập kiến thức",
+        "noKnowledge": "Bản nháp này sẽ không tạo nguồn kiến thức."
+      },
+      "validation": {
+        "required": "Vui lòng nhập thông tin bắt buộc trước khi tiếp tục."
+      },
+      "messages": {
+        "created": "Tạo agent thành công!"
+      },
+      "errors": {
+        "draftFailed": "Không thể tạo bản nháp agent",
+        "createFailed": "Không thể tạo agent từ bản nháp"
+      }
+    },
     "characteristics": {
       "title": "Hành vi & persona",
       "subtitle": "Định nghĩa cách agent hoạt động bằng các characteristic tái sử dụng",
