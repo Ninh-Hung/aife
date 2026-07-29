@@ -13,7 +13,7 @@ import {
   CircularProgress,
   Skeleton,
 } from '@mui/material';
-import { Activity, BarChart3, Coins, CreditCard, Network, Users } from 'lucide-react';
+import { Activity, Coins, CreditCard, LineChart, Network, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useAgents } from '../contexts/AgentsContext';
@@ -30,6 +30,11 @@ import type {
 const TOKEN_USAGE_PERIODS: TokenUsagePeriod[] = ['day', 'month', 'year'];
 const THIRD_PARTY_USAGE_LIMIT = 5;
 const EMPTY_THIRD_PARTY_TOTAL = { messages: 0, tokens: 0, credits: 0, toolCalls: 0 };
+const TOKEN_USAGE_CHART_HEIGHT = 240;
+const TOKEN_USAGE_CHART_TOP = 44;
+const TOKEN_USAGE_CHART_BOTTOM = 196;
+const TOKEN_USAGE_CHART_PADDING_X = 56;
+const TOKEN_USAGE_POINT_SPACING = 96;
 
 const formatTokens = (value: number): string => {
   if (value >= 1000000) {
@@ -47,13 +52,23 @@ const formatTokens = (value: number): string => {
   return value.toLocaleString();
 };
 
-const getLineCoordinates = (points: TokenUsagePoint[], maxValue: number) =>
-  points.map((point, index) => {
-    const x = ((index + 0.5) / points.length) * 100;
-    const y = 90 - (point.totalTokens / maxValue) * 80;
+const formatTokenUsagePointLabel = (point: TokenUsagePoint, period: TokenUsagePeriod): string => {
+  if (period === 'year') {
+    return point.period || point.label;
+  }
 
-    return { x, y, value: point.totalTokens, label: point.label };
-  });
+  const [year, month, day] = point.period.split('-');
+
+  if (period === 'month' && year && month) {
+    return `${month}/${year}`;
+  }
+
+  if (period === 'day' && month && day) {
+    return `${day}/${month}`;
+  }
+
+  return point.label;
+};
 
 const getUsageDateRange = () => {
   const to = new Date();
@@ -110,14 +125,20 @@ export const Dashboard: React.FC = () => {
     const percentage =
       currentQuota?.percentageUsed ??
       (total > 0 ? Math.min(100, Math.round((used / total) * 1000) / 10) : 0);
+    const walletTokens = currentQuota?.advanceTokens ?? 0;
+    const availableTokens =
+      currentQuota?.totalRemainingTokens ?? currentQuota?.remainingTokens ?? 0;
+    const hasQuotaData = Boolean(currentQuota);
 
     return {
       used,
       total,
       percentage,
       packageRemaining,
-      walletTokens: currentQuota?.advanceTokens ?? 0,
-      availableTokens: currentQuota?.totalRemainingTokens ?? currentQuota?.remainingTokens ?? 0,
+      walletTokens,
+      availableTokens,
+      hasWalletFallback: hasQuotaData && packageRemaining <= 0 && walletTokens > 0,
+      hasNoTokensAvailable: hasQuotaData && availableTokens <= 0,
       nextReset: currentQuota?.monthStartDate
         ? (() => {
             const resetDate = new Date(currentQuota.monthStartDate);
@@ -129,19 +150,46 @@ export const Dashboard: React.FC = () => {
     };
   }, [currentQuota]);
 
+  const usageChartPoints = useMemo(
+    () =>
+      usagePoints.map((point) => ({
+        ...point,
+        label: formatTokenUsagePointLabel(point, usagePeriod),
+      })),
+    [usagePeriod, usagePoints]
+  );
   const chartMax = useMemo(
-    () => Math.max(1, ...usagePoints.map((point) => point.totalTokens)),
-    [usagePoints]
+    () => Math.max(1, ...usageChartPoints.map((point) => point.totalTokens)),
+    [usageChartPoints]
+  );
+  const periodTotal = usageChartPoints.reduce((sum, point) => sum + point.totalTokens, 0);
+  const chartWidth = useMemo(
+    () =>
+      Math.max(
+        620,
+        Math.max(usageChartPoints.length - 1, 1) * TOKEN_USAGE_POINT_SPACING +
+          TOKEN_USAGE_CHART_PADDING_X * 2
+      ),
+    [usageChartPoints.length]
   );
   const lineCoordinates = useMemo(
-    () => getLineCoordinates(usagePoints, chartMax),
-    [chartMax, usagePoints]
+    () =>
+      usageChartPoints.map((point, index) => {
+        const x =
+          usageChartPoints.length === 1
+            ? chartWidth / 2
+            : TOKEN_USAGE_CHART_PADDING_X + index * TOKEN_USAGE_POINT_SPACING;
+        const y =
+          TOKEN_USAGE_CHART_BOTTOM -
+          (point.totalTokens / chartMax) * (TOKEN_USAGE_CHART_BOTTOM - TOKEN_USAGE_CHART_TOP);
+
+        return { x, y, point };
+      }),
+    [chartMax, chartWidth, usageChartPoints]
   );
   const linePath = lineCoordinates
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`)
     .join(' ');
-  const periodTotal = usagePoints.reduce((sum, point) => sum + point.totalTokens, 0);
-  const barWidth = usagePoints.length > 0 ? Math.min(6, (100 / usagePoints.length) * 0.55) : 0;
 
   useEffect(() => {
     setDashboardQuota(quota ?? user?.quota ?? null);
@@ -394,10 +442,32 @@ export const Dashboard: React.FC = () => {
                     {usageData.used.toLocaleString()} / {usageData.total.toLocaleString()}
                   </Typography>
                   <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                    {t('dashboard.stats.tokensUsed', {
+                    {t('dashboard.stats.packageTokensUsed', {
                       remaining: usageData.availableTokens.toLocaleString(),
                     })}
                   </Typography>
+                  {(usageData.hasWalletFallback || usageData.hasNoTokensAvailable) && (
+                    <Box
+                      className={`mt-3 rounded-lg border px-3 py-2 ${
+                        usageData.hasNoTokensAvailable
+                          ? 'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20'
+                          : 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20'
+                      }`}
+                    >
+                      <Typography
+                        variant="caption"
+                        className={
+                          usageData.hasNoTokensAvailable
+                            ? 'font-medium text-red-700 dark:text-red-300'
+                            : 'font-medium text-amber-700 dark:text-amber-300'
+                        }
+                      >
+                        {usageData.hasNoTokensAvailable
+                          ? t('dashboard.stats.noTokensAvailable')
+                          : t('dashboard.stats.walletFallback')}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box className="mt-4 grid grid-cols-1 gap-2 text-sm">
                     <Box className="flex items-center justify-between gap-3">
                       <span className="text-gray-500 dark:text-slate-400">
@@ -476,7 +546,9 @@ export const Dashboard: React.FC = () => {
                       variant="caption"
                       className="mt-1 block text-right text-gray-500 dark:text-slate-400"
                     >
-                      {t('dashboard.stats.percentUsed', { percent: usageData.percentage })}
+                      {t('dashboard.stats.packagePercentUsed', {
+                        percent: usageData.percentage,
+                      })}
                     </Typography>
                   </Box>
                 </>
@@ -550,127 +622,116 @@ export const Dashboard: React.FC = () => {
         {!usageLoading && !usageError && (
           <Box className="min-w-0">
             <Box className="mb-3 flex items-center gap-2">
-              <BarChart3 size={18} className="text-blue-600 dark:text-blue-400" />
+              <LineChart size={18} className="text-blue-600 dark:text-blue-400" />
               <Typography
                 variant="subtitle2"
                 className="font-semibold text-gray-900 dark:text-white"
               >
-                {t('dashboard.tokenUsage.combinedTitle')}
+                {t('dashboard.tokenUsage.lineTitle')}
               </Typography>
             </Box>
 
             <Box className="overflow-x-auto rounded-lg border border-gray-100 p-4 dark:border-slate-700">
-              <Box className="min-w-[620px]">
+              <Box style={{ minWidth: `${chartWidth}px` }}>
                 <svg
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
+                  viewBox={`0 0 ${chartWidth} ${TOKEN_USAGE_CHART_HEIGHT}`}
                   className="h-64 w-full overflow-visible"
                   role="img"
-                  aria-label={t('dashboard.tokenUsage.combinedTitle')}
+                  aria-label={t('dashboard.tokenUsage.lineTitle')}
                 >
                   <line
                     x1="0"
-                    y1="90"
-                    x2="100"
-                    y2="90"
+                    y1={TOKEN_USAGE_CHART_BOTTOM}
+                    x2={chartWidth}
+                    y2={TOKEN_USAGE_CHART_BOTTOM}
                     stroke="currentColor"
                     className="text-gray-200 dark:text-slate-700"
-                    strokeWidth="0.5"
+                    strokeWidth="1"
                   />
                   <line
                     x1="0"
-                    y1="50"
-                    x2="100"
-                    y2="50"
+                    y1={(TOKEN_USAGE_CHART_TOP + TOKEN_USAGE_CHART_BOTTOM) / 2}
+                    x2={chartWidth}
+                    y2={(TOKEN_USAGE_CHART_TOP + TOKEN_USAGE_CHART_BOTTOM) / 2}
                     stroke="currentColor"
                     className="text-gray-100 dark:text-slate-800"
-                    strokeWidth="0.5"
+                    strokeWidth="1"
                   />
                   <line
                     x1="0"
-                    y1="10"
-                    x2="100"
-                    y2="10"
+                    y1={TOKEN_USAGE_CHART_TOP}
+                    x2={chartWidth}
+                    y2={TOKEN_USAGE_CHART_TOP}
                     stroke="currentColor"
                     className="text-gray-100 dark:text-slate-800"
-                    strokeWidth="0.5"
+                    strokeWidth="1"
                   />
-                  {usagePoints.map((point, index) => {
-                    const height =
-                      point.totalTokens === 0 ? 0 : (point.totalTokens / chartMax) * 80;
-                    const x = ((index + 0.5) / usagePoints.length) * 100 - barWidth / 2;
-                    const y = 90 - height;
-
-                    return (
-                      <rect
-                        key={point.period}
-                        x={x}
-                        y={y}
-                        width={barWidth}
-                        height={height}
-                        rx="1"
-                        fill="#3B82F6"
-                        opacity="0.78"
-                        vectorEffect="non-scaling-stroke"
-                      >
-                        <title>{`${point.label}: ${point.totalTokens.toLocaleString()}`}</title>
-                      </rect>
-                    );
-                  })}
                   {linePath && (
                     <path
                       d={linePath}
                       fill="none"
-                      stroke="#10B981"
-                      strokeWidth="2"
+                      stroke="#3B82F6"
+                      strokeWidth="3"
                       vectorEffect="non-scaling-stroke"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                   )}
-                  {lineCoordinates.map((point) => (
-                    <circle
-                      key={`${point.label}-${point.x}`}
-                      cx={point.x}
-                      cy={point.y}
-                      r="1.8"
-                      fill="#10B981"
-                      vectorEffect="non-scaling-stroke"
-                    >
-                      <title>{`${point.label}: ${point.value.toLocaleString()}`}</title>
-                    </circle>
+                  {lineCoordinates.map(({ x, y, point }) => (
+                    <g key={point.period}>
+                      <text
+                        x={x}
+                        y={Math.max(16, y - 12)}
+                        textAnchor="middle"
+                        fontSize="11"
+                        fontWeight="600"
+                        fill="currentColor"
+                        className="text-gray-700 dark:text-slate-200"
+                      >
+                        {point.totalTokens.toLocaleString()}
+                      </text>
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r="4"
+                        fill="#ffffff"
+                        stroke="#3B82F6"
+                        strokeWidth="2.5"
+                        vectorEffect="non-scaling-stroke"
+                      >
+                        <title>{`${point.label}: ${point.totalTokens.toLocaleString()}`}</title>
+                      </circle>
+                    </g>
                   ))}
-                </svg>
-                <Box className="mt-2 flex justify-between gap-2">
-                  {usagePoints.map((point, index) => {
+                  {lineCoordinates.map(({ x, point }, index) => {
                     const shouldShow =
-                      usagePoints.length <= 6 ||
+                      lineCoordinates.length <= 6 ||
                       index === 0 ||
-                      index === usagePoints.length - 1 ||
-                      index % Math.ceil(usagePoints.length / 4) === 0;
+                      index === lineCoordinates.length - 1 ||
+                      index % Math.ceil(lineCoordinates.length / 4) === 0;
+
+                    if (!shouldShow) {
+                      return null;
+                    }
 
                     return (
-                      <Typography
-                        key={point.period}
-                        variant="caption"
-                        className={`min-w-0 truncate text-gray-500 dark:text-slate-400 ${
-                          shouldShow ? '' : 'invisible'
-                        }`}
+                      <text
+                        key={`${point.period}-label`}
+                        x={x}
+                        y={TOKEN_USAGE_CHART_HEIGHT - 12}
+                        textAnchor="middle"
+                        fontSize="11"
+                        fill="currentColor"
+                        className="text-gray-500 dark:text-slate-400"
                       >
                         {point.label}
-                      </Typography>
+                      </text>
                     );
                   })}
-                </Box>
+                </svg>
                 <Box className="mt-4 flex flex-wrap items-center gap-4">
                   <Box className="flex items-center gap-2">
-                    <Box className="h-3 w-3 rounded-sm bg-blue-500" />
-                    <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                      {t('dashboard.tokenUsage.legend.bar')}
-                    </Typography>
-                  </Box>
-                  <Box className="flex items-center gap-2">
-                    <Box className="h-0.5 w-5 rounded-full bg-emerald-500" />
+                    <Box className="h-0.5 w-5 rounded-full bg-blue-500" />
                     <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
                       {t('dashboard.tokenUsage.legend.line')}
                     </Typography>
@@ -878,23 +939,22 @@ const TokenUsageChartSkeleton: React.FC = () => (
           <Box className="absolute inset-x-0 top-[10%] border-t border-gray-100 dark:border-slate-800" />
           <Box className="absolute inset-x-0 top-1/2 border-t border-gray-100 dark:border-slate-800" />
           <Box className="absolute inset-x-0 bottom-[10%] border-t border-gray-200 dark:border-slate-700" />
-          <Box className="absolute inset-x-0 bottom-[10%] top-[10%] flex items-end justify-between gap-3">
-            {[48, 72, 36, 88, 58, 64, 42, 78, 54, 68, 46, 82].map((height, index) => (
-              <Skeleton
-                key={`${height}-${index}`}
-                variant="rectangular"
-                width={24}
-                height={`${height}%`}
-                className="rounded-t"
-              />
-            ))}
-          </Box>
           <Skeleton
             variant="rectangular"
-            width="86%"
+            width="88%"
             height={4}
-            className="absolute left-[7%] top-[46%] rounded-full"
+            className="absolute left-[6%] top-[48%] rounded-full"
           />
+          <Box className="absolute inset-x-[6%] top-[24%] flex justify-between">
+            {[0, 1, 2, 3, 4, 5].map((item) => (
+              <Skeleton key={item} variant="text" width={52} height={18} />
+            ))}
+          </Box>
+          <Box className="absolute inset-x-[6%] top-[44%] flex justify-between">
+            {[0, 1, 2, 3, 4, 5].map((item) => (
+              <Skeleton key={item} variant="circular" width={10} height={10} />
+            ))}
+          </Box>
         </Box>
         <Box className="mt-2 flex justify-between gap-2">
           {[0, 1, 2, 3, 4].map((item) => (
@@ -903,12 +963,8 @@ const TokenUsageChartSkeleton: React.FC = () => (
         </Box>
         <Box className="mt-4 flex flex-wrap items-center gap-4">
           <Box className="flex items-center gap-2">
-            <Skeleton variant="rectangular" width={12} height={12} className="rounded-sm" />
-            <Skeleton variant="text" width={96} height={18} />
-          </Box>
-          <Box className="flex items-center gap-2">
             <Skeleton variant="rectangular" width={20} height={4} className="rounded-full" />
-            <Skeleton variant="text" width={112} height={18} />
+            <Skeleton variant="text" width={96} height={18} />
           </Box>
         </Box>
       </Box>

@@ -9,7 +9,8 @@
     "logout": "Logout",
     "trial": "Trial",
     "comingSoon": "Coming Soon",
-    "close": "Close"
+    "close": "Close",
+    "signIn": "Sign in"
   },
   "logoutConfirm": {
     "title": "Confirm logout",
@@ -728,7 +729,11 @@
       "usageQuota": "Usage Quota",
       "charactersUsed": "Characters used",
       "tokensUsed": "Tokens used · {{remaining}} remaining",
+      "packageTokensUsed": "Package tokens used · {{remaining}} available total",
       "percentUsed": "{{percent}}% used",
+      "packagePercentUsed": "Package quota used: {{percent}}%",
+      "walletFallback": "Package quota is used up. LLM calls will continue using wallet tokens.",
+      "noTokensAvailable": "No tokens available.",
       "packageQuota": "Package quota",
       "walletToken": "Wallet token",
       "availableToken": "Available token",
@@ -768,7 +773,7 @@
       },
       "legend": {
         "bar": "Token volume",
-        "line": "Trend line"
+        "line": "Tokens used"
       },
       "errors": {
         "loadFailed": "Failed to load token usage"

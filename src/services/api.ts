@@ -2095,6 +2095,15 @@ export const getChatAttachmentBlob = async (url: string): Promise<Blob> => {
   return response.data;
 };
 
+export const getGeneratedImageDownloadBlob = async (url: string): Promise<Blob> => {
+  const response = await axiosInstance.post(
+    '/v1/chat/generated-image/download',
+    { url },
+    { responseType: 'blob' }
+  );
+  return response.data;
+};
+
 export interface CancelChatResponseInput {
   content?: string;
   reasoning?: string | null;

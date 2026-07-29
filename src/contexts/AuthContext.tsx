@@ -8,7 +8,7 @@ import { User, UserQuota, SubscriptionInfo } from '../types';
 import axiosInstance, { setAccessToken, clearAccessToken, refreshAccessToken } from '../lib/axios';
 import type { AxiosError } from 'axios';
 import { getQuota, getSubscription } from '../services/quota.service';
-import { updateMyProfile, type UpdateMyProfileInput } from '../services/api';
+import { listChatMessages, updateMyProfile, type UpdateMyProfileInput } from '../services/api';
 
 // ============================================
 // Context Interface
@@ -69,6 +69,8 @@ type AuthUserData = {
 
 const ANONYMOUS_AUTH_PROVIDER = 'ANONYMOUS';
 export const ANONYMOUS_CURRENT_SESSION_STORAGE_KEY = 'anonymousCurrentSessionId';
+export const ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY =
+  'anonymousCurrentSessionHasMessages';
 export const ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY = 'anonymousPendingMergeSessionId';
 const ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY = 'anonymousBootstrapCooldownUntil';
 const ANONYMOUS_BOOTSTRAP_COOLDOWN_MS = 30_000;
@@ -154,6 +156,47 @@ const isAnonymousUser = (user: User | null): boolean => {
     user.email.endsWith('@anonymous.appaihelp.local') ||
     user.userName.startsWith('anon_')
   );
+};
+
+const hasMessageContent = (message: {
+  content?: string | null;
+  reasoning?: string | null;
+  attachments?: unknown[] | null;
+}) =>
+  Boolean(message.content?.trim()) ||
+  Boolean(message.reasoning?.trim()) ||
+  Boolean(message.attachments?.length);
+
+const shouldRequestAnonymousSessionMerge = async (sessionId: string): Promise<boolean> => {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  const currentSessionId = window.sessionStorage.getItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY);
+  const hasMessagesValue = window.sessionStorage.getItem(
+    ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY
+  );
+
+  if (currentSessionId === sessionId) {
+    if (hasMessagesValue === 'true') {
+      return true;
+    }
+
+    if (hasMessagesValue === 'false') {
+      return false;
+    }
+  }
+
+  try {
+    const response = await listChatMessages(sessionId);
+    if (response.success && response.data) {
+      return response.data.some(hasMessageContent);
+    }
+  } catch {
+    // If verification fails, keep the existing merge prompt to avoid dropping a real chat.
+  }
+
+  return true;
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
@@ -361,6 +404,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         typeof window !== 'undefined' && isAnonymousUser(user)
           ? window.sessionStorage.getItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY)
           : null;
+      const shouldPromptAnonymousMerge = pendingAnonymousSessionId
+        ? await shouldRequestAnonymousSessionMerge(pendingAnonymousSessionId)
+        : false;
 
       const response = await axiosInstance.post('/auth/login', {
         identifier, // Can be email or username
@@ -407,6 +453,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (
           pendingAnonymousSessionId &&
+          shouldPromptAnonymousMerge &&
           !isAnonymousUser(mappedUser) &&
           typeof window !== 'undefined'
         ) {
@@ -450,6 +497,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       typeof window !== 'undefined'
         ? window.sessionStorage.getItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY)
         : null;
+    const shouldPromptAnonymousMerge =
+      typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY) !==
+          'false'
+        : true;
 
     clearUserScopedClientStorage();
     setUser(null);
@@ -467,6 +519,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     if (
       pendingAnonymousSessionId &&
+      shouldPromptAnonymousMerge &&
       !isAnonymousUser(mappedUser) &&
       typeof window !== 'undefined'
     ) {
