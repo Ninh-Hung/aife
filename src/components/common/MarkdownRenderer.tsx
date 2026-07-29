@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
-import rehypeSanitize from 'rehype-sanitize';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import type { ChatSource } from '../../types';
 
@@ -10,6 +10,8 @@ interface MarkdownRendererProps {
   text: string;
   className?: string;
   sources?: ChatSource[];
+  renderImageOverlay?: (image: { src?: string; alt?: string }) => React.ReactNode;
+  onImageClick?: (image: { src: string; alt?: string }) => void;
 }
 
 type MarkdownNode = {
@@ -38,6 +40,14 @@ function getTextContent(node: React.ReactNode): string {
 
 const inlineCodeClassName =
   'rounded bg-gray-100 px-1 py-0.5 font-mono text-[0.85em] text-rose-600 dark:bg-slate-900 dark:text-rose-300';
+
+const sanitizeSchema = {
+  ...defaultSchema,
+  protocols: {
+    ...defaultSchema.protocols,
+    src: [...(defaultSchema.protocols?.src || []), 'data'],
+  },
+};
 
 function createCitationPlugin(sources: ChatSource[]) {
   const sourceByMarker = new Map(
@@ -81,95 +91,137 @@ function linkCitationMarkers(
   });
 }
 
-const components: Components = {
-  h1: ({ children, ...props }) => (
-    <h1 className="mb-2 mt-3 text-xl font-semibold leading-snug first:mt-0" {...props}>
-      {children}
-    </h1>
-  ),
-  h2: ({ children, ...props }) => (
-    <h2 className="mb-2 mt-3 text-lg font-semibold leading-snug first:mt-0" {...props}>
-      {children}
-    </h2>
-  ),
-  h3: ({ children, ...props }) => (
-    <h3 className="mb-1.5 mt-3 text-base font-semibold leading-snug first:mt-0" {...props}>
-      {children}
-    </h3>
-  ),
-  p: ({ children, ...props }) => (
-    <p className="mb-2 last:mb-0" {...props}>
-      {children}
-    </p>
-  ),
-  ul: ({ children, ...props }) => (
-    <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0" {...props}>
-      {children}
-    </ul>
-  ),
-  ol: ({ children, ...props }) => (
-    <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0" {...props}>
-      {children}
-    </ol>
-  ),
-  li: ({ children, ...props }) => (
-    <li className="pl-1 leading-relaxed" {...props}>
-      {children}
-    </li>
-  ),
-  blockquote: ({ children, ...props }) => (
-    <blockquote
-      className="mb-2 border-l-2 border-gray-300 pl-3 text-gray-600 last:mb-0 dark:border-slate-600 dark:text-slate-300"
-      {...props}
-    >
-      {children}
-    </blockquote>
-  ),
-  a: ({ children, ...props }) => (
-    <a
-      className="font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 transition-colors hover:text-blue-700 dark:text-sky-300 dark:decoration-sky-500/60 dark:hover:text-sky-200"
-      target="_blank"
-      rel="noreferrer"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
-  table: ({ children, ...props }) => (
-    <div className="mb-2 overflow-x-auto last:mb-0">
-      <table
-        className="min-w-full border-collapse overflow-hidden rounded-md border border-gray-200 text-left text-sm dark:border-slate-700"
+function createComponents(
+  renderImageOverlay?: MarkdownRendererProps['renderImageOverlay'],
+  onImageClick?: MarkdownRendererProps['onImageClick']
+): Components {
+  return {
+    h1: ({ children, ...props }) => (
+      <h1 className="mb-2 mt-3 text-xl font-semibold leading-snug first:mt-0" {...props}>
+        {children}
+      </h1>
+    ),
+    h2: ({ children, ...props }) => (
+      <h2 className="mb-2 mt-3 text-lg font-semibold leading-snug first:mt-0" {...props}>
+        {children}
+      </h2>
+    ),
+    h3: ({ children, ...props }) => (
+      <h3 className="mb-1.5 mt-3 text-base font-semibold leading-snug first:mt-0" {...props}>
+        {children}
+      </h3>
+    ),
+    p: ({ children, ...props }) => (
+      <p className="mb-2 last:mb-0" {...props}>
+        {children}
+      </p>
+    ),
+    ul: ({ children, ...props }) => (
+      <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0" {...props}>
+        {children}
+      </ul>
+    ),
+    ol: ({ children, ...props }) => (
+      <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0" {...props}>
+        {children}
+      </ol>
+    ),
+    li: ({ children, ...props }) => (
+      <li className="pl-1 leading-relaxed" {...props}>
+        {children}
+      </li>
+    ),
+    blockquote: ({ children, ...props }) => (
+      <blockquote
+        className="mb-2 border-l-2 border-gray-300 pl-3 text-gray-600 last:mb-0 dark:border-slate-600 dark:text-slate-300"
         {...props}
       >
         {children}
-      </table>
-    </div>
-  ),
-  thead: ({ children, ...props }) => (
-    <thead className="bg-gray-50 dark:bg-slate-900/70" {...props}>
-      {children}
-    </thead>
-  ),
-  th: ({ children, ...props }) => (
-    <th
-      className="border border-gray-200 px-2.5 py-1.5 font-semibold dark:border-slate-700"
-      {...props}
-    >
-      {children}
-    </th>
-  ),
-  td: ({ children, ...props }) => (
-    <td className="border border-gray-200 px-2.5 py-1.5 align-top dark:border-slate-700" {...props}>
-      {children}
-    </td>
-  ),
-  code: ({ className, children, ...props }) => (
-    <code className={className ? `${className} font-mono` : inlineCodeClassName} {...props}>
-      {children}
-    </code>
-  ),
-  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
-};
+      </blockquote>
+    ),
+    a: ({ children, ...props }) => (
+      <a
+        className="font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 transition-colors hover:text-blue-700 dark:text-sky-300 dark:decoration-sky-500/60 dark:hover:text-sky-200"
+        target="_blank"
+        rel="noreferrer"
+        {...props}
+      >
+        {children}
+      </a>
+    ),
+    img: ({ src, alt, ...props }) => {
+      const imageSrc = typeof src === 'string' ? src : undefined;
+      const imageAlt = typeof alt === 'string' ? alt : undefined;
+      const overlay = renderImageOverlay?.({ src: imageSrc, alt: imageAlt });
+      const image = (
+        <img
+          className={`block max-h-[420px] max-w-full rounded-md object-contain ${
+            onImageClick && imageSrc ? 'cursor-zoom-in transition-opacity hover:opacity-90' : ''
+          }`}
+          loading="lazy"
+          src={src}
+          alt={alt}
+          {...props}
+        />
+      );
+
+      return (
+        <span className="relative my-2 inline-block max-w-full align-top">
+          {onImageClick && imageSrc ? (
+            <button
+              type="button"
+              className="block max-w-full text-left"
+              title={imageAlt ? `Preview ${imageAlt}` : 'Preview image'}
+              onClick={() => onImageClick({ src: imageSrc, alt: imageAlt })}
+            >
+              {image}
+            </button>
+          ) : (
+            image
+          )}
+          {overlay && <span className="absolute bottom-2 right-2 z-10">{overlay}</span>}
+        </span>
+      );
+    },
+    table: ({ children, ...props }) => (
+      <div className="mb-2 overflow-x-auto last:mb-0">
+        <table
+          className="min-w-full border-collapse overflow-hidden rounded-md border border-gray-200 text-left text-sm dark:border-slate-700"
+          {...props}
+        >
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({ children, ...props }) => (
+      <thead className="bg-gray-50 dark:bg-slate-900/70" {...props}>
+        {children}
+      </thead>
+    ),
+    th: ({ children, ...props }) => (
+      <th
+        className="border border-gray-200 px-2.5 py-1.5 font-semibold dark:border-slate-700"
+        {...props}
+      >
+        {children}
+      </th>
+    ),
+    td: ({ children, ...props }) => (
+      <td
+        className="border border-gray-200 px-2.5 py-1.5 align-top dark:border-slate-700"
+        {...props}
+      >
+        {children}
+      </td>
+    ),
+    code: ({ className, children, ...props }) => (
+      <code className={className ? `${className} font-mono` : inlineCodeClassName} {...props}>
+        {children}
+      </code>
+    ),
+    pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+  };
+}
 
 function CodeBlock({ children }: { children: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
@@ -209,17 +261,23 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   text,
   className = '',
   sources = [],
+  renderImageOverlay,
+  onImageClick,
 }) => {
   const remarkPlugins = useMemo(() => {
     if (sources.length === 0) return [remarkGfm];
     return [remarkGfm, createCitationPlugin(sources)];
   }, [sources]);
+  const components = useMemo(
+    () => createComponents(renderImageOverlay, onImageClick),
+    [onImageClick, renderImageOverlay]
+  );
 
   return (
     <div className={`markdown-renderer min-w-0 break-words ${className}`}>
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
-        rehypePlugins={[rehypeSanitize, rehypeHighlight]}
+        rehypePlugins={[[rehypeSanitize, sanitizeSchema], rehypeHighlight]}
         components={components}
       >
         {text}

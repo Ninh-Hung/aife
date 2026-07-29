@@ -9,12 +9,17 @@ import { useTranslation } from 'react-i18next';
 import { MessageSquare } from 'lucide-react';
 import { Agent, ChatMessage, ChatSource } from '../types';
 import { useAgents } from '../contexts/AgentsContext';
-import { ANONYMOUS_CURRENT_SESSION_STORAGE_KEY, useAuth } from '../contexts/AuthContext';
+import {
+  ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY,
+  ANONYMOUS_CURRENT_SESSION_STORAGE_KEY,
+  useAuth,
+} from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent, type ChatExecutionMode } from '../hooks/useChatAgent';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
+import { SignInModal } from '../components/auth/SignInModal';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
 import { cancelChatResponse, getChatSession, listChatMessages, getAgent } from '../services/api';
@@ -169,6 +174,7 @@ export const ChatScreen: React.FC = () => {
   const [initialMessagesLoaded, setInitialMessagesLoaded] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [cancelledResponseSessionId, setCancelledResponseSessionId] = useState<string | null>(null);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode(initialState?.initialMode);
 
   const {
@@ -471,12 +477,29 @@ export const ChatScreen: React.FC = () => {
   }, [routeSessionId, agents, isAnonymous]);
 
   useEffect(() => {
-    if (!isAnonymous || !activeSessionId || visibleMessages.length === 0) {
+    if (!isAnonymous || !activeSessionId) {
       return;
     }
 
+    const hasMessagesToMerge =
+      visibleMessages.length > 0 ||
+      Boolean(initialMessage?.trim()) ||
+      Boolean(initialFile) ||
+      isAwaitingResponse;
+
     window.sessionStorage.setItem(ANONYMOUS_CURRENT_SESSION_STORAGE_KEY, activeSessionId);
-  }, [activeSessionId, isAnonymous, visibleMessages.length]);
+    window.sessionStorage.setItem(
+      ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY,
+      String(hasMessagesToMerge)
+    );
+  }, [
+    activeSessionId,
+    initialFile,
+    initialMessage,
+    isAnonymous,
+    isAwaitingResponse,
+    visibleMessages.length,
+  ]);
 
   // ============================================
   // Helper Functions
@@ -831,6 +854,14 @@ export const ChatScreen: React.FC = () => {
     setIsInfoPanelVisible((prev) => !prev);
   }, []);
 
+  const handleOpenSignInModal = useCallback(() => {
+    setIsSignInModalOpen(true);
+  }, []);
+
+  const handleCloseSignInModal = useCallback(() => {
+    setIsSignInModalOpen(false);
+  }, []);
+
   // ============================================
   // Render
   // ============================================
@@ -869,11 +900,13 @@ export const ChatScreen: React.FC = () => {
           onCancelResponse={isResponseInFlight ? handleCancelResponse : undefined}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
-	          onToggleInfo={handleToggleInfo}
-	          userAvatar={user?.avatar}
-	          userAvatarType={user?.avatarType}
-	          sessionLimitWarning={activeSession?.limitWarning ?? null}
-	        />
+          onToggleInfo={handleToggleInfo}
+          userAvatar={user?.avatar}
+          userAvatarType={user?.avatarType}
+          sessionLimitWarning={activeSession?.limitWarning ?? null}
+          showSignInButton={isAnonymous}
+          onSignIn={handleOpenSignInModal}
+        />
       ) : (
         <div className="flex h-full flex-1 flex-col items-center justify-center bg-gray-50 dark:bg-slate-900">
           <div className="text-center">
@@ -905,6 +938,12 @@ export const ChatScreen: React.FC = () => {
         isVisible={isInfoPanelVisible}
         onClose={handleToggleInfo}
         onAgentChange={setAgent}
+      />
+
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        initialMode="signin"
+        onClose={handleCloseSignInModal}
       />
     </div>
   );

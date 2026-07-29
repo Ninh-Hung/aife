@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, Bot, Info, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Bot, Info, LogIn, MessageSquare } from 'lucide-react';
 import { IconButton, CircularProgress } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Agent, ChatMessage } from '../../types';
@@ -25,6 +25,8 @@ interface ChatConversationProps {
   executionMode: ChatExecutionMode;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
   onToggleInfo: () => void;
+  showSignInButton?: boolean;
+  onSignIn?: () => void;
   /** Current user's avatar URL */
   userAvatar?: string;
   /** Current user's avatar type */
@@ -46,6 +48,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   executionMode,
   onExecutionModeChange,
   onToggleInfo,
+  showSignInButton,
+  onSignIn,
   userAvatar,
   userAvatarType,
   sessionLimitWarning,
@@ -116,14 +120,27 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           </div>
         </div>
 
-        {/* Toggle Info Button */}
-        <IconButton
-          onClick={onToggleInfo}
-          size="small"
-          className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
-        >
-          <Info size={20} />
-        </IconButton>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {showSignInButton && (
+            <button
+              type="button"
+              onClick={onSignIn}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-600 px-3 text-sm font-medium text-white transition-colors hover:bg-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800"
+            >
+              <LogIn size={16} />
+              <span>{t('common.signIn')}</span>
+            </button>
+          )}
+
+          {/* Toggle Info Button */}
+          <IconButton
+            onClick={onToggleInfo}
+            size="small"
+            className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            <Info size={20} />
+          </IconButton>
+        </div>
       </div>
 
       {sessionLimitWarning && (

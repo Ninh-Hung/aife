@@ -9,6 +9,7 @@ import {
   User as UserIcon,
   Copy,
   Check,
+  Download,
   Brain,
   ChevronDown,
   ChevronRight,
@@ -24,7 +25,11 @@ import { ChatMessage } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
 import { parseAgentResponse } from '../../utils/agentResponse';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
-import { getChatAttachmentBlob, isAuthenticatedChatAttachmentUrl } from '../../services/api';
+import {
+  getChatAttachmentBlob,
+  getGeneratedImageDownloadBlob,
+  isAuthenticatedChatAttachmentUrl,
+} from '../../services/api';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -39,6 +44,11 @@ interface MessageBubbleProps {
 type MessageAttachment = NonNullable<ChatMessage['attachments']>[number];
 
 const STREAM_PROGRESS_PREFIX = '[progress]';
+const MALFORMED_IMAGE_DATA_URL_PATTERN = /^data:image\/[a-z0-9.+-]+;base64,(https?:\/\/\S+)$/i;
+const IMAGE_DATA_URL_PATTERN = /^data:image\/[a-z0-9.+-]+;base64,/i;
+const IMAGE_URL_PATTERN =
+  /^https?:\/\/\S+(?:\.(?:png|jpe?g|gif|webp|avif)(?:[?#]\S*)?|\/provider-outputs\/\S*|ai-gateway-outputs\.\S*)$/i;
+const MARKDOWN_IMAGE_PATTERN = /!\[[^\]]*\]\((?:<([^>]+)>|([^)]+))\)/;
 
 function splitProgressFromReasoning(reasoning: string | null): {
   progressMessages: string[];
@@ -71,6 +81,89 @@ function splitProgressFromReasoning(reasoning: string | null): {
   };
 }
 
+function markdownImageUrl(url: string): string {
+  if (url.startsWith('data:image/')) {
+    return url;
+  }
+
+  return `<${url.replace(/>/g, '%3E')}>`;
+}
+
+function normalizeAgentImageContent(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed) return content;
+
+  if (/^!\[[^\]]*\]\(.+\)$/s.test(trimmed)) {
+    return content;
+  }
+
+  const malformedDataUrl = trimmed.match(MALFORMED_IMAGE_DATA_URL_PATTERN);
+  if (malformedDataUrl?.[1]) {
+    return `![Generated image](${markdownImageUrl(malformedDataUrl[1])})`;
+  }
+
+  if (IMAGE_DATA_URL_PATTERN.test(trimmed) || IMAGE_URL_PATTERN.test(trimmed)) {
+    return `![Generated image](${markdownImageUrl(trimmed)})`;
+  }
+
+  return content;
+}
+
+function extractDownloadableImageUrl(content: string): string | null {
+  const trimmed = content.trim();
+  if (!trimmed) return null;
+
+  const markdownImage = trimmed.match(MARKDOWN_IMAGE_PATTERN);
+  const markdownUrl = markdownImage?.[1] || markdownImage?.[2];
+  if (markdownUrl) {
+    return markdownUrl.trim();
+  }
+
+  const malformedDataUrl = trimmed.match(MALFORMED_IMAGE_DATA_URL_PATTERN);
+  if (malformedDataUrl?.[1]) {
+    return malformedDataUrl[1];
+  }
+
+  if (IMAGE_DATA_URL_PATTERN.test(trimmed) || IMAGE_URL_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+function getImageDownloadFileName(messageId: string, url: string): string {
+  const dataMimeType = url.match(/^data:(image\/[a-z0-9.+-]+);base64,/i)?.[1];
+  const extensionFromMime = dataMimeType?.split('/')[1]?.replace('jpeg', 'jpg');
+  const pathExtension = /^https?:\/\//i.test(url)
+    ? new URL(url).pathname.match(/\.([a-z0-9]+)$/i)?.[1]
+    : undefined;
+  const extension = extensionFromMime || pathExtension || 'png';
+  return `generated-image-${messageId}.${extension}`;
+}
+
+function shouldProxyGeneratedImageDownload(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      /(?:^|\.)r2\.cloudflarestorage\.com$/i.test(parsed.hostname) &&
+      parsed.pathname.startsWith('/provider-outputs/')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function triggerDownload(url: string, fileName: string) {
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = 'noreferrer';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   agentAvatar,
@@ -83,6 +176,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const { t } = useTranslation();
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   const [isReasoningOpen, setIsReasoningOpen] = useState(false);
   const [attachmentObjectUrls, setAttachmentObjectUrls] = useState<Record<string, string>>({});
   const [selectedImage, setSelectedImage] = useState<{
@@ -103,14 +197,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           .join('\n\n'),
       };
   const progressAwareReasoning = splitProgressFromReasoning(parsedMessage.reasoning);
-  const displayContent = parsedMessage.content;
+  const displayContent = isUser
+    ? parsedMessage.content
+    : normalizeAgentImageContent(parsedMessage.content);
+  const downloadableImageUrl = isUser ? null : extractDownloadableImageUrl(displayContent);
   const reasoning = progressAwareReasoning.reasoning;
   const latestProgressMessage = !isUser
     ? progressAwareReasoning.progressMessages[progressAwareReasoning.progressMessages.length - 1] ||
       null
     : null;
   const sources = isUser ? [] : message.sources || [];
-  const attachments = message.attachments || [];
+  const attachments = useMemo(() => message.attachments || [], [message.attachments]);
   const isAnonymousLimitMessage =
     !isUser &&
     (Boolean(message.anonymousLimit) ||
@@ -177,6 +274,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const handleSignUp = () => {
     navigate('/', { state: { authMode: 'signup' } });
+  };
+
+  const handleDownloadImage = async () => {
+    if (!downloadableImageUrl || isDownloadingImage) return;
+
+    const fileName = getImageDownloadFileName(message.id, downloadableImageUrl);
+    setIsDownloadingImage(true);
+
+    try {
+      if (downloadableImageUrl.startsWith('data:image/')) {
+        triggerDownload(downloadableImageUrl, fileName);
+        return;
+      }
+
+      const blob = shouldProxyGeneratedImageDownload(downloadableImageUrl)
+        ? await getGeneratedImageDownloadBlob(downloadableImageUrl)
+        : await fetch(downloadableImageUrl).then((response) => {
+            if (!response.ok) {
+              throw new Error(`Image download failed with status ${response.status}`);
+            }
+            return response.blob();
+          });
+      const objectUrl = URL.createObjectURL(blob);
+      triggerDownload(objectUrl, fileName);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+    } catch {
+      // Keep the user on the current page if the provider URL cannot be fetched.
+    } finally {
+      setIsDownloadingImage(false);
+    }
   };
 
   const getDisplayUrl = (attachment: MessageAttachment) => {
@@ -315,6 +442,34 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                       text={displayContent}
                       sources={sources}
                       className="text-sm leading-relaxed"
+                      onImageClick={({ src, alt }) =>
+                        setSelectedImage({
+                          url: src,
+                          fileName: alt?.trim() || getImageDownloadFileName(message.id, src),
+                        })
+                      }
+                      renderImageOverlay={
+                        downloadableImageUrl
+                          ? ({ src }) =>
+                              src === downloadableImageUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    void handleDownloadImage();
+                                  }}
+                                  disabled={isDownloadingImage}
+                                  title={
+                                    isDownloadingImage ? 'Downloading image' : 'Download image'
+                                  }
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/65 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/80 disabled:cursor-wait disabled:opacity-70"
+                                >
+                                  <Download size={16} />
+                                </button>
+                              ) : null
+                          : undefined
+                      }
                     />
                   )}
                 </>

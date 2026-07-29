@@ -9,7 +9,8 @@
     "logout": "Đăng xuất",
     "trial": "Dùng thử",
     "comingSoon": "Sắp ra mắt",
-    "close": "Đóng"
+    "close": "Đóng",
+    "signIn": "Đăng nhập"
   },
   "logoutConfirm": {
     "title": "Xác nhận đăng xuất",
@@ -728,7 +729,11 @@
       "usageQuota": "Hạn mức sử dụng",
       "charactersUsed": "Ký tự đã dùng",
       "tokensUsed": "Token đã dùng · còn {{remaining}}",
+      "packageTokensUsed": "Token gói đã dùng · tổng còn {{remaining}} khả dụng",
       "percentUsed": "Đã dùng {{percent}}%",
+      "packagePercentUsed": "Đã dùng quota gói: {{percent}}%",
+      "walletFallback": "Quota gói đã dùng hết. Các lượt gọi LLM tiếp theo sẽ dùng token wallet.",
+      "noTokensAvailable": "Không còn token khả dụng.",
       "packageQuota": "Quota gói",
       "walletToken": "Token wallet",
       "availableToken": "Token khả dụng",
@@ -768,7 +773,7 @@
       },
       "legend": {
         "bar": "Lượng token",
-        "line": "Đường xu hướng"
+        "line": "Token đã dùng"
       },
       "errors": {
         "loadFailed": "Không thể tải dữ liệu token"

@@ -27,8 +27,9 @@ export async function getQuota(): Promise<UserQuota> {
  * Get current user's token usage series for dashboard charts.
  */
 export async function getTokenUsageSeries(period: TokenUsagePeriod): Promise<TokenUsageSeries> {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const response = await axiosInstance.get('/v1/subscriptions/token-usage', {
-    params: { period },
+    params: { period, timeZone },
   });
 
   return response.data.data;
