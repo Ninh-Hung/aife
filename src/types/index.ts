@@ -78,6 +78,28 @@ export interface ThirdPartyUsageResponse {
   data: ThirdPartyUsageRow[];
 }
 
+export type ApiKeyUsageGroupBy = 'agent' | 'day' | 'api_key' | 'capability';
+
+export interface ApiKeyUsageRow {
+  api_key_id: number | null;
+  api_key_public_id: string | null;
+  agent_public_id: string | null;
+  capability: string | null;
+  day: string | null;
+  external_tenant_id: string | null;
+  external_tenant_type: string | null;
+  client_id: string | null;
+  requests: number;
+  usage_units: number;
+  charged_credits: number;
+  latest_request_id: string | null;
+  latest_used_at: string | null;
+}
+
+export interface ApiKeyUsageResponse {
+  data: ApiKeyUsageRow[];
+}
+
 // ✨ NEW: Subscription Info (Enhanced)
 export interface SubscriptionInfo {
   status: 'trialing' | 'active' | 'expired' | 'canceled';
@@ -453,6 +475,21 @@ export interface ApiKeyApiScopeResponse {
   resourcePublicId?: string | null;
 }
 
+export interface ApiScopeCatalogItem {
+  scope: string;
+  name: string;
+  description: string;
+  resourceType: string;
+  action: string;
+  capabilityCode?: string;
+  capabilityPublicId?: string;
+  aliases: string[];
+  resourceMode: 'none' | 'optional' | 'required';
+  resourceRestrictionTypes: string[];
+  source: 'static' | 'capability';
+  directExecutionPath?: string;
+}
+
 /** Capability scope as returned on an API key */
 export interface ApiKeyScopeResponse {
   capabilityCode: string;
@@ -502,6 +539,13 @@ export interface CreateApiKeyResponse extends ApiKey {
   apiKey: string;
 }
 
+export interface CreateIntegrationClientInput {
+  name: string;
+  environment?: string;
+  status?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface IntegrationClient {
   public_id: string;
   name: string;
@@ -511,6 +555,61 @@ export interface IntegrationClient {
   binding_count?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ExternalAgentBindingUsage {
+  messages: number;
+  total_tokens: number;
+  cost_credits: number;
+  tool_calls: number;
+}
+
+export interface ExternalAgentBinding {
+  public_id: string;
+  client_id: string;
+  agent_public_id: string;
+  agent_name: string;
+  external_tenant_type?: string | null;
+  external_tenant_id: string;
+  status: string;
+  metadata?: Record<string, unknown> | null;
+  usage?: ExternalAgentBindingUsage;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UpsertIntegrationClientBindingInput {
+  agent_public_id: string;
+  external_tenant_id: string;
+  external_tenant_type?: string;
+  status?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProvisionIntegrationClientAgentInput {
+  external_tenant_id: string;
+  external_tenant_type?: string;
+  template_agent_public_id?: string;
+  name?: string;
+  description?: string;
+  avatar_url?: string;
+  characteristic_ids?: string[];
+  knowledge_ids?: string[];
+  status?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProvisionIntegrationClientAgentResponse {
+  agent: {
+    public_id: string;
+    name: string;
+  };
+  binding: ExternalAgentBinding;
+}
+
+export interface UpdateIntegrationClientBindingInput {
+  status?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EmbedWidget {

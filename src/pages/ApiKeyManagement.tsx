@@ -10,45 +10,77 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
 } from '@mui/material';
 import {
+  Bot,
+  Building2,
   CheckCircle2,
   Copy,
+  Gauge,
   Key,
+  Link2,
   Plus,
-  Shield,
+  RefreshCw,
+  Search,
   ShieldCheck,
   Trash2,
+  Users,
   XCircle,
   Zap,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   createApiKey,
+  createIntegrationClient,
   listAgents,
   listApiKeys,
-  listCapabilities,
+  listApiScopeCatalog,
+  listIntegrationClientBindings,
   listIntegrationClients,
+  listKnowledge,
+  provisionIntegrationClientAgent,
   revokeApiKey,
+  rotateApiKey,
+  updateIntegrationClientBinding,
+  upsertIntegrationClientBinding,
 } from '../services/api';
+import { getApiKeyUsage } from '../services/api-key-usage.service';
+import { getThirdPartyUsage } from '../services/third-party-usage.service';
 import type {
   Agent,
   ApiKey,
   ApiKeyApiScopeInput,
-  ApiKeyScopeInput,
-  Capability,
+  ApiKeyApiScopeResponse,
+  ApiKeyUsageGroupBy,
+  ApiKeyUsageRow,
+  ApiScopeCatalogItem,
   CreateApiKeyInput,
   CreateApiKeyResponse,
+  ExternalAgentBinding,
   IntegrationClient,
+  Knowledge,
+  ThirdPartyUsageGroupBy,
+  ThirdPartyUsageRow,
 } from '../types';
 import { useNotification } from '../hooks/useNotification';
 import { useTranslation } from 'react-i18next';
@@ -58,14 +90,25 @@ import { useTranslation } from 'react-i18next';
 // ============================================
 
 const API_KEY_ACTIONS = ['canExecute', 'canCreate', 'canDelete'] as const;
+type ApiKeyUseCaseId =
+  | 'selectedScopes'
+  | 'chatWithOneAgent'
+  | 'thirdPartyRuntime'
+  | 'thirdPartyProvisioning';
+
 const API_KEY_SCOPE_PRESETS = {
   chatWithOneAgent: (agentPublicId: string): ApiKeyApiScopeInput[] => [
     { scope: 'agents:execute', resourceType: 'agent', resourcePublicId: agentPublicId },
     { scope: 'chat_sessions:create', resourceType: 'agent', resourcePublicId: agentPublicId },
     { scope: 'chat_messages:create', resourceType: 'agent', resourcePublicId: agentPublicId },
-    { scope: 'usage:read' },
+    { scope: 'chat_messages:read', resourceType: 'agent', resourcePublicId: agentPublicId },
   ],
   thirdPartyRuntime: (clientPublicId: string): ApiKeyApiScopeInput[] => [
+    {
+      scope: 'agents:read',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
     {
       scope: 'agents:execute',
       resourceType: 'integration_client',
@@ -81,7 +124,16 @@ const API_KEY_SCOPE_PRESETS = {
       resourceType: 'integration_client',
       resourcePublicId: clientPublicId,
     },
-    { scope: 'usage:read' },
+    {
+      scope: 'chat_messages:read',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'usage:read',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
   ],
   thirdPartyProvisioning: (clientPublicId: string): ApiKeyApiScopeInput[] => [
     {
@@ -94,11 +146,309 @@ const API_KEY_SCOPE_PRESETS = {
       resourceType: 'integration_client',
       resourcePublicId: clientPublicId,
     },
-    { scope: 'agents:create' },
-    { scope: 'knowledge:create' },
-    { scope: 'knowledge:sync' },
-    { scope: 'files:upload' },
+    {
+      scope: 'agents:create',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    { scope: 'agents:read', resourceType: 'integration_client', resourcePublicId: clientPublicId },
+    {
+      scope: 'agents:update',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'knowledge:create',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'knowledge:read',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'knowledge:update',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'knowledge:sync',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    { scope: 'files:upload', resourceType: 'integration_client', resourcePublicId: clientPublicId },
   ],
+};
+
+const API_KEY_USE_CASES: Array<{
+  id: ApiKeyUseCaseId;
+  title: string;
+  descriptionKey: string;
+  description: string;
+  resourceLabelKey: string;
+  resourceLabel: string;
+  resourceRequired: boolean;
+}> = [
+  {
+    id: 'selectedScopes',
+    title: 'Selected scopes',
+    descriptionKey: 'apiKeys.modal.useCaseDescriptions.selectedScopes',
+    description: 'Personal API key for selected service or resource actions.',
+    resourceLabelKey: 'apiKeys.modal.resource',
+    resourceLabel: 'Resource',
+    resourceRequired: false,
+  },
+  {
+    id: 'chatWithOneAgent',
+    title: 'Chat with one agent',
+    descriptionKey: 'apiKeys.modal.useCaseDescriptions.chatWithOneAgent',
+    description: 'Backend clients can create sessions and messages for one selected agent only.',
+    resourceLabelKey: 'apiKeys.modal.agentResource',
+    resourceLabel: 'Agent',
+    resourceRequired: true,
+  },
+  {
+    id: 'thirdPartyRuntime',
+    title: 'Third-party runtime',
+    descriptionKey: 'apiKeys.modal.useCaseDescriptions.thirdPartyRuntime',
+    description:
+      'A platform backend such as NailMap can chat through agents bound to one integration client.',
+    resourceLabelKey: 'apiKeys.modal.integrationClientResource',
+    resourceLabel: 'Integration client',
+    resourceRequired: true,
+  },
+  {
+    id: 'thirdPartyProvisioning',
+    title: 'Third-party provisioning',
+    descriptionKey: 'apiKeys.modal.useCaseDescriptions.thirdPartyProvisioning',
+    description:
+      'A trusted platform backend can create tenant agents and bindings under one integration client.',
+    resourceLabelKey: 'apiKeys.modal.integrationClientResource',
+    resourceLabel: 'Integration client',
+    resourceRequired: true,
+  },
+];
+
+interface ApiKeyCurlExample {
+  key: string;
+  titleKey: string;
+  title: string;
+  command: string;
+}
+
+const API_EXAMPLE_BASE_URL = '${API_BASE_URL:-https://api.appaihelp.com}';
+
+const buildCurlCommand = ({
+  apiKey,
+  method,
+  path,
+  body,
+  headers = {},
+}: {
+  apiKey: string;
+  method: 'POST' | 'GET' | 'DELETE';
+  path: string;
+  body?: Record<string, unknown>;
+  headers?: Record<string, string>;
+}) => {
+  const lines = [
+    `curl -X ${method} "${API_EXAMPLE_BASE_URL}${path}"`,
+    `  -H "x-api-key: ${apiKey}"`,
+  ];
+
+  Object.entries(headers).forEach(([name, value]) => {
+    lines.push(`  -H "${name}: ${value}"`);
+  });
+
+  if (body) {
+    lines.push('  -H "Content-Type: application/json"');
+    lines.push(`  -d '${JSON.stringify(body)}'`);
+  }
+
+  return lines.join(' \\\n');
+};
+
+const getFirstScopedResourcePublicId = (
+  scopes: ApiKeyApiScopeResponse[] | undefined,
+  resourceType: string
+) =>
+  scopes?.find((scope) => scope.resourceType === resourceType && scope.resourcePublicId)
+    ?.resourcePublicId;
+
+const buildApiKeyCurlExamples = (data: CreateApiKeyResponse | null): ApiKeyCurlExample[] => {
+  const scopes = data?.scopes ?? [];
+  if (!data?.apiKey || scopes.length === 0) return [];
+
+  const grantedScopes = new Set(scopes.map((scope) => scope.scope));
+  const examples: ApiKeyCurlExample[] = [];
+  const addExample = (example: ApiKeyCurlExample) => {
+    if (!examples.some((item) => item.key === example.key)) {
+      examples.push(example);
+    }
+  };
+
+  if (grantedScopes.has('translations:create')) {
+    addExample({
+      key: 'translation',
+      titleKey: 'apiKeys.oneTime.exampleTranslation',
+      title: 'Translation',
+      command: buildCurlCommand({
+        apiKey: data.apiKey,
+        method: 'POST',
+        path: '/v1/translate',
+        body: {
+          text: 'Hello, welcome to our service.',
+          sourceLang: 'auto',
+          targetLang: ['vi'],
+        },
+      }),
+    });
+  }
+
+  if (grantedScopes.has('images:generate')) {
+    addExample({
+      key: 'image-generation',
+      titleKey: 'apiKeys.oneTime.exampleImageGeneration',
+      title: 'Image generation',
+      command: buildCurlCommand({
+        apiKey: data.apiKey,
+        method: 'POST',
+        path: '/v1/capabilities/text_to_image/execute',
+        body: {
+          prompt: 'Create a clean product mockup on a white background.',
+        },
+      }),
+    });
+  }
+
+  if (grantedScopes.has('images:analyze')) {
+    addExample({
+      key: 'image-analysis',
+      titleKey: 'apiKeys.oneTime.exampleImageAnalysis',
+      title: 'Image analysis',
+      command: buildCurlCommand({
+        apiKey: data.apiKey,
+        method: 'POST',
+        path: '/v1/capabilities/image_to_text/execute',
+        body: {
+          prompt: 'Describe this image.',
+          images: [
+            {
+              data: 'base64-image-data',
+              mimeType: 'image/png',
+            },
+          ],
+        },
+      }),
+    });
+  }
+
+  if (grantedScopes.has('chat:create')) {
+    addExample({
+      key: 'text-generation',
+      titleKey: 'apiKeys.oneTime.exampleTextGeneration',
+      title: 'Text generation',
+      command: buildCurlCommand({
+        apiKey: data.apiKey,
+        method: 'POST',
+        path: '/v1/capabilities/text_generate/execute',
+        body: {
+          messages: [{ role: 'user', content: 'Write a short welcome message.' }],
+        },
+      }),
+    });
+  }
+
+  if (grantedScopes.has('agents:execute') && grantedScopes.has('chat_messages:create')) {
+    const agentPublicId = getFirstScopedResourcePublicId(scopes, 'agent') ?? '{agent_public_id}';
+    addExample({
+      key: 'agent-message',
+      titleKey: 'apiKeys.oneTime.exampleAgentMessage',
+      title: 'Agent message',
+      command: buildCurlCommand({
+        apiKey: data.apiKey,
+        method: 'POST',
+        path: `/v1/agents/${agentPublicId}/messages`,
+        headers: {
+          'Idempotency-Key': 'msg_001',
+        },
+        body: {
+          session: {
+            external_session_id: 'personal-demo',
+            create_if_missing: true,
+          },
+          message: {
+            role: 'user',
+            content: 'Hello, can you help me?',
+          },
+        },
+      }),
+    });
+  }
+
+  scopes
+    .filter(
+      (scope) =>
+        scope.capabilityCode &&
+        !['translation', 'text_to_image', 'image_to_text', 'text_generate'].includes(
+          scope.capabilityCode
+        )
+    )
+    .slice(0, Math.max(0, 4 - examples.length))
+    .forEach((scope) => {
+      addExample({
+        key: `direct-${scope.capabilityCode}`,
+        titleKey: 'apiKeys.oneTime.exampleDirectCapability',
+        title: `${scope.capabilityCode} capability`,
+        command: buildCurlCommand({
+          apiKey: data.apiKey,
+          method: 'POST',
+          path: `/v1/capabilities/${scope.capabilityCode}/execute`,
+          body: {
+            prompt: 'Run this capability with my input.',
+          },
+        }),
+      });
+    });
+
+  return examples.slice(0, 4);
+};
+
+const API_SCOPE_DESCRIPTIONS: Record<string, string> = {
+  'agents:create': 'Create tenant agents during provisioning.',
+  'agents:read': 'Read allowed agent metadata.',
+  'agents:update': 'Update tenant agents during provisioning.',
+  'agents:execute': 'Run the selected or bound agent.',
+  'chat_sessions:create': 'Create chat sessions.',
+  'chat_messages:create': 'Send chat messages.',
+  'chat_messages:read': 'Read chat messages and responses.',
+  'knowledge:create': 'Create knowledge resources for provisioned agents.',
+  'knowledge:read': 'Read knowledge resources for provisioned agents.',
+  'knowledge:update': 'Update knowledge resources for provisioned agents.',
+  'knowledge:sync': 'Trigger knowledge sync jobs.',
+  'files:upload': 'Upload files for provisioned knowledge.',
+  'integration_clients:read': 'Read the selected integration client.',
+  'integration_clients:update': 'Create or update tenant-agent bindings.',
+  'usage:read': 'Read usage attributed to this integration client.',
+};
+
+const API_SCOPE_DESCRIPTION_KEYS: Record<string, string> = {
+  'agents:create': 'apiKeys.modal.scopeDescriptions.agentsCreate',
+  'agents:read': 'apiKeys.modal.scopeDescriptions.agentsRead',
+  'agents:update': 'apiKeys.modal.scopeDescriptions.agentsUpdate',
+  'agents:execute': 'apiKeys.modal.scopeDescriptions.agentsExecute',
+  'chat_sessions:create': 'apiKeys.modal.scopeDescriptions.chatSessionsCreate',
+  'chat_messages:create': 'apiKeys.modal.scopeDescriptions.chatMessagesCreate',
+  'chat_messages:read': 'apiKeys.modal.scopeDescriptions.chatMessagesRead',
+  'knowledge:create': 'apiKeys.modal.scopeDescriptions.knowledgeCreate',
+  'knowledge:read': 'apiKeys.modal.scopeDescriptions.knowledgeRead',
+  'knowledge:update': 'apiKeys.modal.scopeDescriptions.knowledgeUpdate',
+  'knowledge:sync': 'apiKeys.modal.scopeDescriptions.knowledgeSync',
+  'files:upload': 'apiKeys.modal.scopeDescriptions.filesUpload',
+  'integration_clients:read': 'apiKeys.modal.scopeDescriptions.integrationClientsRead',
+  'integration_clients:update': 'apiKeys.modal.scopeDescriptions.integrationClientsUpdate',
+  'usage:read': 'apiKeys.modal.scopeDescriptions.usageRead',
 };
 
 function displayName(apiKey: ApiKey): string {
@@ -127,6 +477,68 @@ function formatRateLimit(apiKey: ApiKey): string {
   return [minute, day].filter(Boolean).join(' · ') || '—';
 }
 
+type ApiKeySortField =
+  | 'name'
+  | 'status'
+  | 'environment'
+  | 'scopes'
+  | 'createdAt'
+  | 'lastUsed'
+  | 'expiresAt';
+type SortDirection = 'asc' | 'desc';
+
+const API_KEY_ROWS_PER_PAGE_OPTIONS = [5, 10, 25, 50];
+
+function apiKeyScopeCount(apiKey: ApiKey): number {
+  return apiKey.scopes?.length ?? apiKey.capabilities.length;
+}
+
+function apiKeySearchText(apiKey: ApiKey): string {
+  const scopeText = apiKey.scopes?.map((scope) => scope.scope).join(' ') ?? '';
+  const capabilityText = apiKey.capabilities
+    .map((capability) => `${capability.capabilityCode} ${capability.capabilityName}`)
+    .join(' ');
+
+  return [
+    displayName(apiKey),
+    apiKey.publicId,
+    apiKey.prefix,
+    apiKey.status,
+    apiKeyEnvironment(apiKey),
+    apiKey.metadata?.description,
+    scopeText,
+    capabilityText,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function apiKeySortValue(apiKey: ApiKey, field: ApiKeySortField): string | number {
+  if (field === 'name') return displayName(apiKey).toLowerCase();
+  if (field === 'status') return apiKey.status;
+  if (field === 'environment') return apiKeyEnvironment(apiKey).toLowerCase();
+  if (field === 'scopes') return apiKeyScopeCount(apiKey);
+  return apiKey[field] ? new Date(apiKey[field] ?? '').getTime() : 0;
+}
+
+function compareApiKeys(
+  left: ApiKey,
+  right: ApiKey,
+  sortField: ApiKeySortField,
+  sortDirection: SortDirection
+): number {
+  const leftValue = apiKeySortValue(left, sortField);
+  const rightValue = apiKeySortValue(right, sortField);
+  const direction = sortDirection === 'asc' ? 1 : -1;
+
+  if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+    return (leftValue - rightValue) * direction;
+  }
+
+  return String(leftValue).localeCompare(String(rightValue)) * direction;
+}
+
 // ============================================
 // Main Component
 // ============================================
@@ -145,6 +557,11 @@ export const ApiKeyManagement: React.FC = () => {
     open: boolean;
     apiKey: ApiKey | null;
   }>({ open: false, apiKey: null });
+  const [rotateDialog, setRotateDialog] = useState<{
+    open: boolean;
+    apiKey: ApiKey | null;
+  }>({ open: false, apiKey: null });
+  const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null);
 
   useEffect(() => {
     loadApiKeys();
@@ -205,36 +622,17 @@ export const ApiKeyManagement: React.FC = () => {
         </Button>
       </div>
 
-      {/* API Keys List */}
-      <div className="space-y-3">
-        {apiKeys.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-slate-700 dark:bg-slate-800">
-            <Key className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-slate-500" />
-            <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-slate-100">
-              {t('apiKeys.empty.title')}
-            </h3>
-            <p className="mb-6 text-gray-600 dark:text-slate-400">
-              {t('apiKeys.empty.description')}
-            </p>
-            <Button
-              variant="contained"
-              startIcon={<Plus size={20} />}
-              onClick={() => setCreateModalOpen(true)}
-            >
-              {t('apiKeys.create')}
-            </Button>
-          </div>
-        ) : (
-          apiKeys.map((apiKey, index) => (
-            <ApiKeyCard
-              key={apiKey.publicId}
-              apiKey={apiKey}
-              index={index}
-              onRevoke={() => setRevokeDialog({ open: true, apiKey })}
-            />
-          ))
-        )}
-      </div>
+      <IntegrationClientsPanel />
+      <PersonalApiKeyUsagePanel apiKeys={apiKeys} />
+      <ThirdPartyUsagePanel />
+
+      <ApiKeysTable
+        apiKeys={apiKeys}
+        onCreate={() => setCreateModalOpen(true)}
+        onSelect={setSelectedApiKey}
+        onRotate={(apiKey) => setRotateDialog({ open: true, apiKey })}
+        onRevoke={(apiKey) => setRevokeDialog({ open: true, apiKey })}
+      />
 
       {/* Create Modal */}
       <CreateApiKeyModal
@@ -255,6 +653,20 @@ export const ApiKeyManagement: React.FC = () => {
         onCopy={handleCopyKey}
       />
 
+      <ApiKeyDetailDialog
+        apiKey={selectedApiKey}
+        open={Boolean(selectedApiKey)}
+        onClose={() => setSelectedApiKey(null)}
+        onRotate={(apiKey) => {
+          setSelectedApiKey(null);
+          setRotateDialog({ open: true, apiKey });
+        }}
+        onRevoke={(apiKey) => {
+          setSelectedApiKey(null);
+          setRevokeDialog({ open: true, apiKey });
+        }}
+      />
+
       {/* Revoke Confirmation Dialog */}
       <RevokeConfirmationDialog
         open={revokeDialog.open}
@@ -273,173 +685,512 @@ export const ApiKeyManagement: React.FC = () => {
           setRevokeDialog({ open: false, apiKey: null });
         }}
       />
+
+      <RotateConfirmationDialog
+        open={rotateDialog.open}
+        apiKey={rotateDialog.apiKey}
+        onClose={() => setRotateDialog({ open: false, apiKey: null })}
+        onConfirm={async () => {
+          if (rotateDialog.apiKey) {
+            const response = await rotateApiKey(rotateDialog.apiKey.publicId);
+            if (response.success && response.data?.apiKey) {
+              success(t('apiKeys.messages.rotated'));
+              setOneTimeKeyModal({ open: true, data: response.data });
+              loadApiKeys();
+            } else {
+              error(response.error || t('apiKeys.errors.rotateFailed'));
+            }
+          }
+          setRotateDialog({ open: false, apiKey: null });
+        }}
+      />
     </div>
   );
 };
 
 // ============================================
-// API Key Card
+// API Keys Table
 // ============================================
 
-interface ApiKeyCardProps {
-  apiKey: ApiKey;
-  index: number;
-  onRevoke: () => void;
+interface ApiKeysTableProps {
+  apiKeys: ApiKey[];
+  onCreate: () => void;
+  onSelect: (apiKey: ApiKey) => void;
+  onRotate: (apiKey: ApiKey) => void;
+  onRevoke: (apiKey: ApiKey) => void;
 }
 
-const ApiKeyCard: React.FC<ApiKeyCardProps> = ({ apiKey, index, onRevoke }) => {
+const ApiKeysTable: React.FC<ApiKeysTableProps> = ({
+  apiKeys,
+  onCreate,
+  onSelect,
+  onRotate,
+  onRevoke,
+}) => {
   const { t, i18n } = useTranslation();
-  const name = displayName(apiKey);
-  const isActive = apiKey.status === 'ACTIVE';
   const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | ApiKey['status']>('all');
+  const [environmentFilter, setEnvironmentFilter] = useState('all');
+  const [sortField, setSortField] = useState<ApiKeySortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const environments = useMemo(
+    () =>
+      Array.from(
+        new Set(apiKeys.map(apiKeyEnvironment).filter((environment) => environment !== '—'))
+      ).sort(),
+    [apiKeys]
+  );
+
+  const filteredApiKeys = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return apiKeys
+      .filter((apiKey) => statusFilter === 'all' || apiKey.status === statusFilter)
+      .filter(
+        (apiKey) => environmentFilter === 'all' || apiKeyEnvironment(apiKey) === environmentFilter
+      )
+      .filter((apiKey) => !normalizedSearch || apiKeySearchText(apiKey).includes(normalizedSearch))
+      .sort((left, right) => compareApiKeys(left, right, sortField, sortDirection));
+  }, [apiKeys, environmentFilter, searchTerm, sortDirection, sortField, statusFilter]);
+
+  const pagedApiKeys = useMemo(
+    () => filteredApiKeys.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredApiKeys, page, rowsPerPage]
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [apiKeys.length, environmentFilter, searchTerm, sortDirection, sortField, statusFilter]);
+
+  const handleSort = (field: ApiKeySortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection(
+      field === 'name' || field === 'environment' || field === 'status' ? 'asc' : 'desc'
+    );
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setEnvironmentFilter('all');
+  };
+
+  if (apiKeys.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-slate-700 dark:bg-slate-800">
+        <Key className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-slate-500" />
+        <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-slate-100">
+          {t('apiKeys.empty.title')}
+        </h3>
+        <p className="mb-6 text-gray-600 dark:text-slate-400">{t('apiKeys.empty.description')}</p>
+        <Button variant="contained" startIcon={<Plus size={20} />} onClick={onCreate}>
+          {t('apiKeys.create')}
+        </Button>
+      </div>
+    );
+  }
+
+  const sortCell = (field: ApiKeySortField, label: string) => (
+    <TableSortLabel
+      active={sortField === field}
+      direction={sortField === field ? sortDirection : 'asc'}
+      onClick={() => handleSort(field)}
+    >
+      {label}
+    </TableSortLabel>
+  );
 
   return (
-    <div className="group rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600">
-      {/* Desktop Layout */}
-      <div className="hidden items-start gap-4 lg:flex">
-        {/* No. */}
-        <div className="flex w-10 shrink-0 items-center justify-center pt-0.5">
-          <span className="text-sm font-medium text-gray-500 dark:text-slate-400">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-        </div>
-
-        {/* Name + publicId */}
-        <div className="w-44 shrink-0">
-          <h3 className="truncate text-base font-bold text-blue-600 dark:text-blue-400">{name}</h3>
-          <span className="font-mono text-xs text-gray-400 dark:text-slate-500">
-            {apiKey.publicId}
-          </span>
-        </div>
-
-        {/* Capabilities */}
-        <div className="flex flex-1 flex-wrap gap-1.5">
-          {(apiKey.scopes?.length ?? apiKey.capabilities.length) === 0 ? (
-            <span className="text-sm text-gray-400 dark:text-slate-500">
-              {t('apiKeys.card.noCapabilities')}
-            </span>
-          ) : apiKey.scopes?.length ? (
-            apiKey.scopes.map((scope) => (
-              <ApiScopeBadge
-                key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
-                scope={scope}
-              />
-            ))
-          ) : (
-            apiKey.capabilities.map((cap) => (
-              <CapabilityBadge key={cap.capabilityCode} scope={cap} />
-            ))
-          )}
-        </div>
-
-        {/* Status */}
-        <div className="w-28 shrink-0">
-          <Chip
-            label={t(`apiKeys.status.${apiKey.status}`, { defaultValue: apiKey.status })}
+    <section className="rounded-lg border border-gray-200 bg-white text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+      <div className="border-b border-gray-200 p-4 dark:border-slate-700">
+        <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_180px_180px_auto]">
+          <TextField
+            fullWidth
             size="small"
-            color={isActive ? 'success' : 'default'}
-            icon={isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+            label={t('apiKeys.table.search')}
+            placeholder={t('apiKeys.table.searchPlaceholder')}
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} className="text-gray-400" />
+                </InputAdornment>
+              ),
+            }}
           />
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label={t('apiKeys.table.statusFilter')}
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiKey['status'])}
+          >
+            <MenuItem value="all">{t('apiKeys.table.allStatuses')}</MenuItem>
+            <MenuItem value="ACTIVE">{t('apiKeys.status.ACTIVE')}</MenuItem>
+            <MenuItem value="REVOKED">{t('apiKeys.status.REVOKED')}</MenuItem>
+          </TextField>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label={t('apiKeys.table.environmentFilter')}
+            value={environmentFilter}
+            onChange={(event) => setEnvironmentFilter(event.target.value)}
+          >
+            <MenuItem value="all">{t('apiKeys.table.allEnvironments')}</MenuItem>
+            {environments.map((environment) => (
+              <MenuItem key={environment} value={environment}>
+                {environment}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button type="button" variant="outlined" onClick={clearFilters}>
+            {t('apiKeys.table.clearFilters')}
+          </Button>
         </div>
-
-        {/* Created At */}
-        <div className="w-32 shrink-0 text-sm text-gray-600 dark:text-slate-400">
-          {formatDate(apiKey.createdAt, dateLocale)}
-        </div>
-
-        {/* Action */}
-        <div className="w-10 shrink-0">
-          {isActive && (
-            <IconButton onClick={onRevoke} color="error" size="small">
-              <Trash2 size={18} />
-            </IconButton>
-          )}
+        <div className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+          {t('apiKeys.table.filteredCount', {
+            shown: filteredApiKeys.length,
+            total: apiKeys.length,
+          })}
         </div>
       </div>
 
-      {/* Mobile/Tablet Layout */}
-      <div className="flex flex-col gap-3 lg:hidden">
-        {/* Row 1: No + Name + Status */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-500 dark:text-slate-400">
-            {String(index + 1).padStart(2, '0')}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-bold text-blue-600 dark:text-blue-400">
-              {name}
-            </h3>
-            <span className="font-mono text-xs text-gray-400 dark:text-slate-500">
-              {apiKey.publicId}
-            </span>
-          </div>
-          <Chip
-            label={t(`apiKeys.status.${apiKey.status}`, { defaultValue: apiKey.status })}
-            size="small"
-            color={isActive ? 'success' : 'default'}
-            icon={isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-          />
-        </div>
+      <TableContainer className="overflow-x-auto">
+        <Table
+          size="small"
+          sx={{
+            minWidth: 1180,
+            '& .MuiTableCell-root': { color: 'inherit' },
+            '& .MuiTableSortLabel-root': { color: 'inherit !important' },
+            '& .MuiTableSortLabel-icon': { color: 'inherit !important' },
+          }}
+        >
+          <TableHead>
+            <TableRow>
+              <TableCell>{sortCell('name', t('apiKeys.table.columns.name'))}</TableCell>
+              <TableCell>{t('apiKeys.table.columns.prefix')}</TableCell>
+              <TableCell>{sortCell('scopes', t('apiKeys.table.columns.scopes'))}</TableCell>
+              <TableCell>{sortCell('status', t('apiKeys.table.columns.status'))}</TableCell>
+              <TableCell>
+                {sortCell('environment', t('apiKeys.table.columns.environment'))}
+              </TableCell>
+              <TableCell>{sortCell('createdAt', t('apiKeys.table.columns.created'))}</TableCell>
+              <TableCell>{sortCell('lastUsed', t('apiKeys.table.columns.lastUsed'))}</TableCell>
+              <TableCell>{sortCell('expiresAt', t('apiKeys.table.columns.expires'))}</TableCell>
+              <TableCell>{t('apiKeys.table.columns.rateLimit')}</TableCell>
+              <TableCell align="right">{t('apiKeys.table.columns.actions')}</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {pagedApiKeys.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10}>
+                  <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+                    {t('apiKeys.table.noResults')}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              pagedApiKeys.map((apiKey) => {
+                const isActive = apiKey.status === 'ACTIVE';
 
-        {/* Row 2: Capabilities */}
-        {(apiKey.scopes?.length ?? apiKey.capabilities.length) > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {apiKey.scopes?.length
-              ? apiKey.scopes.map((scope) => (
-                  <ApiScopeBadge
-                    key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
-                    scope={scope}
-                  />
-                ))
-              : apiKey.capabilities.map((cap) => (
-                  <CapabilityBadge key={cap.capabilityCode} scope={cap} />
-                ))}
-          </div>
-        )}
+                return (
+                  <TableRow
+                    hover
+                    key={apiKey.publicId}
+                    tabIndex={0}
+                    onClick={() => onSelect(apiKey)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') onSelect(apiKey);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <TableCell>
+                      <div className="min-w-[190px]">
+                        <div className="truncate text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          {displayName(apiKey)}
+                        </div>
+                        <div className="truncate font-mono text-xs text-gray-400 dark:text-slate-500">
+                          {apiKey.publicId}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs text-gray-600 dark:text-slate-300">
+                        {apiKey.prefix || '—'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <ApiKeyScopePreview apiKey={apiKey} />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={t(`apiKeys.status.${apiKey.status}`, {
+                          defaultValue: apiKey.status,
+                        })}
+                        size="small"
+                        color={isActive ? 'success' : 'default'}
+                        icon={isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                      />
+                    </TableCell>
+                    <TableCell>{apiKeyEnvironment(apiKey)}</TableCell>
+                    <TableCell>{formatDate(apiKey.createdAt, dateLocale)}</TableCell>
+                    <TableCell>{formatOptionalDate(apiKey.lastUsed, dateLocale)}</TableCell>
+                    <TableCell>{formatOptionalDate(apiKey.expiresAt, dateLocale)}</TableCell>
+                    <TableCell>{formatRateLimit(apiKey)}</TableCell>
+                    <TableCell align="right">
+                      {isActive && (
+                        <div className="flex justify-end gap-1">
+                          <Tooltip title={t('apiKeys.card.rotate')} arrow>
+                            <IconButton
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRotate(apiKey);
+                              }}
+                              color="primary"
+                              size="small"
+                            >
+                              <RefreshCw size={18} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={t('apiKeys.revoke.revokeKey')} arrow>
+                            <IconButton
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRevoke(apiKey);
+                              }}
+                              color="error"
+                              size="small"
+                            >
+                              <Trash2 size={18} />
+                            </IconButton>
+                          </Tooltip>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-        {/* Row 3: Date + Delete */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600 dark:text-slate-400">
-            {t('apiKeys.card.created', { date: formatDate(apiKey.createdAt, dateLocale) })}
-          </span>
-          {isActive && (
-            <IconButton onClick={onRevoke} color="error" size="small">
-              <Trash2 size={18} />
-            </IconButton>
-          )}
-        </div>
-      </div>
+      <TablePagination
+        className="text-gray-700 dark:text-slate-300"
+        component="div"
+        count={filteredApiKeys.length}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        rowsPerPageOptions={API_KEY_ROWS_PER_PAGE_OPTIONS}
+        onPageChange={(_event, nextPage) => setPage(nextPage)}
+        onRowsPerPageChange={(event) => {
+          setRowsPerPage(Number(event.target.value));
+          setPage(0);
+        }}
+        labelRowsPerPage={t('apiKeys.table.rowsPerPage')}
+        labelDisplayedRows={({ from, to, count }) =>
+          t('apiKeys.table.displayedRows', { from, to, count })
+        }
+        sx={{
+          color: 'inherit',
+          '& .MuiTablePagination-selectLabel': { color: 'inherit' },
+          '& .MuiTablePagination-displayedRows': { color: 'inherit' },
+          '& .MuiSvgIcon-root': { color: 'inherit' },
+        }}
+      />
+    </section>
+  );
+};
 
-      <ApiKeyMetadataGrid apiKey={apiKey} dateLocale={dateLocale} />
+const ApiKeyScopePreview: React.FC<{ apiKey: ApiKey }> = ({ apiKey }) => {
+  const { t } = useTranslation();
+  const scopeCount = apiKeyScopeCount(apiKey);
+  const visibleLimit = 2;
+
+  if (scopeCount === 0) {
+    return (
+      <span className="text-sm text-gray-400 dark:text-slate-500">
+        {t('apiKeys.card.noCapabilities')}
+      </span>
+    );
+  }
+
+  const visibleScopes = apiKey.scopes?.slice(0, visibleLimit);
+  const visibleCapabilities = apiKey.scopes?.length
+    ? []
+    : apiKey.capabilities.slice(0, visibleLimit);
+  const remaining = Math.max(0, scopeCount - visibleLimit);
+
+  return (
+    <div className="flex min-w-[220px] max-w-[320px] flex-wrap gap-1.5">
+      {visibleScopes?.map((scope) => (
+        <ApiScopeBadge
+          key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
+          scope={scope}
+        />
+      ))}
+      {visibleCapabilities.map((capability) => (
+        <CapabilityBadge key={capability.capabilityCode} scope={capability} />
+      ))}
+      {remaining > 0 && (
+        <Chip
+          label={t('apiKeys.table.moreScopes', { count: remaining })}
+          size="small"
+          variant="outlined"
+          className="!text-xs"
+        />
+      )}
     </div>
   );
 };
 
-const ApiKeyMetadataGrid: React.FC<{ apiKey: ApiKey; dateLocale: string }> = ({
+interface ApiKeyDetailDialogProps {
+  apiKey: ApiKey | null;
+  open: boolean;
+  onClose: () => void;
+  onRotate: (apiKey: ApiKey) => void;
+  onRevoke: (apiKey: ApiKey) => void;
+}
+
+const ApiKeyDetailDialog: React.FC<ApiKeyDetailDialogProps> = ({
   apiKey,
-  dateLocale,
+  open,
+  onClose,
+  onRotate,
+  onRevoke,
 }) => {
-  const { t } = useTranslation();
-  const items = [
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
+
+  if (!apiKey) return null;
+
+  const isActive = apiKey.status === 'ACTIVE';
+  const details = [
+    { label: t('apiKeys.detail.publicId'), value: apiKey.publicId, mono: true },
     { label: t('apiKeys.card.prefix'), value: apiKey.prefix || '—', mono: true },
     { label: t('apiKeys.card.environment'), value: apiKeyEnvironment(apiKey) },
-    { label: t('apiKeys.card.expires'), value: formatOptionalDate(apiKey.expiresAt, dateLocale) },
+    { label: t('apiKeys.table.columns.created'), value: formatDate(apiKey.createdAt, dateLocale) },
     { label: t('apiKeys.card.lastUsed'), value: formatOptionalDate(apiKey.lastUsed, dateLocale) },
+    { label: t('apiKeys.card.expires'), value: formatOptionalDate(apiKey.expiresAt, dateLocale) },
+    {
+      label: t('apiKeys.detail.revokedAt'),
+      value: formatOptionalDate(apiKey.revokedAt, dateLocale),
+    },
     { label: t('apiKeys.card.rateLimit'), value: formatRateLimit(apiKey) },
   ];
 
   return (
-    <div className="mt-3 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3 text-xs dark:border-slate-700 md:grid-cols-5">
-      {items.map((item) => (
-        <div key={item.label} className="min-w-0">
-          <div className="text-gray-400 dark:text-slate-500">{item.label}</div>
-          <div
-            className={`truncate text-gray-700 dark:text-slate-300 ${item.mono ? 'font-mono' : ''}`}
-          >
-            {item.value}
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle className="flex flex-col gap-2 border-b border-gray-200 dark:border-slate-700">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="truncate text-lg font-semibold text-gray-900 dark:text-slate-100">
+              {displayName(apiKey)}
+            </div>
+            <div className="truncate font-mono text-xs font-normal text-gray-400 dark:text-slate-500">
+              {apiKey.publicId}
+            </div>
           </div>
+          <Chip
+            label={t(`apiKeys.status.${apiKey.status}`, { defaultValue: apiKey.status })}
+            size="small"
+            color={isActive ? 'success' : 'default'}
+            icon={isActive ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+          />
         </div>
-      ))}
-    </div>
+      </DialogTitle>
+      <DialogContent className="!pt-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {details.map((item) => (
+            <div
+              key={item.label}
+              className="min-w-0 rounded-lg border border-gray-200 p-3 dark:border-slate-700"
+            >
+              <div className="text-xs text-gray-400 dark:text-slate-500">{item.label}</div>
+              <div
+                className={`mt-1 truncate text-sm text-gray-800 dark:text-slate-200 ${
+                  item.mono ? 'font-mono' : ''
+                }`}
+              >
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {apiKey.metadata?.description && (
+          <div className="mt-4 rounded-lg border border-gray-200 p-3 dark:border-slate-700">
+            <div className="text-xs text-gray-400 dark:text-slate-500">
+              {t('apiKeys.detail.description')}
+            </div>
+            <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
+              {apiKey.metadata.description}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
+            {apiKey.scopes?.length ? t('apiKeys.detail.scopes') : t('apiKeys.detail.capabilities')}
+          </div>
+          {apiKeyScopeCount(apiKey) === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-slate-600 dark:text-slate-400">
+              {t('apiKeys.card.noCapabilities')}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {apiKey.scopes?.length
+                ? apiKey.scopes.map((scope) => (
+                    <ApiScopeBadge
+                      key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourceId ?? ''}`}
+                      scope={scope}
+                    />
+                  ))
+                : apiKey.capabilities.map((capability) => (
+                    <CapabilityBadge key={capability.capabilityCode} scope={capability} />
+                  ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+      <DialogActions className="border-t border-gray-200 dark:border-slate-700">
+        <Button onClick={onClose}>{t('apiKeys.detail.close')}</Button>
+        {isActive && (
+          <>
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<RefreshCw size={16} />}
+              onClick={() => onRotate(apiKey)}
+            >
+              {t('apiKeys.card.rotate')}
+            </Button>
+            <Button
+              type="button"
+              color="error"
+              variant="contained"
+              startIcon={<Trash2 size={16} />}
+              onClick={() => onRevoke(apiKey)}
+            >
+              {t('apiKeys.revoke.revokeKey')}
+            </Button>
+          </>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 
@@ -475,9 +1226,10 @@ interface ApiScopeBadgeProps {
 }
 
 const ApiScopeBadge: React.FC<ApiScopeBadgeProps> = ({ scope }) => {
+  const { t } = useTranslation();
   const restriction = scope.resourceType
     ? `${scope.resourceType}:${scope.resourcePublicId ?? scope.resourceId ?? '*'}`
-    : 'all resources';
+    : t('apiKeys.modal.allOwnedResources', { defaultValue: 'All owned resources' });
 
   return (
     <Tooltip title={restriction} arrow placement="top">
@@ -493,6 +1245,1146 @@ const ApiScopeBadge: React.FC<ApiScopeBadgeProps> = ({ scope }) => {
 };
 
 // ============================================
+// Integration Clients Panel
+// ============================================
+
+const IntegrationClientsPanel: React.FC = () => {
+  const { t } = useTranslation();
+  const { success, error } = useNotification();
+  const [clients, setClients] = useState<IntegrationClient[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [bindings, setBindings] = useState<ExternalAgentBinding[]>([]);
+  const [selectedClientPublicId, setSelectedClientPublicId] = useState('');
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [loadingBindings, setLoadingBindings] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+  const [savingBinding, setSavingBinding] = useState(false);
+  const [provisioningAgent, setProvisioningAgent] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [newClient, setNewClient] = useState({ name: '', environment: 'live' });
+  const [bindingForm, setBindingForm] = useState({
+    agentPublicId: '',
+    externalTenantId: '',
+    externalTenantType: 'salon',
+  });
+  const [provisionForm, setProvisionForm] = useState({
+    externalTenantId: '',
+    externalTenantType: 'salon',
+    templateAgentPublicId: '',
+    name: '',
+  });
+
+  const selectedClient = clients.find((client) => client.public_id === selectedClientPublicId);
+  const filteredClients = useMemo(() => {
+    const normalizedSearch = clientSearchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return clients;
+
+    return clients.filter((client) =>
+      [
+        client.name,
+        client.public_id,
+        client.environment,
+        client.status,
+        String(client.binding_count ?? 0),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedSearch)
+    );
+  }, [clientSearchTerm, clients]);
+
+  const loadClients = async () => {
+    setLoadingClients(true);
+    const [clientsRes, agentsRes] = await Promise.all([listIntegrationClients(), listAgents()]);
+
+    if (clientsRes.success && clientsRes.data) {
+      setClients(clientsRes.data);
+      setSelectedClientPublicId((current) => current || clientsRes.data?.[0]?.public_id || '');
+    } else {
+      error(clientsRes.error || t('apiKeys.errors.loadIntegrationClientsFailed'));
+    }
+
+    if (agentsRes.success && agentsRes.data) {
+      setAgents(agentsRes.data);
+    } else {
+      error(agentsRes.error || t('apiKeys.errors.loadAgentsFailed'));
+    }
+
+    setLoadingClients(false);
+  };
+
+  const loadBindings = async (clientPublicId: string) => {
+    if (!clientPublicId) {
+      setBindings([]);
+      return;
+    }
+
+    setLoadingBindings(true);
+    const response = await listIntegrationClientBindings(clientPublicId);
+
+    if (response.success && response.data) {
+      setBindings(response.data);
+    } else {
+      error(response.error || t('apiKeys.errors.loadBindingsFailed'));
+    }
+
+    setLoadingBindings(false);
+  };
+
+  useEffect(() => {
+    void loadClients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void loadBindings(selectedClientPublicId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClientPublicId]);
+
+  const handleCreateClient = async () => {
+    const name = newClient.name.trim();
+    if (!name || savingClient) return;
+
+    setSavingClient(true);
+    const response = await createIntegrationClient({
+      name,
+      environment: newClient.environment,
+      status: 'active',
+    });
+
+    if (response.success && response.data) {
+      setClients((prev) => [response.data as IntegrationClient, ...prev]);
+      setSelectedClientPublicId(response.data.public_id);
+      setClientSearchTerm('');
+      setNewClient({ name: '', environment: 'live' });
+      success(t('apiKeys.messages.integrationClientCreated'));
+    } else {
+      error(response.error || t('apiKeys.errors.createIntegrationClientFailed'));
+    }
+
+    setSavingClient(false);
+  };
+
+  const handleCreateBinding = async () => {
+    if (!selectedClientPublicId || !bindingForm.agentPublicId || !bindingForm.externalTenantId) {
+      return;
+    }
+
+    setSavingBinding(true);
+    const response = await upsertIntegrationClientBinding(selectedClientPublicId, {
+      agent_public_id: bindingForm.agentPublicId,
+      external_tenant_id: bindingForm.externalTenantId.trim(),
+      external_tenant_type: bindingForm.externalTenantType.trim() || undefined,
+      status: 'active',
+    });
+
+    if (response.success) {
+      success(t('apiKeys.messages.bindingSaved'));
+      setBindingForm({ agentPublicId: '', externalTenantId: '', externalTenantType: 'salon' });
+      await loadBindings(selectedClientPublicId);
+      await loadClients();
+    } else {
+      error(response.error || t('apiKeys.errors.saveBindingFailed'));
+    }
+
+    setSavingBinding(false);
+  };
+
+  const handleProvisionAgent = async () => {
+    if (!selectedClientPublicId || !provisionForm.externalTenantId) return;
+
+    setProvisioningAgent(true);
+    const response = await provisionIntegrationClientAgent(selectedClientPublicId, {
+      external_tenant_id: provisionForm.externalTenantId.trim(),
+      external_tenant_type: provisionForm.externalTenantType.trim() || undefined,
+      template_agent_public_id: provisionForm.templateAgentPublicId || undefined,
+      name: provisionForm.name.trim() || undefined,
+      status: 'active',
+    });
+
+    if (response.success) {
+      success(t('apiKeys.messages.tenantAgentProvisioned'));
+      setProvisionForm({
+        externalTenantId: '',
+        externalTenantType: 'salon',
+        templateAgentPublicId: '',
+        name: '',
+      });
+      await loadBindings(selectedClientPublicId);
+      await loadClients();
+    } else {
+      error(response.error || t('apiKeys.errors.provisionAgentFailed'));
+    }
+
+    setProvisioningAgent(false);
+  };
+
+  const handleBindingStatus = async (binding: ExternalAgentBinding, status: string) => {
+    if (!selectedClientPublicId) return;
+
+    const response = await updateIntegrationClientBinding(
+      selectedClientPublicId,
+      binding.public_id,
+      {
+        status,
+      }
+    );
+
+    if (response.success) {
+      success(t('apiKeys.messages.bindingUpdated'));
+      await loadBindings(selectedClientPublicId);
+    } else {
+      error(response.error || t('apiKeys.errors.updateBindingFailed'));
+    }
+  };
+
+  const totalBindings = clients.reduce((sum, client) => sum + (client.binding_count ?? 0), 0);
+
+  return (
+    <section className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+              {t('apiKeys.integrationClients.title')}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+            {t('apiKeys.integrationClients.subtitle')}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Chip
+            size="small"
+            icon={<Building2 size={14} />}
+            label={t('apiKeys.integrationClients.clientCount', { count: clients.length })}
+            variant="outlined"
+          />
+          <Chip
+            size="small"
+            icon={<Users size={14} />}
+            label={t('apiKeys.integrationClients.bindingCount', { count: totalBindings })}
+            variant="outlined"
+          />
+          <Button
+            type="button"
+            size="small"
+            variant="outlined"
+            startIcon={<RefreshCw size={16} />}
+            onClick={() => void loadClients()}
+            disabled={loadingClients}
+          >
+            {t('apiKeys.integrationClients.refresh')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto]">
+        <TextField
+          fullWidth
+          size="small"
+          label={t('apiKeys.integrationClients.clientName')}
+          placeholder="NailMap Production"
+          value={newClient.name}
+          onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+        />
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.modal.environment')}
+          value={newClient.environment}
+          onChange={(e) => setNewClient({ ...newClient, environment: e.target.value })}
+        >
+          <MenuItem value="live">live</MenuItem>
+          <MenuItem value="test">test</MenuItem>
+        </TextField>
+        <Button
+          type="button"
+          variant="contained"
+          startIcon={
+            savingClient ? <CircularProgress size={16} color="inherit" /> : <Plus size={16} />
+          }
+          disabled={!newClient.name.trim() || savingClient}
+          onClick={handleCreateClient}
+        >
+          {t('apiKeys.integrationClients.createClient')}
+        </Button>
+      </div>
+
+      <Divider className="!my-4" />
+
+      {loadingClients ? (
+        <div className="flex items-center gap-2 py-6 text-sm text-gray-500 dark:text-slate-400">
+          <CircularProgress size={18} />
+          {t('apiKeys.integrationClients.loading')}
+        </div>
+      ) : clients.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500 dark:border-slate-600 dark:text-slate-400">
+          {t('apiKeys.integrationClients.empty')}
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="min-w-0">
+            <TextField
+              fullWidth
+              size="small"
+              label={t('apiKeys.integrationClients.searchClients')}
+              placeholder={t('apiKeys.integrationClients.searchClientsPlaceholder')}
+              value={clientSearchTerm}
+              onChange={(e) => setClientSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={16} className="text-gray-400" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <div className="mt-2 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              {filteredClients.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-slate-600 dark:text-slate-400">
+                  {t('apiKeys.integrationClients.noClientResults')}
+                </div>
+              ) : (
+                filteredClients.map((client) => {
+                  const selected = client.public_id === selectedClientPublicId;
+                  return (
+                    <button
+                      key={client.public_id}
+                      type="button"
+                      onClick={() => setSelectedClientPublicId(client.public_id)}
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                        selected
+                          ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20'
+                          : 'border-gray-200 hover:border-blue-300 dark:border-slate-700 dark:hover:border-blue-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">
+                            {client.name}
+                          </div>
+                          <div className="truncate font-mono text-xs text-gray-400 dark:text-slate-500">
+                            {client.public_id}
+                          </div>
+                        </div>
+                        <Chip
+                          size="small"
+                          label={client.status}
+                          color={client.status === 'active' ? 'success' : 'default'}
+                        />
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Chip size="small" label={client.environment} variant="outlined" />
+                        <Chip
+                          size="small"
+                          label={t('apiKeys.integrationClients.bindingCount', {
+                            count: client.binding_count ?? 0,
+                          })}
+                          variant="outlined"
+                        />
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            {selectedClient && (
+              <div className="mb-3 flex flex-col gap-1">
+                <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                  {selectedClient.name}
+                </div>
+                <div className="font-mono text-xs text-gray-400 dark:text-slate-500">
+                  {selectedClient.public_id}
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-3 xl:grid-cols-2">
+              <div className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
+                  <Link2 size={16} />
+                  {t('apiKeys.integrationClients.bindExistingAgent')}
+                </div>
+                <div className="grid gap-2">
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label={t('apiKeys.modal.agentResource')}
+                    value={bindingForm.agentPublicId}
+                    onChange={(e) =>
+                      setBindingForm({ ...bindingForm, agentPublicId: e.target.value })
+                    }
+                  >
+                    <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
+                    {agents.map((agent) => (
+                      <MenuItem key={agent.publicId} value={agent.publicId}>
+                        {agent.name} · {agent.publicId}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={t('apiKeys.integrationClients.externalTenantId')}
+                      placeholder="salon_456"
+                      value={bindingForm.externalTenantId}
+                      onChange={(e) =>
+                        setBindingForm({ ...bindingForm, externalTenantId: e.target.value })
+                      }
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={t('apiKeys.integrationClients.externalTenantType')}
+                      value={bindingForm.externalTenantType}
+                      onChange={(e) =>
+                        setBindingForm({ ...bindingForm, externalTenantType: e.target.value })
+                      }
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    startIcon={savingBinding ? <CircularProgress size={16} /> : <Link2 size={16} />}
+                    disabled={
+                      !selectedClientPublicId ||
+                      !bindingForm.agentPublicId ||
+                      !bindingForm.externalTenantId.trim() ||
+                      savingBinding
+                    }
+                    onClick={handleCreateBinding}
+                  >
+                    {t('apiKeys.integrationClients.saveBinding')}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
+                  <Bot size={16} />
+                  {t('apiKeys.integrationClients.provisionTenantAgent')}
+                </div>
+                <div className="grid gap-2">
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={t('apiKeys.integrationClients.externalTenantId')}
+                      placeholder="salon_456"
+                      value={provisionForm.externalTenantId}
+                      onChange={(e) =>
+                        setProvisionForm({ ...provisionForm, externalTenantId: e.target.value })
+                      }
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label={t('apiKeys.integrationClients.externalTenantType')}
+                      value={provisionForm.externalTenantType}
+                      onChange={(e) =>
+                        setProvisionForm({ ...provisionForm, externalTenantType: e.target.value })
+                      }
+                    />
+                  </div>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label={t('apiKeys.integrationClients.agentName')}
+                    placeholder="NailMap Salon 456 Assistant"
+                    value={provisionForm.name}
+                    onChange={(e) => setProvisionForm({ ...provisionForm, name: e.target.value })}
+                  />
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label={t('apiKeys.integrationClients.templateAgent')}
+                    value={provisionForm.templateAgentPublicId}
+                    onChange={(e) =>
+                      setProvisionForm({
+                        ...provisionForm,
+                        templateAgentPublicId: e.target.value,
+                      })
+                    }
+                  >
+                    <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
+                    {agents.map((agent) => (
+                      <MenuItem key={agent.publicId} value={agent.publicId}>
+                        {agent.name} · {agent.publicId}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    startIcon={
+                      provisioningAgent ? <CircularProgress size={16} /> : <Bot size={16} />
+                    }
+                    disabled={
+                      !selectedClientPublicId ||
+                      !provisionForm.externalTenantId.trim() ||
+                      provisioningAgent
+                    }
+                    onClick={handleProvisionAgent}
+                  >
+                    {t('apiKeys.integrationClients.provisionAgent')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                  {t('apiKeys.integrationClients.bindings')}
+                </div>
+                <Button
+                  type="button"
+                  size="small"
+                  variant="text"
+                  startIcon={<RefreshCw size={14} />}
+                  disabled={!selectedClientPublicId || loadingBindings}
+                  onClick={() => void loadBindings(selectedClientPublicId)}
+                >
+                  {t('apiKeys.integrationClients.refresh')}
+                </Button>
+              </div>
+
+              {loadingBindings ? (
+                <div className="flex items-center gap-2 rounded-lg border border-gray-200 p-4 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                  <CircularProgress size={18} />
+                  {t('apiKeys.integrationClients.loadingBindings')}
+                </div>
+              ) : bindings.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-slate-600 dark:text-slate-400">
+                  {t('apiKeys.integrationClients.noBindings')}
+                </div>
+              ) : (
+                <TableContainer className="max-h-[360px] overflow-auto rounded-lg border border-gray-200 dark:border-slate-700">
+                  <Table
+                    stickyHeader
+                    size="small"
+                    sx={{
+                      minWidth: 720,
+                      '& .MuiTableCell-root': { color: 'inherit' },
+                      '& .MuiTableCell-head': {
+                        backgroundColor: 'rgb(249 250 251)',
+                        color: 'rgb(107 114 128)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                      },
+                      '.dark & .MuiTableCell-head': {
+                        backgroundColor: 'rgb(15 23 42)',
+                        color: 'rgb(148 163 184)',
+                      },
+                    }}
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t('apiKeys.integrationClients.tenant')}</TableCell>
+                        <TableCell>{t('apiKeys.integrationClients.agent')}</TableCell>
+                        <TableCell>{t('apiKeys.integrationClients.usage')}</TableCell>
+                        <TableCell>{t('apiKeys.integrationClients.status')}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {bindings.map((binding) => (
+                        <TableRow key={binding.public_id} hover>
+                          <TableCell>
+                            <div className="min-w-[180px]">
+                              <div className="truncate text-xs font-semibold text-gray-800 dark:text-slate-200">
+                                {binding.external_tenant_id}
+                              </div>
+                              <div className="truncate text-xs text-gray-400 dark:text-slate-500">
+                                {binding.external_tenant_type || 'tenant'}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-[220px]">
+                              <div className="truncate text-xs text-gray-700 dark:text-slate-300">
+                                {binding.agent_name}
+                              </div>
+                              <div className="truncate font-mono text-xs text-gray-400 dark:text-slate-500">
+                                {binding.agent_public_id}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-[110px] text-xs text-gray-600 dark:text-slate-300">
+                              {(binding.usage?.messages ?? 0).toLocaleString()} msg
+                              <br />
+                              {(binding.usage?.total_tokens ?? 0).toLocaleString()} tok
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex min-w-[150px] items-center gap-2">
+                              <Chip
+                                size="small"
+                                label={binding.status}
+                                color={binding.status === 'active' ? 'success' : 'default'}
+                              />
+                              {binding.status === 'active' ? (
+                                <Button
+                                  type="button"
+                                  size="small"
+                                  variant="text"
+                                  onClick={() => void handleBindingStatus(binding, 'disabled')}
+                                >
+                                  {t('apiKeys.integrationClients.disable')}
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="small"
+                                  variant="text"
+                                  onClick={() => void handleBindingStatus(binding, 'active')}
+                                >
+                                  {t('apiKeys.integrationClients.enable')}
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+// ============================================
+// Third-Party Usage Panel
+// ============================================
+
+const THIRD_PARTY_USAGE_GROUPS: ThirdPartyUsageGroupBy[] = [
+  'external_tenant',
+  'agent',
+  'day',
+  'api_key',
+  'capability',
+  'tool',
+];
+
+const API_KEY_USAGE_GROUPS: ApiKeyUsageGroupBy[] = ['api_key', 'capability', 'agent', 'day'];
+
+function defaultUsageFromDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 30);
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultUsageToDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function usageRowLabel(row: ThirdPartyUsageRow, groupBy: ThirdPartyUsageGroupBy): string {
+  if (groupBy === 'agent') return row.agent_public_id || 'unknown-agent';
+  if (groupBy === 'day') return row.day || 'unknown-day';
+  if (groupBy === 'api_key') return row.api_key_id ? `API key #${row.api_key_id}` : 'unknown-key';
+  if (groupBy === 'capability') return row.capability || 'unknown-capability';
+  if (groupBy === 'tool') return row.tool_id || 'unknown-tool';
+  return row.external_tenant_id || row.client_id || 'unknown-tenant';
+}
+
+function apiKeyUsageRowLabel(row: ApiKeyUsageRow, groupBy: ApiKeyUsageGroupBy): string {
+  if (groupBy === 'agent') return row.agent_public_id || 'owner-level';
+  if (groupBy === 'day') return row.day || 'unknown-day';
+  if (groupBy === 'capability') return row.capability || 'unknown-capability';
+  return row.api_key_public_id || (row.api_key_id ? `API key #${row.api_key_id}` : 'unknown-key');
+}
+
+const PersonalApiKeyUsagePanel: React.FC<{ apiKeys: ApiKey[] }> = ({ apiKeys }) => {
+  const { t } = useTranslation();
+  const { error } = useNotification();
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [rows, setRows] = useState<ApiKeyUsageRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filtersLoading, setFiltersLoading] = useState(true);
+  const [groupBy, setGroupBy] = useState<ApiKeyUsageGroupBy>('api_key');
+  const [from, setFrom] = useState(defaultUsageFromDate);
+  const [to, setTo] = useState(defaultUsageToDate);
+  const [apiKeyPublicId, setApiKeyPublicId] = useState('');
+  const [agentPublicId, setAgentPublicId] = useState('');
+  const [capability, setCapability] = useState('');
+
+  const totals = rows.reduce(
+    (sum, row) => ({
+      requests: sum.requests + row.requests,
+      usageUnits: sum.usageUnits + row.usage_units,
+      chargedCredits: sum.chargedCredits + row.charged_credits,
+    }),
+    { requests: 0, usageUnits: 0, chargedCredits: 0 }
+  );
+
+  const loadFilterResources = async () => {
+    setFiltersLoading(true);
+    const agentsRes = await listAgents();
+    if (agentsRes.success && agentsRes.data) {
+      setAgents(agentsRes.data);
+    }
+    setFiltersLoading(false);
+  };
+
+  const loadUsage = async () => {
+    setLoading(true);
+
+    try {
+      const response = await getApiKeyUsage({
+        groupBy,
+        from: from ? new Date(from).toISOString() : undefined,
+        to: to ? new Date(`${to}T23:59:59.999`).toISOString() : undefined,
+        apiKeyPublicId: apiKeyPublicId || undefined,
+        agentPublicId: agentPublicId || undefined,
+        capability: capability.trim() || undefined,
+      });
+      setRows(response.data ?? []);
+    } catch (err) {
+      setRows([]);
+      error(err instanceof Error ? err.message : t('apiKeys.errors.loadUsageFailed'));
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadFilterResources();
+  }, []);
+
+  useEffect(() => {
+    void loadUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupBy, from, to, apiKeyPublicId, agentPublicId]);
+
+  return (
+    <section className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Gauge className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+              {t('apiKeys.usage.personalTitle')}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+            {t('apiKeys.usage.personalSubtitle')}
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <UsageStat label={t('apiKeys.usage.requests')} value={totals.requests} />
+          <UsageStat label={t('apiKeys.usage.usageUnits')} value={totals.usageUnits} />
+          <UsageStat label={t('apiKeys.usage.chargedCredits')} value={totals.chargedCredits} />
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[150px_150px_180px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <TextField
+          fullWidth
+          size="small"
+          type="date"
+          label={t('apiKeys.usage.from')}
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          type="date"
+          label={t('apiKeys.usage.to')}
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.usage.groupBy')}
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value as ApiKeyUsageGroupBy)}
+        >
+          {API_KEY_USAGE_GROUPS.map((group) => (
+            <MenuItem key={group} value={group}>
+              {t(`apiKeys.usage.groups.${group}`)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.usage.apiKey')}
+          value={apiKeyPublicId}
+          onChange={(e) => setApiKeyPublicId(e.target.value)}
+        >
+          <MenuItem value="">{t('apiKeys.usage.allApiKeys')}</MenuItem>
+          {apiKeys.map((apiKey) => (
+            <MenuItem key={apiKey.publicId} value={apiKey.publicId}>
+              {displayName(apiKey)} · {apiKey.publicId}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.modal.agentResource')}
+          value={agentPublicId}
+          onChange={(e) => setAgentPublicId(e.target.value)}
+          disabled={filtersLoading}
+        >
+          <MenuItem value="">{t('apiKeys.usage.allAgents')}</MenuItem>
+          {agents.map((agent) => (
+            <MenuItem key={agent.publicId} value={agent.publicId}>
+              {agent.name} · {agent.publicId}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          fullWidth
+          size="small"
+          label={t('apiKeys.usage.capability')}
+          placeholder="text_to_image"
+          value={capability}
+          onChange={(e) => setCapability(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              void loadUsage();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="outlined"
+          startIcon={loading ? <CircularProgress size={16} /> : <RefreshCw size={16} />}
+          onClick={() => void loadUsage()}
+          disabled={loading}
+        >
+          {t('apiKeys.usage.apply')}
+        </Button>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
+        <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_110px_120px_130px_150px] bg-gray-50 text-xs font-semibold text-gray-500 dark:bg-slate-900 dark:text-slate-400">
+          <div className="p-2">{t('apiKeys.usage.group')}</div>
+          <div className="p-2">{t('apiKeys.usage.context')}</div>
+          <div className="p-2">{t('apiKeys.usage.requests')}</div>
+          <div className="p-2">{t('apiKeys.usage.usageUnits')}</div>
+          <div className="p-2">{t('apiKeys.usage.chargedCredits')}</div>
+          <div className="p-2">{t('apiKeys.usage.latestUsed')}</div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 border-t border-gray-100 p-4 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            <CircularProgress size={18} />
+            {t('apiKeys.usage.loading')}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="border-t border-gray-100 p-4 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            {t('apiKeys.usage.personalEmpty')}
+          </div>
+        ) : (
+          rows.map((row, index) => (
+            <div
+              key={`${apiKeyUsageRowLabel(row, groupBy)}-${index}`}
+              className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_110px_120px_130px_150px] border-t border-gray-100 text-xs dark:border-slate-700"
+            >
+              <div className="min-w-0 p-2">
+                <div className="truncate font-semibold text-gray-800 dark:text-slate-200">
+                  {apiKeyUsageRowLabel(row, groupBy)}
+                </div>
+                <div className="truncate text-gray-400 dark:text-slate-500">
+                  {row.latest_request_id || groupBy}
+                </div>
+              </div>
+              <div className="min-w-0 p-2 text-gray-500 dark:text-slate-400">
+                <div className="truncate">{row.capability || 'capability:-'}</div>
+                <div className="truncate">{row.agent_public_id || 'agent:-'}</div>
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.requests.toLocaleString()}
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.usage_units.toLocaleString()}
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.charged_credits.toLocaleString()}
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.latest_used_at ? formatDate(row.latest_used_at, 'en-US') : '—'}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+};
+
+const ThirdPartyUsagePanel: React.FC = () => {
+  const { t } = useTranslation();
+  const { error } = useNotification();
+  const [clients, setClients] = useState<IntegrationClient[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [rows, setRows] = useState<ThirdPartyUsageRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filtersLoading, setFiltersLoading] = useState(true);
+  const [groupBy, setGroupBy] = useState<ThirdPartyUsageGroupBy>('external_tenant');
+  const [from, setFrom] = useState(defaultUsageFromDate);
+  const [to, setTo] = useState(defaultUsageToDate);
+  const [clientId, setClientId] = useState('');
+  const [agentPublicId, setAgentPublicId] = useState('');
+  const [externalTenantId, setExternalTenantId] = useState('');
+
+  const totals = rows.reduce(
+    (sum, row) => ({
+      messages: sum.messages + row.messages,
+      tokens: sum.tokens + row.total_tokens,
+      credits: sum.credits + row.cost_credits,
+      toolCalls: sum.toolCalls + row.tool_calls,
+    }),
+    { messages: 0, tokens: 0, credits: 0, toolCalls: 0 }
+  );
+
+  const loadFilterResources = async () => {
+    setFiltersLoading(true);
+    const [clientsRes, agentsRes] = await Promise.all([listIntegrationClients(), listAgents()]);
+
+    if (clientsRes.success && clientsRes.data) {
+      setClients(clientsRes.data);
+    }
+
+    if (agentsRes.success && agentsRes.data) {
+      setAgents(agentsRes.data);
+    }
+
+    setFiltersLoading(false);
+  };
+
+  const loadUsage = async () => {
+    setLoading(true);
+
+    try {
+      const response = await getThirdPartyUsage({
+        groupBy,
+        from: from ? new Date(from).toISOString() : undefined,
+        to: to ? new Date(`${to}T23:59:59.999`).toISOString() : undefined,
+        clientId: clientId || undefined,
+        agentPublicId: agentPublicId || undefined,
+        externalTenantId: externalTenantId.trim() || undefined,
+      });
+      setRows(response.data ?? []);
+    } catch (err) {
+      setRows([]);
+      error(err instanceof Error ? err.message : t('apiKeys.errors.loadUsageFailed'));
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void loadFilterResources();
+  }, []);
+
+  useEffect(() => {
+    void loadUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupBy, from, to, clientId, agentPublicId]);
+
+  return (
+    <section className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Gauge className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+              {t('apiKeys.usage.title')}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+            {t('apiKeys.usage.subtitle')}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <UsageStat label={t('apiKeys.usage.messages')} value={totals.messages} />
+          <UsageStat label={t('apiKeys.usage.tokens')} value={totals.tokens} />
+          <UsageStat label={t('apiKeys.usage.credits')} value={totals.credits} />
+          <UsageStat label={t('apiKeys.usage.toolCalls')} value={totals.toolCalls} />
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[150px_150px_180px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <TextField
+          fullWidth
+          size="small"
+          type="date"
+          label={t('apiKeys.usage.from')}
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          type="date"
+          label={t('apiKeys.usage.to')}
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        />
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.usage.groupBy')}
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value as ThirdPartyUsageGroupBy)}
+        >
+          {THIRD_PARTY_USAGE_GROUPS.map((group) => (
+            <MenuItem key={group} value={group}>
+              {t(`apiKeys.usage.groups.${group}`)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.modal.integrationClientResource')}
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+          disabled={filtersLoading}
+        >
+          <MenuItem value="">{t('apiKeys.usage.allClients')}</MenuItem>
+          {clients.map((client) => (
+            <MenuItem key={client.public_id} value={client.public_id}>
+              {client.name} · {client.public_id}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label={t('apiKeys.modal.agentResource')}
+          value={agentPublicId}
+          onChange={(e) => setAgentPublicId(e.target.value)}
+          disabled={filtersLoading}
+        >
+          <MenuItem value="">{t('apiKeys.usage.allAgents')}</MenuItem>
+          {agents.map((agent) => (
+            <MenuItem key={agent.publicId} value={agent.publicId}>
+              {agent.name} · {agent.publicId}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          fullWidth
+          size="small"
+          label={t('apiKeys.usage.externalTenantId')}
+          placeholder="salon_456"
+          value={externalTenantId}
+          onChange={(e) => setExternalTenantId(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              void loadUsage();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="outlined"
+          startIcon={loading ? <CircularProgress size={16} /> : <RefreshCw size={16} />}
+          onClick={() => void loadUsage()}
+          disabled={loading}
+        >
+          {t('apiKeys.usage.apply')}
+        </Button>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
+        <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_110px_120px_120px_110px] bg-gray-50 text-xs font-semibold text-gray-500 dark:bg-slate-900 dark:text-slate-400">
+          <div className="p-2">{t('apiKeys.usage.group')}</div>
+          <div className="p-2">{t('apiKeys.usage.context')}</div>
+          <div className="p-2">{t('apiKeys.usage.messages')}</div>
+          <div className="p-2">{t('apiKeys.usage.tokens')}</div>
+          <div className="p-2">{t('apiKeys.usage.credits')}</div>
+          <div className="p-2">{t('apiKeys.usage.toolCalls')}</div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 border-t border-gray-100 p-4 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            <CircularProgress size={18} />
+            {t('apiKeys.usage.loading')}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="border-t border-gray-100 p-4 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            {t('apiKeys.usage.empty')}
+          </div>
+        ) : (
+          rows.map((row, index) => (
+            <div
+              key={`${usageRowLabel(row, groupBy)}-${index}`}
+              className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_110px_120px_120px_110px] border-t border-gray-100 text-xs dark:border-slate-700"
+            >
+              <div className="min-w-0 p-2">
+                <div className="truncate font-semibold text-gray-800 dark:text-slate-200">
+                  {usageRowLabel(row, groupBy)}
+                </div>
+                <div className="truncate text-gray-400 dark:text-slate-500">
+                  {row.external_tenant_type || groupBy}
+                </div>
+              </div>
+              <div className="min-w-0 p-2 text-gray-500 dark:text-slate-400">
+                <div className="truncate">{row.client_id || 'client:-'}</div>
+                <div className="truncate">{row.agent_public_id || 'agent:-'}</div>
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.messages.toLocaleString()}
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.total_tokens.toLocaleString()}
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.cost_credits.toLocaleString()}
+              </div>
+              <div className="p-2 text-gray-700 dark:text-slate-300">
+                {row.tool_calls.toLocaleString()}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+};
+
+const UsageStat: React.FC<{ label: string; value: number }> = ({ label, value }) => (
+  <div className="rounded-lg border border-gray-200 px-3 py-2 text-right dark:border-slate-700">
+    <div className="text-xs text-gray-400 dark:text-slate-500">{label}</div>
+    <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+      {value.toLocaleString()}
+    </div>
+  </div>
+);
+
+// ============================================
 // Create API Key Modal
 // ============================================
 
@@ -504,18 +2396,18 @@ interface CreateApiKeyModalProps {
 
 const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, onSuccess }) => {
   const { t } = useTranslation();
-  const { error } = useNotification();
+  const { success, error } = useNotification();
 
-  // Available capabilities from the server
-  const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [integrationClients, setIntegrationClients] = useState<IntegrationClient[]>([]);
-  const [capsLoading, setCapsLoading] = useState(false);
-
-  // Selected scopes: code -> { canExecute, canCreate, canDelete }
-  const [selectedScopes, setSelectedScopes] = useState<
-    Record<string, { canExecute: boolean; canCreate: boolean; canDelete: boolean }>
+  const [knowledges, setKnowledges] = useState<Knowledge[]>([]);
+  const [scopeCatalog, setScopeCatalog] = useState<ApiScopeCatalogItem[]>([]);
+  const [selectedCatalogScopes, setSelectedCatalogScopes] = useState<string[]>([]);
+  const [selectedScopeRestrictions, setSelectedScopeRestrictions] = useState<
+    Record<string, ApiKeyApiScopeInput>
   >({});
+  const [scopeSearchTerm, setScopeSearchTerm] = useState('');
+  const [resourcesLoading, setResourcesLoading] = useState(false);
 
   // Optional metadata
   const [metadata, setMetadata] = useState({
@@ -523,6 +2415,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     environment: '',
     description: '',
   });
+  const [selectedUseCase, setSelectedUseCase] = useState<ApiKeyUseCaseId>('selectedScopes');
   const [selectedAgentPublicId, setSelectedAgentPublicId] = useState('');
   const [selectedIntegrationClientPublicId, setSelectedIntegrationClientPublicId] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -530,74 +2423,166 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     requestsPerMinute: '',
     requestsPerDay: '',
   });
+  const [showAdvancedScopes, setShowAdvancedScopes] = useState(false);
   const [advancedScopesJson, setAdvancedScopesJson] = useState('');
-
+  const [newClient, setNewClient] = useState({ name: '', environment: 'live' });
+  const [creatingClient, setCreatingClient] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load capabilities when modal opens
-  useEffect(() => {
-    if (!open) return;
-    setCapsLoading(true);
-    Promise.all([listCapabilities(), listAgents(), listIntegrationClients()]).then(
-      ([capsRes, agentsRes, clientsRes]) => {
-        if (capsRes.success && capsRes.data) {
-          setCapabilities(capsRes.data);
-        } else {
-          error(capsRes.error || t('apiKeys.errors.loadCapabilitiesFailed'));
-        }
+  const selectedUseCaseConfig = API_KEY_USE_CASES.find((item) => item.id === selectedUseCase);
+  const selectedAgent = agents.find((agent) => agent.publicId === selectedAgentPublicId);
+  const selectedIntegrationClient = integrationClients.find(
+    (client) => client.public_id === selectedIntegrationClientPublicId
+  );
 
-        if (agentsRes.success && agentsRes.data) {
-          setAgents(agentsRes.data);
-        }
+  const presetScopes: ApiKeyApiScopeInput[] =
+    selectedUseCase === 'selectedScopes'
+      ? selectedCatalogScopes.map((scope) => selectedScopeRestrictions[scope] ?? { scope })
+      : selectedUseCase === 'chatWithOneAgent'
+        ? selectedAgentPublicId
+          ? API_KEY_SCOPE_PRESETS.chatWithOneAgent(selectedAgentPublicId)
+          : []
+        : selectedIntegrationClientPublicId
+          ? API_KEY_SCOPE_PRESETS[selectedUseCase](selectedIntegrationClientPublicId)
+          : [];
 
-        if (clientsRes.success && clientsRes.data) {
-          setIntegrationClients(clientsRes.data);
-        }
+  const hasAdvancedScopes = advancedScopesJson.trim().length > 0;
+  const canSubmit =
+    (presetScopes.length > 0 || (showAdvancedScopes && hasAdvancedScopes)) &&
+    !submitting &&
+    !resourcesLoading;
+  const needsIntegrationClient =
+    selectedUseCase === 'thirdPartyRuntime' || selectedUseCase === 'thirdPartyProvisioning';
+  const needsAgent = selectedUseCase === 'chatWithOneAgent';
+  const resourceName =
+    selectedUseCase === 'chatWithOneAgent' ? selectedAgent?.name : selectedIntegrationClient?.name;
+  const normalizedScopeSearchTerm = scopeSearchTerm.trim().toLowerCase();
+  const filteredScopeCatalog = normalizedScopeSearchTerm
+    ? scopeCatalog.filter((item) =>
+        [
+          item.scope,
+          item.name,
+          item.description,
+          item.resourceType,
+          item.action,
+          item.capabilityCode,
+          ...(item.aliases ?? []),
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedScopeSearchTerm))
+      )
+    : scopeCatalog;
+  const catalogByResource = filteredScopeCatalog.reduce<Record<string, ApiScopeCatalogItem[]>>(
+    (groups, item) => {
+      const key = item.resourceType || 'other';
+      groups[key] = [...(groups[key] ?? []), item];
+      return groups;
+    },
+    {}
+  );
+  const orderedCatalogGroups = Object.entries(catalogByResource).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
 
-        setCapsLoading(false);
-      }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  const toggleCatalogScope = (scope: string) => {
+    setSelectedCatalogScopes((prev) => {
+      if (!prev.includes(scope)) return [...prev, scope];
 
-  const toggleCapability = (code: string) => {
-    setSelectedScopes((prev) => {
-      if (prev[code]) {
-        const next = { ...prev };
-        delete next[code];
+      setSelectedScopeRestrictions((current) => {
+        const next = { ...current };
+        delete next[scope];
         return next;
-      }
-      return { ...prev, [code]: { canExecute: true, canCreate: false, canDelete: false } };
+      });
+      return prev.filter((item) => item !== scope);
     });
   };
 
-  const toggleAction = (code: string, action: 'canExecute' | 'canCreate' | 'canDelete') => {
-    setSelectedScopes((prev) => ({
-      ...prev,
-      [code]: { ...prev[code], [action]: !prev[code][action] },
-    }));
+  const restrictionTypeForScope = (
+    item: ApiScopeCatalogItem
+  ): 'agent' | 'knowledge' | undefined => {
+    const [resourceType] = item.resourceRestrictionTypes;
+    return resourceType === 'agent' || resourceType === 'knowledge' ? resourceType : undefined;
   };
 
-  const selectedCount = Object.keys(selectedScopes).length;
-  const hasAdvancedScopes = advancedScopesJson.trim().length > 0;
-  const canSubmit = (selectedCount > 0 || hasAdvancedScopes) && !submitting;
+  const setScopeRestriction = (
+    scope: string,
+    resourceType: 'agent' | 'knowledge',
+    resourcePublicId: string
+  ) => {
+    setSelectedScopeRestrictions((prev) => {
+      const next = { ...prev };
 
-  const applyScopePreset = (preset: ApiKeyApiScopeInput[] | undefined) => {
-    if (!preset) return;
-    setAdvancedScopesJson(JSON.stringify(preset, null, 2));
+      if (!resourcePublicId) {
+        delete next[scope];
+        return next;
+      }
+
+      next[scope] = {
+        scope,
+        resourceType,
+        resourcePublicId,
+      };
+      return next;
+    });
   };
+
+  // Load selectable resources when modal opens.
+  useEffect(() => {
+    if (!open) return;
+    setResourcesLoading(true);
+    Promise.all([
+      listAgents(),
+      listIntegrationClients(),
+      listApiScopeCatalog(),
+      listKnowledge('user'),
+    ]).then(([agentsRes, clientsRes, scopeCatalogRes, knowledgeRes]) => {
+      if (agentsRes.success && agentsRes.data) {
+        setAgents(agentsRes.data);
+      } else {
+        error(agentsRes.error || 'Failed to load agents');
+      }
+
+      if (clientsRes.success && clientsRes.data) {
+        setIntegrationClients(clientsRes.data);
+      } else {
+        error(clientsRes.error || 'Failed to load integration clients');
+      }
+
+      if (scopeCatalogRes.success && scopeCatalogRes.data) {
+        setScopeCatalog(scopeCatalogRes.data);
+      } else {
+        error(scopeCatalogRes.error || 'Failed to load API scope catalog');
+      }
+
+      if (knowledgeRes.success && knowledgeRes.data) {
+        setKnowledges(knowledgeRes.data);
+      } else {
+        error(knowledgeRes.error || 'Failed to load knowledge');
+      }
+
+      setResourcesLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    setAdvancedScopesJson(presetScopes.length > 0 ? JSON.stringify(presetScopes, null, 2) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedUseCase,
+    selectedAgentPublicId,
+    selectedIntegrationClientPublicId,
+    selectedCatalogScopes,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
 
-    const scopesInput: ApiKeyScopeInput[] = Object.entries(selectedScopes).map(
-      ([capabilityCode, actions]) => ({ capabilityCode, ...actions })
-    );
-    let apiScopesInput: ApiKeyApiScopeInput[] | undefined;
+    let apiScopesInput = presetScopes;
 
-    if (hasAdvancedScopes) {
+    if (showAdvancedScopes && hasAdvancedScopes) {
       try {
         const parsed = JSON.parse(advancedScopesJson) as unknown;
         if (!Array.isArray(parsed)) {
@@ -627,8 +2612,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     }
 
     const input: CreateApiKeyInput = {
-      ...(scopesInput.length > 0 && { capabilities: scopesInput }),
-      ...(apiScopesInput && { scopes: apiScopesInput }),
+      scopes: apiScopesInput,
       ...(Object.keys(cleanMeta).length > 0 && { metadata: cleanMeta }),
       ...(expiresAt && { expiresAt: new Date(expiresAt).toISOString() }),
       ...(Object.keys(cleanRateLimit).length > 0 && { rateLimit: cleanRateLimit }),
@@ -646,14 +2630,41 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     setSubmitting(false);
   };
 
+  const handleCreateIntegrationClient = async () => {
+    const name = newClient.name.trim();
+    if (!name || creatingClient) return;
+
+    setCreatingClient(true);
+    const response = await createIntegrationClient({
+      name,
+      environment: newClient.environment,
+      status: 'active',
+    });
+
+    if (response.success && response.data) {
+      setIntegrationClients((prev) => [response.data as IntegrationClient, ...prev]);
+      setSelectedIntegrationClientPublicId(response.data.public_id);
+      setNewClient({ name: '', environment: 'live' });
+      success(t('apiKeys.messages.integrationClientCreated'));
+    } else {
+      error(response.error || t('apiKeys.errors.createIntegrationClientFailed'));
+    }
+    setCreatingClient(false);
+  };
+
   const resetForm = () => {
-    setSelectedScopes({});
     setMetadata({ appName: '', environment: '', description: '' });
+    setSelectedUseCase('selectedScopes');
     setSelectedAgentPublicId('');
     setSelectedIntegrationClientPublicId('');
+    setSelectedCatalogScopes([]);
+    setSelectedScopeRestrictions({});
+    setScopeSearchTerm('');
     setExpiresAt('');
     setRateLimit({ requestsPerMinute: '', requestsPerDay: '' });
+    setShowAdvancedScopes(false);
     setAdvancedScopesJson('');
+    setNewClient({ name: '', environment: 'live' });
   };
 
   const handleClose = () => {
@@ -663,110 +2674,313 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>{t('apiKeys.modal.createTitle')}</DialogTitle>
-        <DialogContent className="space-y-5 !pt-3">
-          {/* ── Capabilities Section ── */}
+        <DialogContent className="space-y-6 !pt-3">
           <div>
             <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
-              {t('apiKeys.modal.capabilities')} <span className="text-red-500">*</span>
+              {t('apiKeys.modal.useCase', { defaultValue: 'Use case' })}{' '}
+              <span className="text-red-500">*</span>
             </p>
-            <p className="mb-3 text-xs text-gray-500 dark:text-slate-400">
-              {t('apiKeys.modal.capabilitiesHelper')}
+            <p className="mb-2 text-xs leading-5 text-gray-500 dark:text-slate-400">
+              {t('apiKeys.modal.useCaseHelper', {
+                defaultValue:
+                  'Choose a preset flow. Selected scopes is best for personal service-level API keys.',
+              })}
             </p>
 
-            {capsLoading ? (
+            {resourcesLoading ? (
               <div className="flex items-center gap-2 py-4">
                 <CircularProgress size={18} />
                 <span className="text-sm text-gray-500 dark:text-slate-400">
-                  {t('apiKeys.modal.loadingCapabilities')}
+                  {t('apiKeys.modal.loadingResources', { defaultValue: 'Loading resources...' })}
                 </span>
               </div>
-            ) : capabilities.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-slate-500">
-                {t('apiKeys.modal.noCapabilities')}
-              </p>
             ) : (
-              <div className="space-y-2">
-                {capabilities.map((cap) => {
-                  const isSelected = !!selectedScopes[cap.code];
-                  const scope = selectedScopes[cap.code];
-
-                  return (
-                    <div
-                      key={cap.code}
-                      className={`rounded-lg border p-3 transition-colors ${
-                        isSelected
-                          ? 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20'
-                          : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800'
-                      }`}
-                    >
-                      {/* Capability Toggle Row */}
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => toggleCapability(cap.code)}
-                          size="small"
-                          sx={{ padding: 0 }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <Shield size={14} className="shrink-0 text-blue-500" />
-                            <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                              {cap.name}
-                            </span>
-                            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-500 dark:bg-slate-700 dark:text-slate-400">
-                              {cap.code}
-                            </code>
-                          </div>
-                          {cap.description && (
-                            <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-400">
-                              {cap.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action Permissions (only when selected) */}
-                      {isSelected && (
-                        <div className="mt-2 flex flex-wrap gap-3 pl-7">
-                          {API_KEY_ACTIONS.map((action) => (
-                            <FormControlLabel
-                              key={action}
-                              control={
-                                <Checkbox
-                                  checked={scope[action]}
-                                  onChange={() => toggleAction(cap.code, action)}
-                                  size="small"
-                                  sx={{ padding: '2px 6px 2px 0' }}
-                                />
-                              }
-                              label={
-                                <span className="text-xs text-gray-700 dark:text-slate-300">
-                                  {t(`apiKeys.actions.${action}`)}
-                                </span>
-                              }
-                            />
-                          ))}
-                        </div>
-                      )}
+              <TextField
+                select
+                fullWidth
+                value={selectedUseCase}
+                onChange={(event) => setSelectedUseCase(event.target.value as ApiKeyUseCaseId)}
+                size="small"
+                SelectProps={{
+                  renderValue: (value) => {
+                    const useCase = API_KEY_USE_CASES.find((item) => item.id === value);
+                    return useCase
+                      ? t(`apiKeys.modal.presets.${useCase.id}`, {
+                          defaultValue: useCase.title,
+                        })
+                      : '';
+                  },
+                }}
+                helperText={
+                  selectedUseCaseConfig
+                    ? t(selectedUseCaseConfig.descriptionKey, {
+                        defaultValue: selectedUseCaseConfig.description,
+                      })
+                    : undefined
+                }
+              >
+                {API_KEY_USE_CASES.map((useCase) => (
+                  <MenuItem key={useCase.id} value={useCase.id}>
+                    <div className="min-w-0 py-1">
+                      <p className="text-sm font-medium text-gray-800 dark:text-slate-100">
+                        {t(`apiKeys.modal.presets.${useCase.id}`, {
+                          defaultValue: useCase.title,
+                        })}
+                      </p>
+                      <p className="mt-0.5 whitespace-normal text-xs leading-4 text-gray-500 dark:text-slate-400">
+                        {t(useCase.descriptionKey, {
+                          defaultValue: useCase.description,
+                        })}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {selectedCount > 0 && (
-              <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
-                {selectedCount === 1
-                  ? t('apiKeys.modal.capabilitySelected', { count: selectedCount })
-                  : t('apiKeys.modal.capabilitiesSelected', { count: selectedCount })}
-              </p>
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           </div>
 
-          {/* ── Metadata Section ── */}
+          {selectedUseCaseConfig?.resourceRequired && (
+            <div>
+              <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
+                {t(selectedUseCaseConfig.resourceLabelKey, {
+                  defaultValue: selectedUseCaseConfig.resourceLabel,
+                })}{' '}
+                <span className="text-red-500">*</span>
+              </p>
+
+              {needsIntegrationClient ? (
+                <div className="space-y-3">
+                  <TextField
+                    select
+                    fullWidth
+                    label={t('apiKeys.modal.integrationClientResource')}
+                    value={selectedIntegrationClientPublicId}
+                    onChange={(e) => setSelectedIntegrationClientPublicId(e.target.value)}
+                    size="small"
+                    helperText={
+                      integrationClients.length === 0
+                        ? t('apiKeys.modal.noIntegrationClientsHelper')
+                        : t('apiKeys.modal.integrationClientHelper')
+                    }
+                  >
+                    <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
+                    {integrationClients.map((client) => (
+                      <MenuItem key={client.public_id} value={client.public_id}>
+                        {client.name} · {client.environment} · {client.public_id}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+
+                  <div className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
+                    <p className="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
+                      {t('apiKeys.modal.createIntegrationClient')}
+                    </p>
+                    <div className="grid gap-2 md:grid-cols-[1fr_160px_auto]">
+                      <TextField
+                        fullWidth
+                        label={t('apiKeys.modal.clientName')}
+                        value={newClient.name}
+                        onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                        size="small"
+                        placeholder="NailMap Production"
+                      />
+                      <TextField
+                        select
+                        fullWidth
+                        label={t('apiKeys.modal.environment')}
+                        value={newClient.environment}
+                        onChange={(e) =>
+                          setNewClient({ ...newClient, environment: e.target.value })
+                        }
+                        size="small"
+                      >
+                        <MenuItem value="live">live</MenuItem>
+                        <MenuItem value="test">test</MenuItem>
+                      </TextField>
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        disabled={!newClient.name.trim() || creatingClient}
+                        onClick={handleCreateIntegrationClient}
+                        startIcon={
+                          creatingClient ? <CircularProgress size={16} /> : <Plus size={16} />
+                        }
+                      >
+                        Create
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : needsAgent ? (
+                <TextField
+                  select
+                  fullWidth
+                  label={t('apiKeys.modal.agentResource')}
+                  value={selectedAgentPublicId}
+                  onChange={(e) => setSelectedAgentPublicId(e.target.value)}
+                  size="small"
+                  helperText={
+                    agents.length === 0
+                      ? t('apiKeys.modal.noAgentsHelper')
+                      : t('apiKeys.modal.agentHelper')
+                  }
+                >
+                  <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
+                  {agents.map((agent) => (
+                    <MenuItem key={agent.publicId} value={agent.publicId}>
+                      {agent.name} · {agent.status || 'draft'} · {agent.publicId}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : null}
+            </div>
+          )}
+
+          {selectedUseCase === 'selectedScopes' && (
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                    {t('apiKeys.modal.resourceScopes')}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-400">
+                    {t('apiKeys.modal.resourceScopesHelper')}
+                  </p>
+                </div>
+                <Chip
+                  size="small"
+                  label={t('apiKeys.modal.scopeCount', { count: selectedCatalogScopes.length })}
+                  color={selectedCatalogScopes.length > 0 ? 'primary' : 'default'}
+                  variant="outlined"
+                />
+              </div>
+
+              <TextField
+                fullWidth
+                value={scopeSearchTerm}
+                onChange={(event) => setScopeSearchTerm(event.target.value)}
+                size="small"
+                placeholder={t('apiKeys.modal.searchScopes', {
+                  defaultValue: 'Search scopes, capabilities, actions...',
+                })}
+                InputProps={{
+                  startAdornment: <Search size={16} className="mr-2 text-gray-400" />,
+                }}
+                className="!mb-3"
+              />
+
+              <div className="max-h-72 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700">
+                {orderedCatalogGroups.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500 dark:text-slate-400">
+                    {scopeCatalog.length === 0
+                      ? t('apiKeys.modal.loadingResources', {
+                          defaultValue: 'Loading resources...',
+                        })
+                      : t('apiKeys.modal.noScopesFound', {
+                          defaultValue: 'No scopes match your search.',
+                        })}
+                  </div>
+                ) : (
+                  orderedCatalogGroups.map(([resourceType, scopes]) => (
+                    <div
+                      key={resourceType}
+                      className="border-t border-gray-100 first:border-t-0 dark:border-slate-700"
+                    >
+                      <div className="bg-gray-50 px-3 py-2 text-xs font-semibold uppercase text-gray-500 dark:bg-slate-900 dark:text-slate-400">
+                        {resourceType.replace(/_/g, ' ')}
+                      </div>
+                      <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {scopes.map((item) => {
+                          const isSelected = selectedCatalogScopes.includes(item.scope);
+                          const restrictionType = restrictionTypeForScope(item);
+                          const restriction = selectedScopeRestrictions[item.scope];
+                          const restrictionOptions =
+                            restrictionType === 'agent'
+                              ? agents.map((agent) => ({
+                                  value: agent.publicId,
+                                  label: `${agent.name} · ${agent.status || 'draft'} · ${
+                                    agent.publicId
+                                  }`,
+                                }))
+                              : restrictionType === 'knowledge'
+                                ? knowledges.map((knowledge) => ({
+                                    value: knowledge.publicId,
+                                    label: `${knowledge.name} · ${knowledge.publicId}`,
+                                  }))
+                                : [];
+
+                          return (
+                            <div
+                              key={item.scope}
+                              className="flex items-start gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-800"
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={() => toggleCatalogScope(item.scope)}
+                                size="small"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-gray-900 dark:text-slate-100">
+                                  {item.name}
+                                </span>
+                                <code className="block break-words text-xs text-blue-700 dark:text-blue-300">
+                                  {item.scope}
+                                </code>
+                                <span className="block text-xs text-gray-500 dark:text-slate-400">
+                                  {item.description}
+                                </span>
+                                {isSelected && restrictionType && (
+                                  <TextField
+                                    select
+                                    fullWidth
+                                    value={restriction?.resourcePublicId ?? ''}
+                                    onChange={(event) =>
+                                      setScopeRestriction(
+                                        item.scope,
+                                        restrictionType,
+                                        event.target.value
+                                      )
+                                    }
+                                    size="small"
+                                    margin="dense"
+                                    label={t('apiKeys.modal.restrictToResource', {
+                                      defaultValue: `Restrict to ${restrictionType}`,
+                                    })}
+                                    helperText={t('apiKeys.modal.ownerLevelScopeHelper', {
+                                      defaultValue:
+                                        'Leave empty to allow all owned resources for this scope.',
+                                    })}
+                                  >
+                                    <MenuItem value="">
+                                      {t('apiKeys.modal.allOwnedResources', {
+                                        defaultValue: 'All owned resources',
+                                      })}
+                                    </MenuItem>
+                                    {restrictionOptions.map((option) => (
+                                      <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
+                                )}
+                              </span>
+                              {item.source === 'capability' && (
+                                <Chip size="small" variant="outlined" label="capability" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           <div>
             <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
               {t('apiKeys.modal.metadata')}{' '}
@@ -841,91 +3055,104 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
-              {t('apiKeys.modal.resourceScopes')}{' '}
-              <span className="font-normal text-gray-400">{t('apiKeys.modal.optional')}</span>
-            </p>
-            <div className="mb-3 grid gap-3 md:grid-cols-2">
-              <TextField
-                select
-                fullWidth
-                label={t('apiKeys.modal.agentResource')}
-                value={selectedAgentPublicId}
-                onChange={(e) => setSelectedAgentPublicId(e.target.value)}
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                  {t('apiKeys.modal.resourceScopes')}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-400">
+                  {resourceName
+                    ? t('apiKeys.modal.generatedPolicyFor', { name: resourceName })
+                    : selectedUseCase === 'selectedScopes'
+                      ? t('apiKeys.modal.resourceScopesHelper')
+                      : t('apiKeys.modal.selectResourceForPolicy')}
+                </p>
+              </div>
+              <Chip
                 size="small"
-              >
-                <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
-                {agents.map((agent) => (
-                  <MenuItem key={agent.publicId} value={agent.publicId}>
-                    {agent.name} ({agent.publicId})
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                fullWidth
-                label={t('apiKeys.modal.integrationClientResource')}
-                value={selectedIntegrationClientPublicId}
-                onChange={(e) => setSelectedIntegrationClientPublicId(e.target.value)}
-                size="small"
-              >
-                <MenuItem value="">{t('apiKeys.modal.none')}</MenuItem>
-                {integrationClients.map((client) => (
-                  <MenuItem key={client.public_id} value={client.public_id}>
-                    {client.name} ({client.public_id})
-                  </MenuItem>
-                ))}
-              </TextField>
+                label={t('apiKeys.modal.scopeCount', { count: presetScopes.length })}
+                color={presetScopes.length > 0 ? 'primary' : 'default'}
+                variant="outlined"
+              />
             </div>
-            <div className="mb-2 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="small"
-                variant="outlined"
-                disabled={!selectedAgentPublicId}
-                onClick={() =>
-                  applyScopePreset(API_KEY_SCOPE_PRESETS.chatWithOneAgent(selectedAgentPublicId))
-                }
-              >
-                {t('apiKeys.modal.presets.chatWithOneAgent')}
-              </Button>
-              <Button
-                type="button"
-                size="small"
-                variant="outlined"
-                disabled={!selectedIntegrationClientPublicId}
-                onClick={() =>
-                  applyScopePreset(
-                    API_KEY_SCOPE_PRESETS.thirdPartyRuntime(selectedIntegrationClientPublicId)
-                  )
-                }
-              >
-                {t('apiKeys.modal.presets.thirdPartyRuntime')}
-              </Button>
-              <Button
-                type="button"
-                size="small"
-                variant="outlined"
-                disabled={!selectedIntegrationClientPublicId}
-                onClick={() =>
-                  applyScopePreset(
-                    API_KEY_SCOPE_PRESETS.thirdPartyProvisioning(selectedIntegrationClientPublicId)
-                  )
-                }
-              >
-                {t('apiKeys.modal.presets.thirdPartyProvisioning')}
-              </Button>
-            </div>
-            <TextField
-              fullWidth
-              value={advancedScopesJson}
-              onChange={(e) => setAdvancedScopesJson(e.target.value)}
-              size="small"
-              multiline
-              rows={5}
-              placeholder='[{"scope":"agents:execute","resourceType":"agent","resourcePublicId":"agt_..."}]'
-              helperText={t('apiKeys.modal.resourceScopesHelper')}
+
+            {presetScopes.length === 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                {selectedUseCase === 'selectedScopes'
+                  ? t('apiKeys.modal.selectScopesToContinue', {
+                      defaultValue: 'Select at least one API scope to continue.',
+                    })
+                  : needsIntegrationClient
+                    ? t('apiKeys.modal.selectIntegrationClientToContinue')
+                    : t('apiKeys.modal.selectAgentToContinue')}
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
+                <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)] bg-gray-50 text-xs font-semibold text-gray-500 dark:bg-slate-900 dark:text-slate-400">
+                  <div className="p-2">{t('apiKeys.modal.scopeColumn')}</div>
+                  <div className="p-2">{t('apiKeys.modal.resourceColumn')}</div>
+                  <div className="p-2">{t('apiKeys.modal.meaningColumn')}</div>
+                </div>
+                {presetScopes.map((scope) => (
+                  <div
+                    key={`${scope.scope}:${scope.resourceType ?? ''}:${scope.resourcePublicId ?? ''}`}
+                    className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)] border-t border-gray-100 text-xs dark:border-slate-700"
+                  >
+                    <code className="min-w-0 break-words p-2 text-blue-700 dark:text-blue-300">
+                      {scope.scope}
+                    </code>
+                    <div className="min-w-0 break-words p-2 text-gray-600 dark:text-slate-300">
+                      {scope.resourceType
+                        ? `${scope.resourceType}:${scope.resourcePublicId ?? '*'}`
+                        : t('apiKeys.modal.allOwnedResources', {
+                            defaultValue: 'All owned resources',
+                          })}
+                    </div>
+                    <div className="p-2 text-gray-500 dark:text-slate-400">
+                      {t(
+                        API_SCOPE_DESCRIPTION_KEYS[scope.scope] || 'apiKeys.modal.customApiScope',
+                        {
+                          defaultValue:
+                            scopeCatalog.find((item) => item.scope === scope.scope)?.description ||
+                            API_SCOPE_DESCRIPTIONS[scope.scope] ||
+                            'Custom API scope.',
+                        }
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Divider className="!my-3" />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={showAdvancedScopes}
+                  onChange={(e) => setShowAdvancedScopes(e.target.checked)}
+                  size="small"
+                />
+              }
+              label={
+                <span className="text-sm text-gray-700 dark:text-slate-300">
+                  {t('apiKeys.modal.advancedScopes', {
+                    defaultValue: 'Advanced: edit generated scopes JSON',
+                  })}
+                </span>
+              }
             />
+            <Collapse in={showAdvancedScopes}>
+              <TextField
+                fullWidth
+                value={advancedScopesJson}
+                onChange={(e) => setAdvancedScopesJson(e.target.value)}
+                size="small"
+                multiline
+                rows={6}
+                placeholder='[{"scope":"agents:execute","resourceType":"agent","resourcePublicId":"agt_..."}]'
+                helperText={t('apiKeys.modal.resourceScopesHelper')}
+              />
+            </Collapse>
           </div>
         </DialogContent>
 
@@ -968,6 +3195,7 @@ interface OneTimeKeyModalProps {
 const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, onCopy }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const curlExamples = buildApiKeyCurlExamples(data);
 
   const handleCopy = () => {
     if (data?.apiKey) {
@@ -1025,6 +3253,32 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
                 : data.capabilities.map((cap) => (
                     <CapabilityBadge key={cap.capabilityCode} scope={cap} />
                   ))}
+            </div>
+          </div>
+        )}
+
+        {curlExamples.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-slate-300">
+              {t('apiKeys.oneTime.curlExamplesTitle')}
+            </p>
+            <p className="mb-3 text-xs leading-5 text-gray-500 dark:text-slate-400">
+              {t('apiKeys.oneTime.curlExamplesDescription')}
+            </p>
+            <div className="space-y-3">
+              {curlExamples.map((example) => (
+                <div
+                  key={example.key}
+                  className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700"
+                >
+                  <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                    {t(example.titleKey, { defaultValue: example.title })}
+                  </div>
+                  <pre className="overflow-x-auto bg-gray-100 p-3 text-xs leading-5 text-gray-800 dark:bg-slate-950 dark:text-slate-200">
+                    <code>{example.command}</code>
+                  </pre>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1102,6 +3356,49 @@ const RevokeConfirmationDialog: React.FC<RevokeConfirmationDialogProps> = ({
         <Button onClick={onClose}>{t('apiKeys.revoke.cancel')}</Button>
         <Button onClick={onConfirm} color="error" variant="contained">
           {t('apiKeys.revoke.revokeKey')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+interface RotateConfirmationDialogProps {
+  open: boolean;
+  apiKey: ApiKey | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+const RotateConfirmationDialog: React.FC<RotateConfirmationDialogProps> = ({
+  open,
+  apiKey,
+  onClose,
+  onConfirm,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{t('apiKeys.rotate.title')}</DialogTitle>
+      <DialogContent>
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            {t('apiKeys.rotate.warning')}
+          </p>
+        </div>
+        <p className="text-gray-700 dark:text-slate-300">
+          {t('apiKeys.rotate.confirm', { name: apiKey ? displayName(apiKey) : '' })}
+        </p>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('apiKeys.rotate.cancel')}</Button>
+        <Button
+          onClick={onConfirm}
+          variant="contained"
+          color="primary"
+          startIcon={<RefreshCw size={16} />}
+          disabled={!apiKey}
+        >
+          {t('apiKeys.rotate.rotateKey')}
         </Button>
       </DialogActions>
     </Dialog>

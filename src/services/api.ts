@@ -490,11 +490,13 @@ export const verifyEmail = async (token: string): Promise<ApiResponse> => {
 
 import type {
   ApiKey,
+  ApiScopeCatalogItem,
   ChannelIntegration,
   CreateApiKeyInput,
   CreateApiKeyResponse,
   CreateEmbedWidgetInput,
   CreateEmbedWidgetResponse,
+  CreateIntegrationClientInput,
   EmailAccount,
   EmailAgentBinding,
   EmailBlacklistRule,
@@ -503,7 +505,12 @@ import type {
   EmailProvider,
   EmailSummary,
   EmbedWidget,
+  ExternalAgentBinding,
   IntegrationClient,
+  ProvisionIntegrationClientAgentInput,
+  ProvisionIntegrationClientAgentResponse,
+  UpdateIntegrationClientBindingInput,
+  UpsertIntegrationClientBindingInput,
 } from '../types';
 
 /**
@@ -529,6 +536,28 @@ export const listApiKeys = async (): Promise<ApiResponse<ApiKey[]>> => {
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to load API keys',
+    };
+  }
+};
+
+export const listApiScopeCatalog = async (): Promise<ApiResponse<ApiScopeCatalogItem[]>> => {
+  try {
+    const response = await axiosInstance.get('/v1/api-scopes/catalog');
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List API scope catalog error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load API scope catalog',
     };
   }
 };
@@ -591,6 +620,31 @@ export const revokeApiKey = async (publicId: string): Promise<ApiResponse> => {
   }
 };
 
+export const rotateApiKey = async (
+  publicId: string
+): Promise<ApiResponse<CreateApiKeyResponse>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/api-keys/${publicId}/rotate`);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'API key rotated successfully',
+    };
+  } catch (error) {
+    console.error('Rotate API key error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to rotate API key',
+    };
+  }
+};
+
 export const listIntegrationClients = async (): Promise<ApiResponse<IntegrationClient[]>> => {
   try {
     const response = await axiosInstance.get('/v1/integration-clients');
@@ -609,6 +663,143 @@ export const listIntegrationClients = async (): Promise<ApiResponse<IntegrationC
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to load integration clients',
+    };
+  }
+};
+
+export const createIntegrationClient = async (
+  input: CreateIntegrationClientInput
+): Promise<ApiResponse<IntegrationClient>> => {
+  try {
+    const response = await axiosInstance.post('/v1/integration-clients', input);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Integration client created successfully',
+    };
+  } catch (error) {
+    console.error('Create integration client error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to create integration client',
+    };
+  }
+};
+
+export const listIntegrationClientBindings = async (
+  clientPublicId: string
+): Promise<ApiResponse<ExternalAgentBinding[]>> => {
+  try {
+    const response = await axiosInstance.get(`/v1/integration-clients/${clientPublicId}/bindings`);
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('List integration client bindings error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to load integration client bindings',
+    };
+  }
+};
+
+export const upsertIntegrationClientBinding = async (
+  clientPublicId: string,
+  input: UpsertIntegrationClientBindingInput
+): Promise<ApiResponse<ExternalAgentBinding>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/integration-clients/${clientPublicId}/bindings`,
+      input
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Integration client binding saved successfully',
+    };
+  } catch (error) {
+    console.error('Save integration client binding error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to save integration client binding',
+    };
+  }
+};
+
+export const provisionIntegrationClientAgent = async (
+  clientPublicId: string,
+  input: ProvisionIntegrationClientAgentInput
+): Promise<ApiResponse<ProvisionIntegrationClientAgentResponse>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/v1/integration-clients/${clientPublicId}/provision-agent`,
+      input
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Tenant agent provisioned successfully',
+    };
+  } catch (error) {
+    console.error('Provision integration client agent error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to provision tenant agent',
+    };
+  }
+};
+
+export const updateIntegrationClientBinding = async (
+  clientPublicId: string,
+  bindingPublicId: string,
+  input: UpdateIntegrationClientBindingInput
+): Promise<ApiResponse<ExternalAgentBinding>> => {
+  try {
+    const response = await axiosInstance.patch(
+      `/v1/integration-clients/${clientPublicId}/bindings/${bindingPublicId}`,
+      input
+    );
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: 'Integration client binding updated successfully',
+    };
+  } catch (error) {
+    console.error('Update integration client binding error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to update integration client binding',
     };
   }
 };
@@ -895,7 +1086,9 @@ export const disconnectEmailAccount = async (
 
 export const syncEmailAccountNow = async (
   accountPublicId: string
-): Promise<ApiResponse<{ accepted: boolean; sync_queued: boolean; queued_count: number; trace_id?: string }>> => {
+): Promise<
+  ApiResponse<{ accepted: boolean; sync_queued: boolean; queued_count: number; trace_id?: string }>
+> => {
   try {
     const response = await axiosInstance.post(
       `/v1/email-integrations/accounts/${accountPublicId}/sync-now`
@@ -1032,7 +1225,9 @@ export const runEmailDigest = async (input?: {
     return { success: true, data: response.data.data || response.data };
   } catch (error) {
     console.error('Run email digest error:', error);
-    return apiError(error, 'Failed to run email digest') as ApiResponse<EmailSummary | EmailSummary[]>;
+    return apiError(error, 'Failed to run email digest') as ApiResponse<
+      EmailSummary | EmailSummary[]
+    >;
   }
 };
 
@@ -1087,7 +1282,10 @@ export const updateEmailDraft = async (
   input: { title?: string; draft_text?: string }
 ): Promise<ApiResponse<EmailDraftApproval>> => {
   try {
-    const response = await axiosInstance.patch(`/v1/email-integrations/drafts/${draftPublicId}`, input);
+    const response = await axiosInstance.patch(
+      `/v1/email-integrations/drafts/${draftPublicId}`,
+      input
+    );
     return { success: true, data: response.data.data || response.data };
   } catch (error) {
     console.error('Update email draft error:', error);
@@ -1134,7 +1332,9 @@ export const rejectEmailDraft = async (
   draftPublicId: string
 ): Promise<ApiResponse<EmailDraftApproval>> => {
   try {
-    const response = await axiosInstance.post(`/v1/email-integrations/drafts/${draftPublicId}/reject`);
+    const response = await axiosInstance.post(
+      `/v1/email-integrations/drafts/${draftPublicId}/reject`
+    );
     return { success: true, data: response.data.data || response.data };
   } catch (error) {
     console.error('Reject email draft error:', error);
@@ -1964,9 +2164,7 @@ export const listChatSessions = async (
         ...(filters?.entrypoint ? { entrypoint: filters.entrypoint } : {}),
         ...(filters?.source_provider ? { source_provider: filters.source_provider } : {}),
         ...(filters?.client_id ? { client_id: filters.client_id } : {}),
-        ...(filters?.external_tenant_id
-          ? { external_tenant_id: filters.external_tenant_id }
-          : {}),
+        ...(filters?.external_tenant_id ? { external_tenant_id: filters.external_tenant_id } : {}),
       },
     });
 
