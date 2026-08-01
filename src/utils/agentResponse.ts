@@ -24,6 +24,9 @@ const CONTENT_KEYS = [
 ];
 
 const normalize = (value: string) => value.replace(/\n{3,}/g, '\n\n').trim();
+const TOOL_CODE_BLOCK_PATTERN = /<tool_code>\s*([\s\S]*?)\s*<\/tool_code>/gi;
+const TOOL_CODE_LABEL_PATTERN = /^\s*tool_code\s*:?\s*$/gim;
+const TOOL_CALL_PATTERN = /^\s*(?:print\()?\s*(?:default_api\.)?[A-Za-z_][A-Za-z0-9_]*\([\s\S]*\)\s*\)?\s*$/;
 
 const stringifyValue = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -117,6 +120,38 @@ const parseTaggedResponse = (rawContent: string): ParsedAgentResponse | null => 
   };
 };
 
+const parseToolCodeResponse = (rawContent: string): ParsedAgentResponse | null => {
+  const trimmed = rawContent.trim();
+  const withoutLabels = trimmed.replace(TOOL_CODE_LABEL_PATTERN, '').trim();
+  const hasToolCodeBlock = /<tool_code>/i.test(trimmed);
+
+  if (hasToolCodeBlock) {
+    const content = normalize(
+      trimmed.replace(TOOL_CODE_BLOCK_PATTERN, '').replace(TOOL_CODE_LABEL_PATTERN, ''),
+    );
+    return {
+      reasoning: null,
+      content,
+    };
+  }
+
+  if (TOOL_CALL_PATTERN.test(withoutLabels)) {
+    return {
+      reasoning: null,
+      content: '',
+    };
+  }
+
+  if (withoutLabels !== trimmed) {
+    return {
+      reasoning: null,
+      content: normalize(withoutLabels),
+    };
+  }
+
+  return null;
+};
+
 const parseLabeledResponse = (rawContent: string): ParsedAgentResponse | null => {
   const startPattern =
     /^\s*(?:#{1,6}\s*)?(?:\*\*)?(thinking|thought process|reasoning)(?:\*\*)?\s*:\s*/i;
@@ -142,7 +177,8 @@ export const parseAgentResponse = (rawContent: string): ParsedAgentResponse => {
   const parsed =
     parseJsonResponse(rawContent) ||
     parseTaggedResponse(rawContent) ||
-    parseLabeledResponse(rawContent);
+    parseLabeledResponse(rawContent) ||
+    parseToolCodeResponse(rawContent);
 
   if (!parsed) {
     return {
