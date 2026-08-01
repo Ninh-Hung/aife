@@ -1532,6 +1532,8 @@
         "knowledgeUpdate": "Cập nhật knowledge resource của agent được provision.",
         "knowledgeSync": "Kích hoạt job sync knowledge.",
         "filesUpload": "Upload file cho knowledge được provision.",
+        "filesGenerate": "Sinh file artifact qua các agent tool đã bật.",
+        "filesRead": "Download file được tạo hoặc được scope cho key này.",
         "integrationClientsRead": "Đọc integration client đã chọn.",
         "integrationClientsUpdate": "Tạo hoặc cập nhật binding giữa tenant và agent.",
         "usageRead": "Đọc usage được attribution vào integration client này."

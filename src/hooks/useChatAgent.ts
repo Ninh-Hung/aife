@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnonymousLimitError, ChatMessage, ChatSource } from '../types';
 import { getStoredAppLocale } from '../i18n/types';
 import type { ChatExecutionMode } from '../common/chatExecutionMode';
+import { buildServerUrl } from '../services/api';
 
 export type { ChatExecutionMode };
 
@@ -32,6 +33,19 @@ function fileToUIPart(file: File): Promise<FileUIPart> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function agentReadyWithTimeout(agentReady: Promise<void>, timeoutMs = 5000): Promise<void> {
@@ -254,21 +268,49 @@ export function useChatAgent({
         name?: string;
         size?: number;
       }>;
+      metadata?: {
+        generatedFiles?: unknown;
+      };
     };
 
-    if (!Array.isArray(raw.parts)) {
-      return [];
-    }
+    const partAttachments = Array.isArray(raw.parts)
+      ? raw.parts
+          .filter((part) => part.type === 'file')
+          .map((part, index) => ({
+            publicId: `local-${message.id}-${index}`,
+            fileName: part.filename || part.name || `attachment-${index + 1}`,
+            mimeType: part.mediaType || 'application/octet-stream',
+            fileSize: part.size || 0,
+            fileUrl: part.url,
+          }))
+      : [];
+    const generatedAttachments = Array.isArray(raw.metadata?.generatedFiles)
+      ? raw.metadata.generatedFiles
+          .map((file, index): NonNullable<ChatMessage['attachments']>[number] | null => {
+            if (!file || typeof file !== 'object' || Array.isArray(file)) return null;
+            const item = file as Record<string, unknown>;
+            const publicId = stringValue(item.publicId) || stringValue(item.id);
+            const fileName = stringValue(item.fileName) || stringValue(item.name);
+            const mimeType = stringValue(item.mimeType) || stringValue(item.mime_type);
+            const fileSize = numberValue(item.fileSize) ?? numberValue(item.size) ?? 0;
+            const downloadUrl = stringValue(item.downloadUrl) || stringValue(item.download_url);
 
-    return raw.parts
-      .filter((part) => part.type === 'file')
-      .map((part, index) => ({
-        publicId: `local-${message.id}-${index}`,
-        fileName: part.filename || part.name || `attachment-${index + 1}`,
-        mimeType: part.mediaType || 'application/octet-stream',
-        fileSize: part.size || 0,
-        fileUrl: part.url,
-      }));
+            if (!fileName || !mimeType || !downloadUrl) return null;
+
+            return {
+              publicId: publicId || `generated-${message.id}-${index}`,
+              fileName,
+              mimeType,
+              fileSize,
+              fileUrl: buildServerUrl(downloadUrl),
+            };
+          })
+          .filter((attachment): attachment is NonNullable<ChatMessage['attachments']>[number] =>
+            Boolean(attachment)
+          )
+      : [];
+
+    return [...partAttachments, ...generatedAttachments];
   }, []);
 
   const extractConversationTitle = useCallback((message: UIMessage): string | undefined => {
@@ -415,6 +457,7 @@ export function useChatAgent({
     extractReasoning,
     extractSources,
     extractText,
+    sessionId,
     shouldConnect,
   ]);
 

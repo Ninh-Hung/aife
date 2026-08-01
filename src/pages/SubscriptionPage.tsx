@@ -38,6 +38,7 @@ export const SubscriptionPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const currentPackageCode = currentSubscription?.package?.code?.toUpperCase();
 
   // Fetch all data on mount
   useEffect(() => {
@@ -86,11 +87,17 @@ export const SubscriptionPage: React.FC = () => {
 
   // Handle cancel subscription
   const handleCancelSubscription = async () => {
+    if (!currentSubscription?.publicId || currentPackageCode === 'FREE') {
+      error('Free plan cannot be cancelled.');
+      setCancelDialogOpen(false);
+      return;
+    }
+
     setActionLoading(true);
     setCancelDialogOpen(false);
 
     try {
-      const result = await cancelSubscription();
+      const result = await cancelSubscription(currentSubscription.publicId);
 
       if (result.success) {
         success('Subscription cancelled. You are now on FREE and can keep using wallet tokens.');

@@ -1532,6 +1532,8 @@
         "knowledgeUpdate": "Update knowledge resources for provisioned agents.",
         "knowledgeSync": "Trigger knowledge sync jobs.",
         "filesUpload": "Upload files for provisioned knowledge.",
+        "filesGenerate": "Generate file artifacts through enabled agent tools.",
+        "filesRead": "Download files created or scoped to this key.",
         "integrationClientsRead": "Read the selected integration client.",
         "integrationClientsUpdate": "Create or update tenant-agent bindings.",
         "usageRead": "Read usage attributed to this integration client."

@@ -8,6 +8,7 @@ import { Send, Plus, X, File as FileIcon, StopCircle } from 'lucide-react';
 import { IconButton } from '@mui/material';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
+import { ImagePreviewModal } from './ImagePreviewModal';
 
 interface FileWithPreview {
   file: File;
@@ -45,8 +46,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const maxAttachmentCount = 5;
-  const maxFileSizeBytes = 2 * 1024 * 1024;
-  const maxTotalSizeBytes = 6 * 1024 * 1024;
+  const maxFileSizeBytes = 5 * 1024 * 1024;
+  const maxTotalSizeBytes = 15 * 1024 * 1024;
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -167,6 +168,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       }
       return prev.filter((_, i) => i !== index);
     });
+  };
+
+  const triggerDownload = (url: string, fileName: string) => {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.rel = 'noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   };
 
   const canSend =
@@ -314,33 +325,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           {isGenerating ? <StopCircle size={18} /> : <Send size={18} />}
         </IconButton>
       </div>
-      {selectedPreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setSelectedPreview(null)}
-        >
-          <div
-            className="relative max-h-full max-w-5xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedPreview(null)}
-              title="Close preview"
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-            >
-              <X size={18} />
-            </button>
-            <img
-              src={selectedPreview.url}
-              alt={selectedPreview.fileName}
-              className="max-h-[90vh] max-w-[90vw] rounded-md object-contain shadow-2xl"
-            />
-          </div>
-        </div>
-      )}
+      <ImagePreviewModal
+        open={Boolean(selectedPreview)}
+        src={selectedPreview?.url || ''}
+        alt={selectedPreview?.fileName || 'Image preview'}
+        onClose={() => setSelectedPreview(null)}
+        onDownload={
+          selectedPreview
+            ? () => triggerDownload(selectedPreview.url, selectedPreview.fileName)
+            : undefined
+        }
+      />
     </div>
   );
 };

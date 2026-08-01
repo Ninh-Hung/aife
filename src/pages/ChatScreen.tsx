@@ -139,6 +139,7 @@ const hasRenderableMessageContent = (message: ChatMessage) => {
 
   return (
     parseAgentResponse(message.content).content.trim().length > 0 ||
+    Boolean(message.attachments?.length) ||
     stripStreamProgressLines(message.reasoning).length > 0
   );
 };
