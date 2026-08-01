@@ -2619,7 +2619,9 @@ export const createAgentWizardDraft = async (input: {
  * @param file - Image file (jpg, png, svg, gif, webp) max 5 MB
  * @returns Promise with the public URL of the stored image
  */
-export const uploadAgentAvatar = async (file: File): Promise<ApiResponse<{ url: string }>> => {
+export const uploadAgentAvatar = async (
+  file: File
+): Promise<ApiResponse<{ url: string; fileAssetPublicId?: string }>> => {
   try {
     const formData = new FormData();
     formData.append('file', file);
