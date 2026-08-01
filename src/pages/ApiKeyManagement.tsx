@@ -102,6 +102,8 @@ const API_KEY_SCOPE_PRESETS = {
     { scope: 'chat_sessions:create', resourceType: 'agent', resourcePublicId: agentPublicId },
     { scope: 'chat_messages:create', resourceType: 'agent', resourcePublicId: agentPublicId },
     { scope: 'chat_messages:read', resourceType: 'agent', resourcePublicId: agentPublicId },
+    { scope: 'files:generate', resourceType: 'agent', resourcePublicId: agentPublicId },
+    { scope: 'files:read', resourceType: 'agent', resourcePublicId: agentPublicId },
   ],
   thirdPartyRuntime: (clientPublicId: string): ApiKeyApiScopeInput[] => [
     {
@@ -126,6 +128,16 @@ const API_KEY_SCOPE_PRESETS = {
     },
     {
       scope: 'chat_messages:read',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'files:generate',
+      resourceType: 'integration_client',
+      resourcePublicId: clientPublicId,
+    },
+    {
+      scope: 'files:read',
       resourceType: 'integration_client',
       resourcePublicId: clientPublicId,
     },
@@ -178,6 +190,7 @@ const API_KEY_SCOPE_PRESETS = {
       resourcePublicId: clientPublicId,
     },
     { scope: 'files:upload', resourceType: 'integration_client', resourcePublicId: clientPublicId },
+    { scope: 'files:read', resourceType: 'integration_client', resourcePublicId: clientPublicId },
   ],
 };
 
@@ -428,6 +441,8 @@ const API_SCOPE_DESCRIPTIONS: Record<string, string> = {
   'knowledge:update': 'Update knowledge resources for provisioned agents.',
   'knowledge:sync': 'Trigger knowledge sync jobs.',
   'files:upload': 'Upload files for provisioned knowledge.',
+  'files:generate': 'Generate file artifacts through enabled agent tools.',
+  'files:read': 'Download files created or scoped to this key.',
   'integration_clients:read': 'Read the selected integration client.',
   'integration_clients:update': 'Create or update tenant-agent bindings.',
   'usage:read': 'Read usage attributed to this integration client.',
@@ -446,6 +461,8 @@ const API_SCOPE_DESCRIPTION_KEYS: Record<string, string> = {
   'knowledge:update': 'apiKeys.modal.scopeDescriptions.knowledgeUpdate',
   'knowledge:sync': 'apiKeys.modal.scopeDescriptions.knowledgeSync',
   'files:upload': 'apiKeys.modal.scopeDescriptions.filesUpload',
+  'files:generate': 'apiKeys.modal.scopeDescriptions.filesGenerate',
+  'files:read': 'apiKeys.modal.scopeDescriptions.filesRead',
   'integration_clients:read': 'apiKeys.modal.scopeDescriptions.integrationClientsRead',
   'integration_clients:update': 'apiKeys.modal.scopeDescriptions.integrationClientsUpdate',
   'usage:read': 'apiKeys.modal.scopeDescriptions.usageRead',

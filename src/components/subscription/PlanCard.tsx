@@ -54,6 +54,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
   const IconComponent = iconMap[metadata.icon] || Zap;
   const accentColor = metadata.color || '#3B82F6';
+  const isFreePlan = pkg.code.toUpperCase() === 'FREE';
   const formatTokens = (tokens: number) => {
     if (tokens >= 1000000) {
       return `${(tokens / 1000000).toLocaleString(undefined, {
@@ -146,7 +147,11 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       </ul>
 
       {/* Action Button */}
-      {isCurrentPlan ? (
+      {isCurrentPlan && isFreePlan ? (
+        <Button variant="text" disabled fullWidth className="normal-case">
+          Current Plan
+        </Button>
+      ) : isCurrentPlan ? (
         <Button
           variant="text"
           onClick={onCancel}

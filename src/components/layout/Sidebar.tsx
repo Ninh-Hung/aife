@@ -272,15 +272,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </Typography>
           </Link>
         )}
-        {isCollapsed && !isMobileDrawer && (
-          <Link
-            to={isAnonymous ? '/' : '/new-chat'}
-            className="no-underline"
-            onClick={handleNavigation}
-          >
-            <img src="/logo.png" alt="AppAIHelp" className="h-8 w-8 rounded-lg" />
-          </Link>
-        )}
         {/* Hide collapse button in mobile drawer mode */}
         {!isMobileDrawer && (
           <Tooltip

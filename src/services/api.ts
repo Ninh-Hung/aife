@@ -1474,12 +1474,15 @@ const mapSubscriptionToBillingHistoryItem = (
 };
 
 /**
- * Cancels the current subscription
+ * Cancels the subscription identified by public ID
+ * @param subscriptionPublicId - Public ID of the subscription to cancel
  * @returns Promise with cancellation result
  */
-export const cancelSubscription = async (): Promise<ApiResponse> => {
+export const cancelSubscription = async (subscriptionPublicId: string): Promise<ApiResponse> => {
   try {
-    const response = await axiosInstance.post('/v1/subscriptions/cancel');
+    const response = await axiosInstance.patch(
+      `/v1/subscriptions/${encodeURIComponent(subscriptionPublicId)}/cancel`
+    );
 
     return {
       success: true,
@@ -2078,7 +2081,7 @@ type BackendChatSession = Omit<
 
 const serverBaseUrl = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
 
-const buildServerUrl = (path: string): string => {
+export const buildServerUrl = (path: string): string => {
   if (/^https?:\/\//i.test(path) || path.startsWith('blob:') || path.startsWith('data:')) {
     return path;
   }
@@ -2280,9 +2283,12 @@ export const isAuthenticatedChatAttachmentUrl = (url?: string | null): boolean =
 
   try {
     const parsed = new URL(url, window.location.origin);
-    return parsed.pathname.startsWith('/v1/chat/attachments/');
+    return (
+      parsed.pathname.startsWith('/v1/chat/attachments/') ||
+      parsed.pathname.startsWith('/v1/files/')
+    );
   } catch {
-    return url.startsWith('/v1/chat/attachments/');
+    return url.startsWith('/v1/chat/attachments/') || url.startsWith('/v1/files/');
   }
 };
 

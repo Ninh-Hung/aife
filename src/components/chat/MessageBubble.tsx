@@ -15,7 +15,6 @@ import {
   ChevronRight,
   ExternalLink,
   File as FileIcon,
-  X,
   UserPlus,
   Flag,
 } from 'lucide-react';
@@ -23,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChatMessage } from '../../types';
 import { AvatarMedia } from './AvatarMedia';
+import { ImagePreviewModal } from './ImagePreviewModal';
 import { parseAgentResponse } from '../../utils/agentResponse';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
 import {
@@ -276,26 +276,26 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     navigate('/', { state: { authMode: 'signup' } });
   };
 
-  const handleDownloadImage = async () => {
-    if (!downloadableImageUrl || isDownloadingImage) return;
+  const downloadImage = async (url: string, fileName: string) => {
+    if (isDownloadingImage) return;
 
-    const fileName = getImageDownloadFileName(message.id, downloadableImageUrl);
     setIsDownloadingImage(true);
 
     try {
-      if (downloadableImageUrl.startsWith('data:image/')) {
-        triggerDownload(downloadableImageUrl, fileName);
+      if (url.startsWith('data:image/')) {
+        triggerDownload(url, fileName);
         return;
       }
 
-      const blob = shouldProxyGeneratedImageDownload(downloadableImageUrl)
-        ? await getGeneratedImageDownloadBlob(downloadableImageUrl)
-        : await fetch(downloadableImageUrl).then((response) => {
+      const blob = shouldProxyGeneratedImageDownload(url)
+        ? await getGeneratedImageDownloadBlob(url)
+        : await fetch(url).then((response) => {
             if (!response.ok) {
               throw new Error(`Image download failed with status ${response.status}`);
             }
             return response.blob();
           });
+
       const objectUrl = URL.createObjectURL(blob);
       triggerDownload(objectUrl, fileName);
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
@@ -304,6 +304,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     } finally {
       setIsDownloadingImage(false);
     }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!downloadableImageUrl) return;
+    await downloadImage(
+      downloadableImageUrl,
+      getImageDownloadFileName(message.id, downloadableImageUrl)
+    );
   };
 
   const getDisplayUrl = (attachment: MessageAttachment) => {
@@ -493,38 +501,60 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   {attachments.map((attachment) => {
                     const isImage = attachment.mimeType.startsWith('image/');
                     const displayUrl = getDisplayUrl(attachment);
-                    const content =
-                      isImage && displayUrl ? (
-                        <img
-                          src={displayUrl}
-                          alt={attachment.fileName}
-                          className="max-h-48 max-w-full rounded-md object-contain transition-opacity hover:opacity-90"
-                        />
-                      ) : (
-                        <div
-                          className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-xs ${
-                            isUser
-                              ? 'border-blue-300/60 bg-blue-400/30 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                          }`}
-                        >
-                          <FileIcon size={14} />
-                          <span className="max-w-[220px] truncate">{attachment.fileName}</span>
-                          <span className={isUser ? 'text-blue-100' : 'text-gray-400'}>
-                            {(attachment.fileSize / 1024).toFixed(1)} KB
-                          </span>
+                    if (isImage && displayUrl) {
+                      return (
+                        <div key={attachment.publicId} className="relative inline-block max-w-full">
+                          <button
+                            type="button"
+                            onClick={() => void openAttachment(attachment)}
+                            title={`Preview ${attachment.fileName}`}
+                            className="block max-w-full cursor-zoom-in text-left"
+                          >
+                            <img
+                              src={displayUrl}
+                              alt={attachment.fileName}
+                              className="max-h-48 max-w-full rounded-md object-contain transition-opacity hover:opacity-90"
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void downloadImage(displayUrl, attachment.fileName);
+                            }}
+                            title="Download image"
+                            className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/80 disabled:cursor-wait disabled:opacity-70"
+                          >
+                            <Download size={16} />
+                          </button>
                         </div>
                       );
+                    }
+
+                    const content = (
+                      <div
+                        className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-xs ${
+                          isUser
+                            ? 'border-blue-300/60 bg-blue-400/30 text-white'
+                            : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                        }`}
+                      >
+                        <FileIcon size={14} />
+                        <span className="max-w-[220px] truncate">{attachment.fileName}</span>
+                        <span className={isUser ? 'text-blue-100' : 'text-gray-400'}>
+                          {(attachment.fileSize / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                    );
 
                     return displayUrl ? (
                       <button
                         type="button"
                         key={attachment.publicId}
                         onClick={() => void openAttachment(attachment)}
-                        title={
-                          isImage ? `Preview ${attachment.fileName}` : `Open ${attachment.fileName}`
-                        }
-                        className={isImage ? 'block cursor-zoom-in text-left' : 'block text-left'}
+                        title={`Open ${attachment.fileName}`}
+                        className="block text-left"
                       >
                         {content}
                       </button>
@@ -595,33 +625,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         </div>
       </div>
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setSelectedImage(null)}
-        >
-          <div
-            className="relative max-h-full max-w-5xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSelectedImage(null)}
-              title="Close preview"
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-            >
-              <X size={18} />
-            </button>
-            <img
-              src={selectedImage.url}
-              alt={selectedImage.fileName}
-              className="max-h-[90vh] max-w-[90vw] rounded-md object-contain shadow-2xl"
-            />
-          </div>
-        </div>
-      )}
+      <ImagePreviewModal
+        open={Boolean(selectedImage)}
+        src={selectedImage?.url || ''}
+        alt={selectedImage?.fileName || 'Image preview'}
+        onClose={() => setSelectedImage(null)}
+        onDownload={
+          selectedImage
+            ? () => void downloadImage(selectedImage.url, selectedImage.fileName)
+            : undefined
+        }
+        downloadDisabled={isDownloadingImage}
+        downloadTitle={isDownloadingImage ? 'Downloading image' : 'Download image'}
+      />
     </>
   );
 };
