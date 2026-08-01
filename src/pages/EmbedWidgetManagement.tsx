@@ -35,6 +35,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Upload,
   Volume2,
   XCircle,
 } from 'lucide-react';
@@ -48,6 +49,7 @@ import {
   listEmbedWidgets,
   rotateEmbedWidgetKey,
   updateEmbedWidget,
+  uploadAgentAvatar,
 } from '../services/api';
 import { getThirdPartyUsage } from '../services/third-party-usage.service';
 import type {
@@ -64,6 +66,7 @@ type FormState = {
   widgetPosition: string;
   primaryColor: string;
   accentColor: string;
+  launcherIconUrl: string | null;
   greeting: string;
   placeholder: string;
   autoOpen: boolean;
@@ -82,6 +85,7 @@ const buildDefaultForm = (placeholder: string): FormState => ({
   widgetPosition: 'bottom-right',
   primaryColor: DEFAULT_PRIMARY_COLOR,
   accentColor: DEFAULT_ACCENT_COLOR,
+  launcherIconUrl: null,
   greeting: '',
   placeholder,
   autoOpen: false,
@@ -104,6 +108,7 @@ const getFormFromWidget = (widget: EmbedWidget): FormState => ({
   widgetPosition: widget.theme.position,
   primaryColor: widget.theme.primary_color,
   accentColor: widget.theme.accent_color,
+  launcherIconUrl: widget.theme.launcher_icon_url ?? null,
   greeting: widget.behavior.greeting || '',
   placeholder: widget.behavior.placeholder,
   autoOpen: widget.behavior.auto_open,
@@ -141,6 +146,7 @@ export const EmbedWidgetManagement: React.FC = () => {
   const [editingWidget, setEditingWidget] = useState<EmbedWidget | null>(null);
   const [previewWidget, setPreviewWidget] = useState<EmbedWidget | null>(null);
   const [oneTimeKey, setOneTimeKey] = useState<CreateEmbedWidgetResponse | null>(null);
+  const [iconUploading, setIconUploading] = useState(false);
   const [conversationWidget, setConversationWidget] = useState<EmbedWidget | null>(null);
   const [conversationOrigin, setConversationOrigin] = useState('');
   const [conversations, setConversations] = useState<ChatSession[]>([]);
@@ -158,21 +164,18 @@ export const EmbedWidgetManagement: React.FC = () => {
     [agents]
   );
 
-  const widgetUsageTotal = useMemo(
-    () => {
-      const sessionTotals = conversations.reduce(
-        (total, session) => ({
-          messages: total.messages + (session.messageCount || 0),
-          tokens: total.tokens + (session.tokenCount || 0),
-        }),
-        { messages: 0, tokens: 0 }
-      );
-      const credits = widgetUsageRows.reduce((total, row) => total + row.cost_credits, 0);
+  const widgetUsageTotal = useMemo(() => {
+    const sessionTotals = conversations.reduce(
+      (total, session) => ({
+        messages: total.messages + (session.messageCount || 0),
+        tokens: total.tokens + (session.tokenCount || 0),
+      }),
+      { messages: 0, tokens: 0 }
+    );
+    const credits = widgetUsageRows.reduce((total, row) => total + row.cost_credits, 0);
 
-      return { ...sessionTotals, credits };
-    },
-    [conversations, widgetUsageRows]
-  );
+    return { ...sessionTotals, credits };
+  }, [conversations, widgetUsageRows]);
 
   useEffect(() => {
     void loadWidgets();
@@ -244,6 +247,7 @@ export const EmbedWidgetManagement: React.FC = () => {
         widget_position: form.widgetPosition,
         primary_color: form.primaryColor,
         accent_color: form.accentColor,
+        launcher_icon_url: form.launcherIconUrl,
         custom_welcome_message: form.greeting || undefined,
         custom_placeholder: form.placeholder || undefined,
         auto_open: form.autoOpen,
@@ -266,6 +270,22 @@ export const EmbedWidgetManagement: React.FC = () => {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleIconUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIconUploading(true);
+    try {
+      const response = await uploadAgentAvatar(file);
+      if (response.success && response.data?.url) {
+        setForm((current) => ({ ...current, launcherIconUrl: response.data!.url }));
+      } else {
+        notification.error(response.error || t('embedWidgets.modal.fields.icon.uploadFailed'));
+      }
+    } finally {
+      setIconUploading(false);
     }
   };
 
@@ -527,6 +547,56 @@ export const EmbedWidgetManagement: React.FC = () => {
             </TextField>
           </FieldBlock>
           <FieldBlock
+            icon={Bot}
+            title={t('embedWidgets.modal.fields.icon.title')}
+            description={t('embedWidgets.modal.fields.icon.help')}
+            helpAriaLabel={t('embedWidgets.modal.helpAriaLabel', {
+              field: t('embedWidgets.modal.fields.icon.title'),
+            })}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-white shadow-md"
+                style={{
+                  backgroundColor: getPickerColorValue(form.primaryColor, DEFAULT_PRIMARY_COLOR),
+                }}
+              >
+                <LauncherIcon iconUrl={form.launcherIconUrl} />
+              </div>
+              <div className="flex flex-1 flex-wrap gap-2">
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="small"
+                  startIcon={iconUploading ? <CircularProgress size={14} /> : <Upload size={16} />}
+                  disabled={iconUploading}
+                >
+                  {iconUploading
+                    ? t('embedWidgets.modal.fields.icon.uploading')
+                    : t('embedWidgets.modal.fields.icon.upload')}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/jpeg,image/png,image/svg+xml,image/gif,image/webp,image/avif"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      event.target.value = '';
+                      void handleIconUpload(file);
+                    }}
+                  />
+                </Button>
+                <Button
+                  variant={form.launcherIconUrl ? 'outlined' : 'contained'}
+                  size="small"
+                  startIcon={<Bot size={16} />}
+                  onClick={() => setForm({ ...form, launcherIconUrl: null })}
+                >
+                  {t('embedWidgets.modal.fields.icon.default')}
+                </Button>
+              </div>
+            </div>
+          </FieldBlock>
+          <FieldBlock
             icon={Link2}
             title={t('embedWidgets.modal.fields.allowedOrigins.title')}
             description={t('embedWidgets.modal.fields.allowedOrigins.help')}
@@ -686,11 +756,14 @@ export const EmbedWidgetManagement: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(previewWidget)} onClose={() => setPreviewWidget(null)} fullWidth maxWidth="sm">
+      <Dialog
+        open={Boolean(previewWidget)}
+        onClose={() => setPreviewWidget(null)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>{t('embedWidgets.preview.title')}</DialogTitle>
-        <DialogContent>
-          {previewWidget && <WidgetPreview widget={previewWidget} />}
-        </DialogContent>
+        <DialogContent>{previewWidget && <WidgetPreview widget={previewWidget} />}</DialogContent>
         <DialogActions>
           <Button variant="contained" onClick={() => setPreviewWidget(null)}>
             {t('embedWidgets.preview.done')}
@@ -773,12 +846,14 @@ export const EmbedWidgetManagement: React.FC = () => {
                             {session.title || t('embedWidgets.conversations.untitled')}
                           </p>
                           <p className="mt-1 text-xs text-gray-600 dark:text-slate-400">
-                            {session.externalTenantId || t('embedWidgets.conversations.unknownOrigin')}
+                            {session.externalTenantId ||
+                              t('embedWidgets.conversations.unknownOrigin')}
                             {' · '}
                             {formatConversationDate(session.lastMessageAt || session.createdAt)}
                           </p>
                           <p className="mt-1 truncate text-xs text-gray-500 dark:text-slate-500">
-                            {session.externalUserId || t('embedWidgets.conversations.unknownVisitor')}
+                            {session.externalUserId ||
+                              t('embedWidgets.conversations.unknownVisitor')}
                             {' · '}
                             {session.externalSessionId || session.id}
                           </p>
@@ -817,7 +892,12 @@ export const EmbedWidgetManagement: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(oneTimeKey)} onClose={() => setOneTimeKey(null)} fullWidth maxWidth="md">
+      <Dialog
+        open={Boolean(oneTimeKey)}
+        onClose={() => setOneTimeKey(null)}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>{t('embedWidgets.oneTime.title')}</DialogTitle>
         <DialogContent>
           <p className="mb-3 text-sm text-gray-600 dark:text-slate-400">
@@ -828,7 +908,10 @@ export const EmbedWidgetManagement: React.FC = () => {
           </pre>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => oneTimeKey && void copyText(oneTimeKey.embed_snippet)} startIcon={<Copy size={16} />}>
+          <Button
+            onClick={() => oneTimeKey && void copyText(oneTimeKey.embed_snippet)}
+            startIcon={<Copy size={16} />}
+          >
             {t('embedWidgets.oneTime.copy')}
           </Button>
           <Button variant="contained" onClick={() => setOneTimeKey(null)}>
@@ -928,6 +1011,13 @@ const ColorControl: React.FC<{
   </div>
 );
 
+const LauncherIcon: React.FC<{ iconUrl?: string | null }> = ({ iconUrl }) =>
+  iconUrl ? (
+    <img src={iconUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+  ) : (
+    <Bot size={28} />
+  );
+
 const WidgetPreview: React.FC<{ widget: EmbedWidget }> = ({ widget }) => {
   const { t } = useTranslation();
   const isLeft = widget.theme.position.includes('left');
@@ -974,7 +1064,7 @@ const WidgetPreview: React.FC<{ widget: EmbedWidget }> = ({ widget }) => {
           style={{ backgroundColor: widget.theme.primary_color }}
           aria-label={t('embedWidgets.preview.launcherLabel')}
         >
-          <Code2 size={24} />
+          <LauncherIcon iconUrl={widget.theme.launcher_icon_url} />
         </button>
       </div>
     </div>

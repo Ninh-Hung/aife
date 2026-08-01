@@ -632,6 +632,7 @@ export interface EmbedWidget {
     accent_color: string;
     border_radius: string;
     size: string;
+    launcher_icon_url?: string | null;
   };
   behavior: {
     greeting: string | null;
@@ -658,6 +659,7 @@ export interface CreateEmbedWidgetInput {
   widget_position?: string;
   primary_color?: string;
   accent_color?: string;
+  launcher_icon_url?: string | null;
   custom_welcome_message?: string;
   custom_placeholder?: string;
   auto_open?: boolean;
