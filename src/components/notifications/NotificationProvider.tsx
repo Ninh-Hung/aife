@@ -3,10 +3,10 @@
  * Wraps the app with notistack SnackbarProvider for toast notifications
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { SnackbarContent, SnackbarProvider, useSnackbar } from 'notistack';
 import type { CustomContentProps } from 'notistack';
-import { AlertCircle, AlertTriangle, CheckCircle, Copy, Info, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Check, CheckCircle, Copy, Info, X } from 'lucide-react';
 import { useMediaQuery } from '@mui/material';
 import axiosInstance from '../../lib/axios';
 import { setupAxiosToast } from '../../lib/axiosToastSetup';
@@ -114,6 +114,7 @@ const copyToClipboard = async (text: string) => {
 const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps>(
   ({ id, message, style, variant }, ref) => {
     const { closeSnackbar } = useSnackbar();
+    const [copied, setCopied] = useState(false);
     const toastVariant =
       variant === 'success' || variant === 'error' || variant === 'warning' || variant === 'info'
         ? variant
@@ -122,13 +123,19 @@ const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps>(
     const Icon = config.icon;
     const messageText = getMessageText(message);
 
+    useEffect(() => {
+      setCopied(false);
+    }, [id, messageText]);
+
     const handleClose = useCallback(() => {
       closeSnackbar(id);
     }, [closeSnackbar, id]);
 
     const handleCopy = useCallback(() => {
       if (!messageText) return;
-      void copyToClipboard(messageText).catch(() => undefined);
+      void copyToClipboard(messageText)
+        .then(() => setCopied(true))
+        .catch(() => undefined);
     }, [messageText]);
 
     return (
@@ -145,11 +152,11 @@ const CustomSnackbar = React.forwardRef<HTMLDivElement, CustomContentProps>(
             <button
               type="button"
               onClick={handleCopy}
-              className={`rounded p-1 text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 ${config.buttonFocus}`}
-              aria-label="Copy toast content"
-              title="Copy"
+              className={`rounded p-1 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 ${copied ? 'text-green-200' : 'text-white'} ${config.buttonFocus}`}
+              aria-label={copied ? 'Toast content copied' : 'Copy toast content'}
+              title={copied ? 'Copied' : 'Copy'}
             >
-              <Copy size={16} />
+              {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
           )}
           <button

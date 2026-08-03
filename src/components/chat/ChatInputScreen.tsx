@@ -6,14 +6,28 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, ArrowUp, X, ImageIcon, FileUp, ChevronDown, Bot } from 'lucide-react';
+import {
+  Plus,
+  ArrowUp,
+  X,
+  ImageIcon,
+  FileUp,
+  ChevronDown,
+  Bot,
+  Mic,
+  Loader2,
+  PhoneCall,
+  Square,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAgents } from '../../contexts/AgentsContext';
+import { useNotification } from '../../hooks/useNotification';
 import { AvatarMedia } from './AvatarMedia';
 import { getChatInputContent, getRandomChatHeading } from './chatInputContent';
 import type { Agent } from '../../types';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
 import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
+import { transcribeVoiceAudio } from '../../services/api';
 
 // ============================================
 // Props Interface
@@ -37,6 +51,8 @@ export interface ChatInputScreenProps {
   suggestions?: string[];
   executionMode?: ChatExecutionMode;
   onExecutionModeChange?: (mode: ChatExecutionMode) => void;
+  voiceInputEnabled?: boolean;
+  onStartRealtimeVoice?: (agent: Agent | null, mode: ChatExecutionMode) => void | Promise<void>;
 }
 
 // ============================================
@@ -55,6 +71,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
 const MAX_ANON_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const CHAT_HEADING_ROTATION_MS = 4800;
 const CHAT_HEADING_TYPE_MS = 64;
+const MAX_VOICE_RECORDING_SECONDS = 60;
 
 // ============================================
 // ChatInputScreen Component
@@ -68,10 +85,13 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   suggestions,
   executionMode = 'normal',
   onExecutionModeChange,
+  voiceInputEnabled = false,
+  onStartRealtimeVoice,
 }) => {
   const { i18n } = useTranslation();
   const { user, isAnonymous } = useAuth();
   const { agents } = useAgents();
+  const { error: notifyError } = useNotification();
   const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
   const chatInputContent = useMemo(() => getChatInputContent(currentLanguage), [currentLanguage]);
   const displayPlaceholder = placeholder ?? chatInputContent.placeholder;
@@ -87,16 +107,225 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
   const [localExecutionMode, setLocalExecutionMode] = useState<ChatExecutionMode>(executionMode);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isTranscribingVoice, setIsTranscribingVoice] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const agentSelectorRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<BlobPart[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
   const displayHeading = heading ?? rotatingHeading;
+  const isVoiceBusy = isRecordingVoice || isTranscribingVoice;
+
+  const stopRecordingTimer = () => {
+    if (recordingTimerRef.current !== null) {
+      window.clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const releaseRecordingStream = () => {
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+  };
+
+  const getRecordingMimeType = () => {
+    if (typeof MediaRecorder === 'undefined') {
+      return null;
+    }
+
+    const preferredMimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg'];
+
+    return preferredMimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? null;
+  };
+
+  const clearRecordingState = () => {
+    stopRecordingTimer();
+    releaseRecordingStream();
+    mediaRecorderRef.current = null;
+    recordingChunksRef.current = [];
+    setIsRecordingVoice(false);
+    setRecordingSeconds(0);
+  };
+
+  const handleTranscribeRecordedAudio = async (audioBlob: Blob) => {
+    setIsTranscribingVoice(true);
+
+    try {
+      const mimeType = audioBlob.type || 'audio/webm';
+      const extension = mimeType.includes('mp4')
+        ? 'm4a'
+        : mimeType.includes('mpeg')
+          ? 'mp3'
+          : 'webm';
+      const audioFile = new File([audioBlob], `new-chat-voice-${Date.now()}.${extension}`, {
+        type: mimeType,
+      });
+      const response = await transcribeVoiceAudio({ audio: audioFile });
+
+      if (!response.success) {
+        throw new Error(response.error || response.message || 'Failed to transcribe audio');
+      }
+
+      const transcript = response.data?.transcript?.trim();
+      if (!transcript) {
+        throw new Error('No transcript was returned');
+      }
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      const trimmedCurrent = inputValue.trim();
+      const messageToSend = trimmedCurrent ? `${trimmedCurrent} ${transcript}` : transcript;
+
+      setUploadError(null);
+      await onSend(messageToSend, selectedImage ?? undefined, selectedAgent, localExecutionMode);
+
+      setInputValue('');
+      setSelectedImage(null);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        notifyError(error instanceof Error ? error.message : 'Failed to transcribe audio');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsTranscribingVoice(false);
+      }
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      clearRecordingState();
+      return;
+    }
+
+    try {
+      recorder.requestData();
+    } catch {
+      // requestData can race with stop in some browsers.
+    }
+    recorder.stop();
+  };
+
+  const startVoiceRecording = async () => {
+    if (
+      isSubmitting ||
+      isRecordingVoice ||
+      isTranscribingVoice ||
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      return;
+    }
+
+    if (typeof MediaRecorder === 'undefined') {
+      notifyError('Voice input is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getRecordingMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      recordingChunksRef.current = [];
+      setRecordingSeconds(0);
+      setIsRecordingVoice(true);
+
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds((current) => {
+          const next = current + 1;
+          if (next >= MAX_VOICE_RECORDING_SECONDS) {
+            window.setTimeout(() => stopVoiceRecording(), 0);
+          }
+          return Math.min(next, MAX_VOICE_RECORDING_SECONDS);
+        });
+      }, 1000);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        if (isMountedRef.current) {
+          clearRecordingState();
+          setIsTranscribingVoice(false);
+          notifyError('Failed to record audio.');
+        }
+      };
+
+      recorder.onstop = async () => {
+        const recordedChunks = recordingChunksRef.current;
+        const recordedMimeType = recorder.mimeType || mimeType || 'audio/webm';
+        const audioBlob = new Blob(recordedChunks, { type: recordedMimeType });
+
+        clearRecordingState();
+
+        if (audioBlob.size === 0) {
+          if (isMountedRef.current) {
+            notifyError('No audio was captured.');
+          }
+          return;
+        }
+
+        await handleTranscribeRecordedAudio(audioBlob);
+      };
+
+      recorder.start(250);
+    } catch (error) {
+      clearRecordingState();
+      notifyError(
+        error instanceof DOMException && error.name === 'NotAllowedError'
+          ? 'Microphone access was denied.'
+          : error instanceof Error
+            ? error.message
+            : 'Unable to start voice recording'
+      );
+    }
+  };
+
+  const toggleVoiceRecording = () => {
+    if (isRecordingVoice) {
+      stopVoiceRecording();
+      return;
+    }
+
+    void startVoiceRecording();
+  };
 
   useEffect(() => {
     setLocalExecutionMode(executionMode);
   }, [executionMode]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      stopRecordingTimer();
+      releaseRecordingStream();
+      mediaRecorderRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (heading) {
@@ -201,7 +430,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
 
   const handleSend = useCallback(async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed || isSubmitting) return;
+    if (!trimmed || isSubmitting || isVoiceBusy) return;
 
     await onSend(trimmed, selectedImage ?? undefined, selectedAgent, localExecutionMode);
     setInputValue('');
@@ -210,11 +439,27 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [inputValue, isSubmitting, localExecutionMode, selectedAgent, selectedImage, onSend]);
+  }, [
+    inputValue,
+    isSubmitting,
+    isVoiceBusy,
+    localExecutionMode,
+    selectedAgent,
+    selectedImage,
+    onSend,
+  ]);
 
   const handleExecutionModeChange = (mode: ChatExecutionMode) => {
     setLocalExecutionMode(mode);
     onExecutionModeChange?.(mode);
+  };
+
+  const handleStartRealtimeVoice = async () => {
+    if (!onStartRealtimeVoice || isSubmitting || isVoiceBusy) {
+      return;
+    }
+
+    await onStartRealtimeVoice(selectedAgent, localExecutionMode);
   };
 
   const handleImageUploadClick = () => {
@@ -259,7 +504,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     textareaRef.current?.focus();
   };
 
-  const canSend = inputValue.trim().length > 0 && !isSubmitting;
+  const canSend = inputValue.trim().length > 0 && !isSubmitting && !isVoiceBusy;
 
   return (
     <div className="flex w-full flex-col items-center px-4">
@@ -392,7 +637,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder={displayPlaceholder}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isVoiceBusy}
             rows={1}
             className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none disabled:cursor-wait dark:text-white dark:placeholder-slate-500"
             style={{ minHeight: '56px', maxHeight: '200px' }}
@@ -406,10 +651,11 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                 ref={plusButtonRef}
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
+                disabled={isSubmitting || isVoiceBusy}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                   menuOpen
                     ? 'bg-gray-200 text-gray-900 dark:bg-slate-700/70 dark:text-white'
-                    : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white'
+                    : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:text-slate-600'
                 }`}
                 title="Attach"
               >
@@ -445,12 +691,50 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
 
             {/* Send button */}
             <div className="flex items-center gap-2">
+              {voiceInputEnabled && (
+                <button
+                  type="button"
+                  onClick={toggleVoiceRecording}
+                  disabled={isSubmitting || isTranscribingVoice}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                    isRecordingVoice
+                      ? 'bg-red-500 text-white hover:bg-red-600'
+                      : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-600'
+                  }`}
+                  title={isRecordingVoice ? 'Stop REST voice recording' : 'REST voice to text'}
+                  aria-label={
+                    isRecordingVoice ? 'Stop REST voice recording' : 'REST voice to text'
+                  }
+                >
+                  {isTranscribingVoice ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isRecordingVoice ? (
+                    <Square className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </button>
+              )}
+
+              {onStartRealtimeVoice && (
+                <button
+                  type="button"
+                  onClick={() => void handleStartRealtimeVoice()}
+                  disabled={isSubmitting || isVoiceBusy}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-600"
+                  title="Start realtime voice chat"
+                  aria-label="Start realtime voice chat"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                </button>
+              )}
+
               <select
                 value={localExecutionMode}
                 onChange={(event) =>
                   handleExecutionModeChange(event.target.value as ChatExecutionMode)
                 }
-                disabled={isSubmitting}
+                disabled={isSubmitting || isVoiceBusy}
                 aria-label="Model mode"
                 className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-400 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-[#0F1F38] dark:text-slate-300 dark:focus:border-slate-500"
               >
@@ -486,6 +770,14 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
           className="hidden"
           onChange={handleFileChange}
         />
+
+        {isVoiceBusy && (
+          <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-slate-500">
+            {isRecordingVoice
+              ? `Recording voice message${recordingSeconds > 0 ? ` - ${recordingSeconds}s / ${MAX_VOICE_RECORDING_SECONDS}s` : ''}`
+              : 'Transcribing voice message...'}
+          </p>
+        )}
 
         {/* Hint */}
         <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-slate-600">

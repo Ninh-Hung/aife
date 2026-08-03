@@ -12,6 +12,7 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { AvatarMedia } from './AvatarMedia';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
+import type { RealtimeVoiceAgentState } from '../../hooks/useRealtimeVoiceAgent';
 import { AI_AGENT_WARNING_MESSAGE_KEY } from '../../common/constants';
 
 interface ChatConversationProps {
@@ -24,6 +25,7 @@ interface ChatConversationProps {
   onCancelResponse?: () => void;
   executionMode: ChatExecutionMode;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
+  voiceAgent?: RealtimeVoiceAgentState;
   onToggleInfo: () => void;
   showSignInButton?: boolean;
   onSignIn?: () => void;
@@ -47,6 +49,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   onCancelResponse,
   executionMode,
   onExecutionModeChange,
+  voiceAgent,
   onToggleInfo,
   showSignInButton,
   onSignIn,
@@ -229,6 +232,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           placeholder={`Message ${agent.name}...`}
           mode={executionMode}
           onModeChange={onExecutionModeChange}
+          voiceAgent={voiceAgent}
         />
       </div>
     </div>

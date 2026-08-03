@@ -109,6 +109,48 @@ const NewChatPage: React.FC = () => {
     }
   };
 
+  const handleStartRealtimeVoice = async (
+    selectedAgent?: Agent | null,
+    mode: ChatExecutionMode = executionMode
+  ) => {
+    if (isStartingChat || loading) return;
+
+    setExecutionMode(mode);
+    setIsStartingChat(true);
+    try {
+      const agent = await resolveAgent(selectedAgent);
+      const sessionResponse = agent
+        ? await createChatSession(agent.publicId, `Chat with ${agent.name}`)
+        : await createChatSession(null, 'New Chat');
+
+      if (!sessionResponse.success || !sessionResponse.data) {
+        if (isAnonymousLimitResponse(sessionResponse)) {
+          return;
+        }
+        throw new Error(sessionResponse.error || 'Failed to create chat session');
+      }
+
+      const session = sessionResponse.data as ChatSession & {
+        publicId?: string;
+      };
+      const sessionId = session.publicId;
+
+      if (!sessionId) {
+        throw new Error('Created chat session is missing publicId');
+      }
+
+      addOrUpdateConversation(session);
+
+      navigate(`/chat/${sessionId}`, {
+        state: { initialMode: mode, initialStartRealtimeVoice: true },
+      });
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to start realtime voice chat');
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
   return (
     <div className="dark relative flex h-full min-h-screen items-center justify-center overflow-hidden bg-[#07111f] px-4 text-white">
       <MatrixRainBackground />
@@ -118,6 +160,8 @@ const NewChatPage: React.FC = () => {
           isSubmitting={isStartingChat || loading}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
+          voiceInputEnabled
+          onStartRealtimeVoice={handleStartRealtimeVoice}
         />
       </div>
     </div>
