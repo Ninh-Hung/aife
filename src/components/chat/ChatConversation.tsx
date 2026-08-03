@@ -25,6 +25,7 @@ interface ChatConversationProps {
   onCancelResponse?: () => void;
   executionMode: ChatExecutionMode;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
+  voiceInputEnabled?: boolean;
   voiceAgent?: RealtimeVoiceAgentState;
   onToggleInfo: () => void;
   showSignInButton?: boolean;
@@ -49,6 +50,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   onCancelResponse,
   executionMode,
   onExecutionModeChange,
+  voiceInputEnabled = true,
   voiceAgent,
   onToggleInfo,
   showSignInButton,
@@ -229,7 +231,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           placeholder={`Message ${agent.name}...`}
           executionMode={executionMode}
           onExecutionModeChange={onExecutionModeChange}
-          voiceInputEnabled
+          voiceInputEnabled={voiceInputEnabled}
           voiceAgent={voiceAgent}
           showHeading={false}
           showAgentSelector={false}

@@ -24,19 +24,19 @@ export const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/75 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="relative inline-block max-h-[90vh] max-w-[90vw]"
+        className="relative w-full max-h-[min(92vh,calc(100dvh-3.5rem))] overflow-hidden rounded-t-2xl border-t border-white/15 bg-black sm:inline-block sm:w-auto sm:max-h-[90vh] sm:max-w-[90vw] sm:rounded-md sm:border-0 sm:bg-transparent"
         onClick={(event) => event.stopPropagation()}
       >
         <img
           src={src}
           alt={alt}
-          className="block max-h-[90vh] max-w-[90vw] rounded-md object-contain shadow-2xl"
+          className="block max-h-[min(92vh,calc(100dvh-3.5rem))] w-full object-contain shadow-2xl sm:max-h-[90vh] sm:max-w-[90vw] sm:rounded-md"
         />
         <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
           {onDownload && (

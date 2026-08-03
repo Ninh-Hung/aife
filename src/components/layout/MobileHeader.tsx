@@ -16,6 +16,7 @@ import { User } from '../../types';
 
 interface MobileHeaderProps {
   user: User;
+  isAnonymous?: boolean;
   onMenuClick: () => void;
 }
 
@@ -23,7 +24,11 @@ interface MobileHeaderProps {
 // MobileHeader Component
 // ============================================
 
-export const MobileHeader: React.FC<MobileHeaderProps> = ({ user, onMenuClick }) => {
+export const MobileHeader: React.FC<MobileHeaderProps> = ({
+  user,
+  isAnonymous = false,
+  onMenuClick,
+}) => {
   const displayName = user.fullName || user.userName;
   const avatarInitial = (displayName || user.email || 'U').charAt(0).toUpperCase();
 
@@ -49,15 +54,19 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ user, onMenuClick })
         </Typography>
       </Link>
 
-      {/* Right Section: User Avatar */}
-      <Avatar
-        src={user.avatar}
-        alt={displayName}
-        className="bg-gradient-to-br from-indigo-500 to-pink-500"
-        sx={{ width: 36, height: 36 }}
-      >
-        {avatarInitial}
-      </Avatar>
+      {/* Right Section */}
+      {isAnonymous ? (
+        <Box aria-hidden="true" sx={{ width: 44, height: 44 }} />
+      ) : (
+        <Avatar
+          src={user.avatar}
+          alt={displayName}
+          className="bg-gradient-to-br from-indigo-500 to-pink-500"
+          sx={{ width: 36, height: 36 }}
+        >
+          {avatarInitial}
+        </Avatar>
+      )}
     </Box>
   );
 };

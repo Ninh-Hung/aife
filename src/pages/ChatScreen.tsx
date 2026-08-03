@@ -203,7 +203,7 @@ export const ChatScreen: React.FC = () => {
     agentPublicId: agent?.publicId || '',
     sessionId: activeSessionInternalId,
     mode: executionMode,
-    enabled: !!agent && !!activeSessionId && activeSessionInternalId !== null,
+    enabled: !isAnonymous && !!agent && !!activeSessionId && activeSessionInternalId !== null,
   });
 
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
@@ -331,7 +331,8 @@ export const ChatScreen: React.FC = () => {
     !isResponseCancelled &&
     (isAwaitingResponse || chatStatus === 'submitted' || chatStatus === 'streaming');
   const isRealtimeVoiceThinking =
-    realtimeVoiceAgent.status === 'thinking' || realtimeVoiceAgent.status === 'speaking';
+    !isAnonymous &&
+    (realtimeVoiceAgent.status === 'thinking' || realtimeVoiceAgent.status === 'speaking');
   const shouldShowThinkingIndicator =
     !isResponseCancelled &&
     (hasPendingAgentPlaceholder || isResponseInFlight || isRealtimeVoiceThinking) &&
@@ -949,6 +950,7 @@ export const ChatScreen: React.FC = () => {
   useEffect(() => {
     if (
       !initialStartRealtimeVoice ||
+      isAnonymous ||
       !activeSessionId ||
       !realtimeVoiceAgent.available ||
       !realtimeVoiceAgent.connected ||
@@ -970,6 +972,7 @@ export const ChatScreen: React.FC = () => {
   }, [
     activeSessionId,
     initialStartRealtimeVoice,
+    isAnonymous,
     location.pathname,
     navigate,
     realtimeVoiceAgent,
@@ -1026,10 +1029,11 @@ export const ChatScreen: React.FC = () => {
           onCancelResponse={isResponseInFlight ? handleCancelResponse : undefined}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
-          voiceAgent={realtimeVoiceAgent}
+          voiceInputEnabled={!isAnonymous}
+          voiceAgent={isAnonymous ? undefined : realtimeVoiceAgent}
           onToggleInfo={handleToggleInfo}
-          userAvatar={user?.avatar}
-          userAvatarType={user?.avatarType}
+          userAvatar={isAnonymous ? undefined : user?.avatar}
+          userAvatarType={isAnonymous ? undefined : user?.avatarType}
           sessionLimitWarning={activeSession?.limitWarning ?? null}
           showSignInButton={isAnonymous}
           onSignIn={handleOpenSignInModal}
