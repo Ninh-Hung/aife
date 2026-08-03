@@ -73,6 +73,7 @@ export const ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY =
   'anonymousCurrentSessionHasMessages';
 export const ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY = 'anonymousPendingMergeSessionId';
 const ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY = 'anonymousBootstrapCooldownUntil';
+const REGISTERED_REFRESH_SESSION_STORAGE_KEY = 'registeredRefreshSessionSeen';
 const ANONYMOUS_BOOTSTRAP_COOLDOWN_MS = 30_000;
 const ENABLE_SUBSCRIPTION_QUOTA_CHECKS = false;
 const PRESERVED_STORAGE_KEYS = new Set(['theme-mode']);
@@ -144,6 +145,30 @@ const clearAnonymousBootstrapCooldown = () => {
   }
 
   window.sessionStorage.removeItem(ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY);
+};
+
+const hasRegisteredRefreshSession = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.localStorage.getItem(REGISTERED_REFRESH_SESSION_STORAGE_KEY) === 'true';
+};
+
+const rememberRegisteredRefreshSession = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(REGISTERED_REFRESH_SESSION_STORAGE_KEY, 'true');
+};
+
+const clearRegisteredRefreshSession = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.removeItem(REGISTERED_REFRESH_SESSION_STORAGE_KEY);
 };
 
 const isAnonymousUser = (user: User | null): boolean => {
@@ -265,6 +290,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       clearAnonymousBootstrapCooldown();
+      clearRegisteredRefreshSession();
       setAccessToken(anonymousResponse.data.data.accessToken);
 
       if (anonymousResponse.data.data.user) {
@@ -313,15 +339,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         try {
+          if (!hasRegisteredRefreshSession()) {
+            console.log('[AuthContext] No registered session marker, creating anonymous session...');
+            await createAnonymousSession();
+            return;
+          }
+
           // Attempt to refresh access token using HttpOnly refresh token
           await refreshAccessToken();
           console.log('[AuthContext] Access token set successfully');
-          await fetchAndApplyCurrentUser({
+          const mappedUser = await fetchAndApplyCurrentUser({
             skipAuthRefresh: true,
             skipErrorToast: true,
           });
+          if (isAnonymousUser(mappedUser)) {
+            clearRegisteredRefreshSession();
+          } else {
+            rememberRegisteredRefreshSession();
+          }
           clearAnonymousBootstrapCooldown();
         } catch (refreshError) {
+          clearRegisteredRefreshSession();
           console.log(
             '[AuthContext] No valid session, creating anonymous session...',
             refreshError
@@ -361,6 +399,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setQuota(null);
       setSubscription(null);
       clearAccessToken();
+      clearRegisteredRefreshSession();
       clearUserScopedClientStorage();
     };
 
@@ -440,6 +479,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           subscription: userData.subscription,
         };
 
+        if (isAnonymousUser(mappedUser)) {
+          clearRegisteredRefreshSession();
+        } else {
+          rememberRegisteredRefreshSession();
+        }
+
         // Store user in state
         setUser(mappedUser);
 
@@ -512,7 +557,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await refreshAccessToken();
       mappedUser = await fetchAndApplyCurrentUser();
+      if (isAnonymousUser(mappedUser)) {
+        clearRegisteredRefreshSession();
+      } else {
+        rememberRegisteredRefreshSession();
+      }
     } catch (error) {
+      clearRegisteredRefreshSession();
       await createAnonymousSession();
       throw error;
     }
@@ -641,6 +692,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Clear access token from memory
       clearAccessToken();
+      clearRegisteredRefreshSession();
       clearUserScopedClientStorage();
 
       // Clear user-related state (user profile, permissions, cached auth data)
