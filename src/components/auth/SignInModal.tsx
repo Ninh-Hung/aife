@@ -161,6 +161,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
       setIsSignUp(initialMode === 'signup');
       setIsForgotPassword(false);
       setForgotPasswordSuccess(false);
+      setOauthProviderLoading(null);
       setActiveLegalView(null);
       setIsAnimating(true);
       if (initialError) {
@@ -177,6 +178,26 @@ export const SignInModal: React.FC<SignInModalProps> = ({
       document.body.style.overflow = 'unset';
     };
   }, [initialError, initialMode, isOpen, notifyError]);
+
+  useEffect(() => {
+    const resetOAuthLoading = () => {
+      setOauthProviderLoading(null);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        resetOAuthLoading();
+      }
+    };
+
+    window.addEventListener('pageshow', resetOAuthLoading);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pageshow', resetOAuthLoading);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Reset username availability states when toggling between sign in/up
   useEffect(() => {
@@ -262,6 +283,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   if (!isOpen && !isAnimating) return null;
 
   const handleClose = () => {
+    setOauthProviderLoading(null);
     setIsAnimating(false);
     setTimeout(() => {
       setActiveLegalView(null);
