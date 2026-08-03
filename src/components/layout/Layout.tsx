@@ -29,7 +29,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, header, onOpenSettings }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, isAnonymous } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg')); // < 1024px
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -72,7 +72,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, header, onOpenSettings
         {/* Mobile: Drawer Navigation */}
         {isMobile && (
           <>
-            <MobileHeader user={user} onMenuClick={handleMobileMenuOpen} />
+            <MobileHeader
+              user={user}
+              isAnonymous={isAnonymous}
+              onMenuClick={handleMobileMenuOpen}
+            />
             <Drawer
               anchor="left"
               open={isMobileDrawerOpen}

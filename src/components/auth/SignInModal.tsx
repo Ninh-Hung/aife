@@ -407,19 +407,19 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${
+      className={`fixed inset-0 z-50 flex items-end justify-center p-0 transition-all duration-200 sm:items-center sm:p-4 ${
         isAnimating ? 'bg-black/70 backdrop-blur-sm' : 'bg-black/0'
       }`}
       onClick={handleOverlayClick}
     >
       {/* Modal Container */}
       <div
-        className={`relative max-h-[90vh] w-full max-w-md transition-all duration-200 ${
+        className={`relative max-h-[min(92vh,calc(100dvh-3.5rem))] w-full transition-all duration-200 sm:max-h-[90vh] sm:max-w-md ${
           isAnimating ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
         {/* Modal Card */}
-        <div className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-700/50 bg-[#0F1F38] shadow-2xl">
+        <div className="flex max-h-[min(92vh,calc(100dvh-3.5rem))] flex-col overflow-hidden rounded-t-2xl border-x-0 border-b-0 border-t border-slate-700/50 bg-[#0F1F38] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl sm:border">
           {/* Header */}
           <div className="relative flex-shrink-0 border-b border-slate-700/50 px-8 pb-6 pt-8">
             <button

@@ -114,6 +114,26 @@
 }
 
 @layer components {
+  @media (max-width: 639px) {
+    .MuiDialog-container {
+      align-items: flex-end !important;
+    }
+
+    .MuiDialog-paper {
+      width: 100% !important;
+      max-width: 100% !important;
+      max-height: min(92vh, calc(100dvh - 3.5rem)) !important;
+      margin: 0 !important;
+      border-top: 1px solid rgb(229 231 235) !important;
+      border-bottom: 0 !important;
+      border-radius: 1rem 1rem 0 0 !important;
+    }
+
+    .dark .MuiDialog-paper {
+      border-top-color: rgb(51 65 85) !important;
+    }
+  }
+
   .markdown-renderer .hljs {
     color: #e2e8f0;
     background: transparent;

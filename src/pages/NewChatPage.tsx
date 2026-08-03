@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatInputScreen } from '../components/chat/ChatInputScreen';
 import { MatrixRainBackground } from '../components/common/MatrixRainBackground';
 import { useAgents } from '../contexts/AgentsContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
@@ -23,6 +24,7 @@ const isAnonymousLimitResponse = (response: { errorCode?: string; error?: string
 const NewChatPage: React.FC = () => {
   const navigate = useNavigate();
   const { agents, loading } = useAgents();
+  const { isAnonymous } = useAuth();
   const { error: showError } = useNotification();
   const { addOrUpdateConversation } = useSidebarConversations();
   const [isStartingChat, setIsStartingChat] = useState(false);
@@ -161,8 +163,8 @@ const NewChatPage: React.FC = () => {
           isSubmitting={isStartingChat || loading}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
-          voiceInputEnabled
-          onStartRealtimeVoice={handleStartRealtimeVoice}
+          voiceInputEnabled={!isAnonymous}
+          onStartRealtimeVoice={isAnonymous ? undefined : handleStartRealtimeVoice}
           multipleAttachments={false}
         />
       </div>
