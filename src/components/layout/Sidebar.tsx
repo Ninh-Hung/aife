@@ -467,40 +467,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
               },
             }}
           >
-            {profileMenuGroups.map(({ id: groupId, labelKey: groupLabelKey, items }, index) => (
-              <React.Fragment key={groupId}>
-                {index > 0 && <Divider className="my-1" />}
-                <ListSubheader
-                  disableSticky
-                  className={profileMenuGroupLabelClassName}
-                  sx={{ bgcolor: 'transparent', lineHeight: '1.25rem' }}
+            {profileMenuGroups.flatMap(({ id: groupId, labelKey: groupLabelKey, items }, index) => [
+              ...(index > 0 ? [<Divider key={`${groupId}-divider`} className="my-1" />] : []),
+              <ListSubheader
+                key={`${groupId}-label`}
+                disableSticky
+                className={profileMenuGroupLabelClassName}
+                sx={{ bgcolor: 'transparent', lineHeight: '1.25rem' }}
+              >
+                {t(groupLabelKey)}
+              </ListSubheader>,
+              ...items.map(({ id, labelKey, path, Icon }) => (
+                <MenuItem
+                  key={id}
+                  component={Link}
+                  to={path}
+                  onClick={handleMenuNavigation}
+                  selected={isActive(path)}
+                  className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
-                  {t(groupLabelKey)}
-                </ListSubheader>
-                {items.map(({ id, labelKey, path, Icon }) => (
-                  <MenuItem
-                    key={id}
-                    component={Link}
-                    to={path}
-                    onClick={handleMenuNavigation}
-                    selected={isActive(path)}
-                    className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <Icon size={18} className="text-gray-500 dark:text-slate-400" />
-                    <Typography variant="body2">{t(labelKey)}</Typography>
-                  </MenuItem>
-                ))}
-                {groupId === 'account' && (
-                  <MenuItem
-                    onClick={handleUserSettings}
-                    className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <Settings size={18} className="text-gray-500 dark:text-slate-400" />
-                    <Typography variant="body2">{t('common.settings')}</Typography>
-                  </MenuItem>
-                )}
-              </React.Fragment>
-            ))}
+                  <Icon size={18} className="text-gray-500 dark:text-slate-400" />
+                  <Typography variant="body2">{t(labelKey)}</Typography>
+                </MenuItem>
+              )),
+              ...(groupId === 'account'
+                ? [
+                    <MenuItem
+                      key={`${groupId}-settings`}
+                      onClick={handleUserSettings}
+                      className="gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                    >
+                      <Settings size={18} className="text-gray-500 dark:text-slate-400" />
+                      <Typography variant="body2">{t('common.settings')}</Typography>
+                    </MenuItem>,
+                  ]
+                : []),
+            ])}
             <Divider className="my-1" />
             <ListSubheader
               disableSticky

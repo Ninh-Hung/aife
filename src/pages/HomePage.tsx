@@ -81,12 +81,13 @@ const HomePage: React.FC = () => {
   // Handle anonymous chat - create session and send first message
   const handleSend = async (
     message: string,
-    image?: File,
+    files?: File[],
     _agent?: unknown,
     mode: ChatExecutionMode = executionMode
   ) => {
     if (!message.trim()) return;
 
+    const image = files?.[0] ?? null;
     setExecutionMode(mode);
     try {
       // Get default agent or first available agent
@@ -157,6 +158,7 @@ const HomePage: React.FC = () => {
           suggestions={suggestions}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
+          multipleAttachments={false}
         />
       </main>
 

@@ -16,6 +16,7 @@ import {
 } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent, type ChatExecutionMode } from '../hooks/useChatAgent';
+import { useRealtimeVoiceAgent } from '../hooks/useRealtimeVoiceAgent';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
@@ -157,14 +158,18 @@ export const ChatScreen: React.FC = () => {
   const lastSyncedAgentMessageRef = useRef<string | null>(null);
   const lastSyncedResponseMetadataRef = useRef<string | null>(null);
   const lastAppliedConversationTitleRef = useRef<string | null>(null);
+  const lastVoiceTranscriptSyncRef = useRef<string | null>(null);
+  const initialRealtimeVoiceStartRef = useRef<string | null>(null);
   const messageLoadRequestRef = useRef(0);
   const initialState = location.state as {
     initialMessage?: string;
     initialFile?: File | null;
     initialMode?: ChatExecutionMode;
+    initialStartRealtimeVoice?: boolean;
   } | null;
   const initialMessage = initialState?.initialMessage;
   const initialFile = initialState?.initialFile ?? null;
+  const initialStartRealtimeVoice = Boolean(initialState?.initialStartRealtimeVoice);
   const allowAnonymousSessionRef = useRef(Boolean(initialMessage));
 
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -193,29 +198,93 @@ export const ChatScreen: React.FC = () => {
     enabled: !!agent && !!activeSessionId && activeSessionInternalId !== null,
   });
 
+  const realtimeVoiceAgent = useRealtimeVoiceAgent({
+    conversationId: activeSessionId || '',
+    agentPublicId: agent?.publicId || '',
+    sessionId: activeSessionInternalId,
+    mode: executionMode,
+    enabled: !!agent && !!activeSessionId && activeSessionInternalId !== null,
+  });
+
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const isActiveRouteSession = Boolean(routeSessionId && activeSessionId === routeSessionId);
+  const realtimeVoiceMessages = useMemo(() => {
+    if (!activeSessionId || !isActiveRouteSession || !realtimeVoiceAgent.enabled) {
+      return [];
+    }
+
+    const transcriptMessages: ChatMessage[] = realtimeVoiceAgent.transcript
+      .map((message, index): ChatMessage | null => {
+        const content = message.text.trim();
+        if (!content) {
+          return null;
+        }
+
+        return {
+          id: `voice-${message.role}-${message.timestamp}-${index}`,
+          sessionId: activeSessionId,
+          role: message.role === 'user' ? 'user' : 'agent',
+          content,
+          timestamp: new Date(message.timestamp),
+          status: 'sent',
+        };
+      })
+      .filter((message): message is ChatMessage => Boolean(message));
+
+    const interimTranscript = realtimeVoiceAgent.interimTranscript?.trim();
+    if (
+      interimTranscript &&
+      realtimeVoiceAgent.status === 'listening' &&
+      transcriptMessages[transcriptMessages.length - 1]?.content !== interimTranscript
+    ) {
+      transcriptMessages.push({
+        id: `voice-interim-${activeSessionId}`,
+        sessionId: activeSessionId,
+        role: 'user',
+        content: interimTranscript,
+        timestamp: new Date(),
+        status: 'sending',
+      });
+    }
+
+    return transcriptMessages;
+  }, [
+    activeSessionId,
+    isActiveRouteSession,
+    realtimeVoiceAgent.enabled,
+    realtimeVoiceAgent.interimTranscript,
+    realtimeVoiceAgent.status,
+    realtimeVoiceAgent.transcript,
+  ]);
   const allMessages = useMemo(() => {
     if (!isActiveRouteSession || !initialMessagesLoaded) {
       return [];
     }
 
-    if (agentMessages.length === 0) {
+    const liveMessages = [...agentMessages, ...realtimeVoiceMessages];
+
+    if (liveMessages.length === 0) {
       return initialMessages;
     }
 
     const dedupedInitialMessages = removePersistedMessagesDuplicatedByLiveMessages(
       initialMessages,
-      agentMessages
+      liveMessages
     );
 
     const enrichedAgentMessages = enrichLiveMessagesWithPersistedMetadata(
       initialMessages,
-      agentMessages
+      liveMessages
     );
 
     return [...dedupedInitialMessages, ...enrichedAgentMessages];
-  }, [agentMessages, initialMessages, initialMessagesLoaded, isActiveRouteSession]);
+  }, [
+    agentMessages,
+    initialMessages,
+    initialMessagesLoaded,
+    isActiveRouteSession,
+    realtimeVoiceMessages,
+  ]);
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? null,
     [activeSessionId, sessions]
@@ -261,9 +330,11 @@ export const ChatScreen: React.FC = () => {
   const isResponseInFlight =
     !isResponseCancelled &&
     (isAwaitingResponse || chatStatus === 'submitted' || chatStatus === 'streaming');
+  const isRealtimeVoiceThinking =
+    realtimeVoiceAgent.status === 'thinking' || realtimeVoiceAgent.status === 'speaking';
   const shouldShowThinkingIndicator =
     !isResponseCancelled &&
-    (hasPendingAgentPlaceholder || isResponseInFlight) &&
+    (hasPendingAgentPlaceholder || isResponseInFlight || isRealtimeVoiceThinking) &&
     !latestResponseHasRenderableContent &&
     latestVisibleMessage?.role !== 'agent';
 
@@ -655,6 +726,30 @@ export const ChatScreen: React.FC = () => {
   }, [activeSessionId, loadInitialMessages]);
 
   useEffect(() => {
+    if (!activeSessionId || realtimeVoiceAgent.transcript.length === 0) {
+      return;
+    }
+
+    const latestTranscript =
+      realtimeVoiceAgent.transcript[realtimeVoiceAgent.transcript.length - 1];
+    if (!latestTranscript) {
+      return;
+    }
+
+    const syncKey = `${activeSessionId}\u0000${realtimeVoiceAgent.transcript.length}\u0000${latestTranscript.timestamp}`;
+    if (lastVoiceTranscriptSyncRef.current === syncKey) {
+      return;
+    }
+    lastVoiceTranscriptSyncRef.current = syncKey;
+
+    const timeoutId = window.setTimeout(() => {
+      void loadInitialMessages(activeSessionId, { resetLoaded: false });
+    }, 800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeSessionId, loadInitialMessages, realtimeVoiceAgent.transcript]);
+
+  useEffect(() => {
     if (!activeSessionId || chatStatus !== 'ready') {
       return;
     }
@@ -851,6 +946,36 @@ export const ChatScreen: React.FC = () => {
     navigate,
   ]);
 
+  useEffect(() => {
+    if (
+      !initialStartRealtimeVoice ||
+      !activeSessionId ||
+      !realtimeVoiceAgent.available ||
+      !realtimeVoiceAgent.connected ||
+      realtimeVoiceAgent.status !== 'idle'
+    ) {
+      return;
+    }
+
+    const startKey = `${activeSessionId}\u0000voice`;
+    if (initialRealtimeVoiceStartRef.current === startKey) {
+      return;
+    }
+
+    initialRealtimeVoiceStartRef.current = startKey;
+    void realtimeVoiceAgent.startCall().catch((error) => {
+      showError(error instanceof Error ? error.message : 'Unable to start realtime voice chat');
+    });
+    navigate(location.pathname, { replace: true, state: null });
+  }, [
+    activeSessionId,
+    initialStartRealtimeVoice,
+    location.pathname,
+    navigate,
+    realtimeVoiceAgent,
+    showError,
+  ]);
+
   const handleToggleInfo = useCallback(() => {
     setIsInfoPanelVisible((prev) => !prev);
   }, []);
@@ -901,6 +1026,7 @@ export const ChatScreen: React.FC = () => {
           onCancelResponse={isResponseInFlight ? handleCancelResponse : undefined}
           executionMode={executionMode}
           onExecutionModeChange={setExecutionMode}
+          voiceAgent={realtimeVoiceAgent}
           onToggleInfo={handleToggleInfo}
           userAvatar={user?.avatar}
           userAvatarType={user?.avatarType}

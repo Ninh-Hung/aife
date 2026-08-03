@@ -55,6 +55,67 @@ export interface TranslateTextResponse {
   };
 }
 
+export interface VoiceTranscribeInput {
+  audio: File;
+  language?: string;
+  task?: 'transcribe' | 'translate';
+  initialPrompt?: string;
+  prefix?: string;
+  vadFilter?: boolean;
+  mode?: string;
+  modelCode?: string;
+  providerCode?: string;
+  metadata?: Record<string, string | number | boolean | null>;
+}
+
+export interface VoiceTranscribeResponse {
+  transcript: string;
+  language?: string | null;
+  durationSeconds?: number | null;
+  durationAfterVadSeconds?: number | null;
+  audioBytes: number;
+  mimeType: string;
+  capabilityCode: string;
+  modelCode: string;
+  providerCode?: string | null;
+  mode: string;
+  requestId: string;
+  entrypoint: string;
+  gatewayId?: string | null;
+  gatewayLogId?: string | null;
+  gatewayCost?: number | null;
+  gatewayCached?: boolean | null;
+  quota?: {
+    remaining?: number;
+    limit?: number;
+    resetAt?: string;
+  };
+}
+
+type VoiceTranscribeRawResponse =
+  | VoiceTranscribeResponse
+  | {
+      success?: boolean;
+      message?: string;
+      data?: VoiceTranscribeResponse;
+      error?: string;
+    };
+
+const hasVoiceTranscript = (value: unknown): value is VoiceTranscribeResponse => {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof (value as VoiceTranscribeResponse).transcript === 'string'
+  );
+};
+
+const normalizeVoiceTranscribeResponse = (
+  payload: VoiceTranscribeRawResponse
+): VoiceTranscribeResponse | null => {
+  const data = 'data' in payload && payload.data ? payload.data : payload;
+  return hasVoiceTranscript(data) ? data : null;
+};
+
 interface DatabaseLanguage {
   key: string;
   name: string;
@@ -283,6 +344,77 @@ export const translateText = async (
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Translation failed',
+      message: axiosError.response?.data?.message,
+    };
+  }
+};
+
+export const transcribeVoiceAudio = async (
+  input: VoiceTranscribeInput
+): Promise<ApiResponse<VoiceTranscribeResponse>> => {
+  try {
+    const formData = new FormData();
+    formData.append('audio', input.audio);
+
+    const appendTextField = (key: string, value?: string) => {
+      if (typeof value === 'string' && value.trim()) {
+        formData.append(key, value.trim());
+      }
+    };
+
+    appendTextField('language', input.language);
+    appendTextField('task', input.task);
+    appendTextField('initialPrompt', input.initialPrompt);
+    appendTextField('prefix', input.prefix);
+    appendTextField('mode', input.mode);
+    appendTextField('modelCode', input.modelCode);
+    appendTextField('providerCode', input.providerCode);
+
+    if (typeof input.vadFilter === 'boolean') {
+      formData.append('vadFilter', String(input.vadFilter));
+    }
+
+    if (input.metadata) {
+      formData.append('metadata', JSON.stringify(input.metadata));
+    }
+
+    const response = await axiosInstance.post('/v1/voice/transcribe', formData, {
+      timeout: 45000,
+    });
+    const rawPayload = response.data as VoiceTranscribeRawResponse;
+    const data = normalizeVoiceTranscribeResponse(rawPayload);
+
+    if (!data) {
+      return {
+        success: false,
+        error:
+          ('error' in rawPayload && rawPayload.error) ||
+          ('message' in rawPayload && rawPayload.message) ||
+          'No transcript was returned',
+      };
+    }
+
+    return {
+      success: true,
+      data,
+      message:
+        ('message' in rawPayload && rawPayload.message) || 'Audio transcribed successfully',
+    };
+  } catch (error) {
+    console.error('Transcribe voice audio error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    const timeoutMessage =
+      axiosError.code === 'ECONNABORTED'
+        ? 'Voice transcription timed out. Please try a shorter recording.'
+        : undefined;
+
+    return {
+      success: false,
+      error:
+        timeoutMessage ||
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to transcribe audio',
       message: axiosError.response?.data?.message,
     };
   }

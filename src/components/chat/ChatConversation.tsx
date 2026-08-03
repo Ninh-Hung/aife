@@ -9,9 +9,10 @@ import { IconButton, CircularProgress } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Agent, ChatMessage } from '../../types';
 import { MessageBubble } from './MessageBubble';
-import { MessageInput } from './MessageInput';
+import { ChatInputScreen } from './ChatInputScreen';
 import { AvatarMedia } from './AvatarMedia';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
+import type { RealtimeVoiceAgentState } from '../../hooks/useRealtimeVoiceAgent';
 import { AI_AGENT_WARNING_MESSAGE_KEY } from '../../common/constants';
 
 interface ChatConversationProps {
@@ -24,6 +25,7 @@ interface ChatConversationProps {
   onCancelResponse?: () => void;
   executionMode: ChatExecutionMode;
   onExecutionModeChange: (mode: ChatExecutionMode) => void;
+  voiceAgent?: RealtimeVoiceAgentState;
   onToggleInfo: () => void;
   showSignInButton?: boolean;
   onSignIn?: () => void;
@@ -47,6 +49,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
   onCancelResponse,
   executionMode,
   onExecutionModeChange,
+  voiceAgent,
   onToggleInfo,
   showSignInButton,
   onSignIn,
@@ -218,17 +221,20 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 
       {/* Message Input - Fixed at Bottom */}
       <div className="sticky bottom-0 z-20 flex-shrink-0">
-        <p className="bg-gray-50 px-4 py-2 text-center text-xs italic text-gray-400 dark:bg-slate-900 dark:text-slate-500">
-          {t(AI_AGENT_WARNING_MESSAGE_KEY)}
-        </p>
-        <MessageInput
-          onSend={onSendMessage}
+        <ChatInputScreen
+          onSend={(content, files) => onSendMessage(content, files)}
           onCancel={onCancelResponse}
-          disabled={isInputDisabled ?? false}
+          isSubmitting={isInputDisabled ?? false}
           isGenerating={isGenerating ?? isLoading}
           placeholder={`Message ${agent.name}...`}
-          mode={executionMode}
-          onModeChange={onExecutionModeChange}
+          executionMode={executionMode}
+          onExecutionModeChange={onExecutionModeChange}
+          voiceInputEnabled
+          voiceAgent={voiceAgent}
+          showHeading={false}
+          showAgentSelector={false}
+          compact
+          warningText={t(AI_AGENT_WARNING_MESSAGE_KEY)}
         />
       </div>
     </div>
