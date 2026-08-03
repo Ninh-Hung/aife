@@ -1,63 +1,61 @@
-/**
- * ChatInputScreen Component
- * Reusable centered chat interface — used on the landing page (unauthenticated)
- * and as the empty/new-chat state after login.
- */
-
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus,
   ArrowUp,
   X,
-  ImageIcon,
-  FileUp,
+  File as FileIcon,
   ChevronDown,
   Bot,
   Mic,
+  MicOff,
   Loader2,
   PhoneCall,
+  PhoneOff,
   Square,
+  StopCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAgents } from '../../contexts/AgentsContext';
 import { useNotification } from '../../hooks/useNotification';
 import { AvatarMedia } from './AvatarMedia';
+import { ImagePreviewModal } from './ImagePreviewModal';
 import { getChatInputContent, getRandomChatHeading } from './chatInputContent';
 import type { Agent } from '../../types';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
+import type { RealtimeVoiceAgentState } from '../../hooks/useRealtimeVoiceAgent';
 import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
 import { transcribeVoiceAudio } from '../../services/api';
 
-// ============================================
-// Props Interface
-// ============================================
+interface FileWithPreview {
+  file: File;
+  previewUrl?: string;
+}
 
 export interface ChatInputScreenProps {
-  /** Main heading displayed above the input */
   heading?: string;
-  /** Textarea placeholder text */
   placeholder?: string;
-  /** Called when the user submits a message */
   onSend: (
     message: string,
-    image?: File,
+    files?: File[],
     agent?: Agent | null,
     mode?: ChatExecutionMode
   ) => void | Promise<void>;
-  /** Disable input while the parent is preparing the chat */
+  onCancel?: () => void;
   isSubmitting?: boolean;
-  /** Optional suggestion chips shown below the input */
+  isGenerating?: boolean;
   suggestions?: string[];
   executionMode?: ChatExecutionMode;
   onExecutionModeChange?: (mode: ChatExecutionMode) => void;
   voiceInputEnabled?: boolean;
   onStartRealtimeVoice?: (agent: Agent | null, mode: ChatExecutionMode) => void | Promise<void>;
+  voiceAgent?: RealtimeVoiceAgentState;
+  showHeading?: boolean;
+  showAgentSelector?: boolean;
+  compact?: boolean;
+  warningText?: string;
+  multipleAttachments?: boolean;
 }
-
-// ============================================
-// Upload validation constants (anonymous users)
-// ============================================
 
 const ALLOWED_IMAGE_TYPES = new Set([
   'image/png',
@@ -68,25 +66,32 @@ const ALLOWED_IMAGE_TYPES = new Set([
   'image/bmp',
   'image/tiff',
 ]);
-const MAX_ANON_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_ANON_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_COUNT = 5;
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_TOTAL_SIZE_BYTES = 15 * 1024 * 1024;
 const CHAT_HEADING_ROTATION_MS = 4800;
 const CHAT_HEADING_TYPE_MS = 64;
 const MAX_VOICE_RECORDING_SECONDS = 60;
-
-// ============================================
-// ChatInputScreen Component
-// ============================================
 
 export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   heading,
   placeholder,
   onSend,
+  onCancel,
   isSubmitting = false,
+  isGenerating = false,
   suggestions,
   executionMode = 'normal',
   onExecutionModeChange,
   voiceInputEnabled = false,
   onStartRealtimeVoice,
+  voiceAgent,
+  showHeading = true,
+  showAgentSelector = true,
+  compact = false,
+  warningText,
+  multipleAttachments = true,
 }) => {
   const { i18n } = useTranslation();
   const { user, isAnonymous } = useAuth();
@@ -101,27 +106,59 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   );
   const [typedHeading, setTypedHeading] = useState('');
   const [inputValue, setInputValue] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<FileWithPreview[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
   const [localExecutionMode, setLocalExecutionMode] = useState<ChatExecutionMode>(executionMode);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isTranscribingVoice, setIsTranscribingVoice] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isRealtimeCallActive, setIsRealtimeCallActive] = useState(false);
+  const [hasUserEndedRealtimeCall, setHasUserEndedRealtimeCall] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [selectedPreview, setSelectedPreview] = useState<{
+    url: string;
+    fileName: string;
+  } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const plusButtonRef = useRef<HTMLButtonElement>(null);
   const agentSelectorRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<BlobPart[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
+  const voiceAgentRef = useRef<RealtimeVoiceAgentState | undefined>(voiceAgent);
   const displayHeading = heading ?? rotatingHeading;
   const isVoiceBusy = isRecordingVoice || isTranscribingVoice;
+  const realtimeVoiceAvailable = Boolean(voiceAgent?.available);
+  const realtimeVoiceStatus = voiceAgent?.status ?? 'idle';
+  const realtimeVoiceReady = Boolean(realtimeVoiceAvailable && voiceAgent?.connected);
+  const isRealtimeVoiceActive = Boolean(
+    realtimeVoiceAvailable &&
+    voiceAgent &&
+    (isRealtimeCallActive || (realtimeVoiceStatus !== 'idle' && !hasUserEndedRealtimeCall))
+  );
+  const canSendText =
+    inputValue.trim().length > 0 &&
+    !isSubmitting &&
+    !isGenerating &&
+    !isVoiceBusy &&
+    !isSending &&
+    !isRealtimeVoiceActive;
+  const canSubmit = canSendText;
+  const canUseVoice = !isSubmitting && !isGenerating && !isSending;
+  const realtimeVoiceStatusLabel =
+    realtimeVoiceStatus === 'listening'
+      ? 'Listening'
+      : realtimeVoiceStatus === 'thinking'
+        ? 'Thinking'
+        : realtimeVoiceStatus === 'speaking'
+          ? 'Speaking'
+          : voiceAgent?.connected
+            ? 'Voice connected'
+            : 'Voice connecting';
 
   const stopRecordingTimer = () => {
     if (recordingTimerRef.current !== null) {
@@ -141,7 +178,6 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     }
 
     const preferredMimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg'];
-
     return preferredMimeTypes.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? null;
   };
 
@@ -154,8 +190,84 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     setRecordingSeconds(0);
   };
 
+  const clearAttachments = useCallback(() => {
+    attachments.forEach((attachment) => {
+      if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+    });
+    setAttachments([]);
+    setSelectedPreview(null);
+  }, [attachments]);
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / 1024 / 1024).toFixed(0)} MB`;
+    }
+
+    return `${(bytes / 1024).toFixed(0)} KB`;
+  };
+
+  const validateAttachments = (files: File[]): string | null => {
+    if (isAnonymous) {
+      const invalidFile = files.find((file) => !ALLOWED_IMAGE_TYPES.has(file.type));
+      if (invalidFile) {
+        return 'Only image files are supported (PNG, JPG, GIF, WebP, etc.) in anonymous mode.';
+      }
+
+      const oversizedFile = files.find((file) => file.size > MAX_ANON_FILE_SIZE);
+      if (oversizedFile) {
+        return `Image must be smaller than 5 MB (selected: ${(oversizedFile.size / 1024 / 1024).toFixed(1)} MB).`;
+      }
+    }
+
+    if (files.length > MAX_ATTACHMENT_COUNT) {
+      return `Attach up to ${MAX_ATTACHMENT_COUNT} files per message.`;
+    }
+
+    const oversizedFile = files.find((file) => file.size > MAX_FILE_SIZE_BYTES);
+    if (oversizedFile) {
+      return `"${oversizedFile.name}" is larger than ${formatBytes(MAX_FILE_SIZE_BYTES)}.`;
+    }
+
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+      return `Attachments exceed ${formatBytes(MAX_TOTAL_SIZE_BYTES)} total.`;
+    }
+
+    return null;
+  };
+
+  const submitMessage = useCallback(
+    async (message: string) => {
+      const trimmed = message.trim();
+      if (!trimmed) return;
+
+      setUploadError(null);
+      setIsSending(true);
+      try {
+        const files = attachments.map((attachment) => attachment.file);
+        await onSend(
+          trimmed,
+          files.length > 0 ? files : undefined,
+          selectedAgent,
+          localExecutionMode
+        );
+        setInputValue('');
+        clearAttachments();
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsSending(false);
+        }
+      }
+    },
+    [attachments, clearAttachments, localExecutionMode, onSend, selectedAgent]
+  );
+
   const handleTranscribeRecordedAudio = async (audioBlob: Blob) => {
     setIsTranscribingVoice(true);
+    setUploadError(null);
 
     try {
       const mimeType = audioBlob.type || 'audio/webm';
@@ -164,7 +276,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
         : mimeType.includes('mpeg')
           ? 'mp3'
           : 'webm';
-      const audioFile = new File([audioBlob], `new-chat-voice-${Date.now()}.${extension}`, {
+      const audioFile = new File([audioBlob], `voice-note-${Date.now()}.${extension}`, {
         type: mimeType,
       });
       const response = await transcribeVoiceAudio({ audio: audioFile });
@@ -183,16 +295,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
       }
 
       const trimmedCurrent = inputValue.trim();
-      const messageToSend = trimmedCurrent ? `${trimmedCurrent} ${transcript}` : transcript;
-
-      setUploadError(null);
-      await onSend(messageToSend, selectedImage ?? undefined, selectedAgent, localExecutionMode);
-
-      setInputValue('');
-      setSelectedImage(null);
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
+      await submitMessage(trimmedCurrent ? `${trimmedCurrent} ${transcript}` : transcript);
     } catch (error) {
       if (isMountedRef.current) {
         notifyError(error instanceof Error ? error.message : 'Failed to transcribe audio');
@@ -214,16 +317,17 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     try {
       recorder.requestData();
     } catch {
-      // requestData can race with stop in some browsers.
+      // Some browsers throw when requestData races with stop; onstop still handles existing chunks.
     }
     recorder.stop();
   };
 
   const startVoiceRecording = async () => {
     if (
-      isSubmitting ||
+      !canUseVoice ||
       isRecordingVoice ||
       isTranscribingVoice ||
+      isRealtimeVoiceActive ||
       typeof navigator === 'undefined' ||
       !navigator.mediaDevices?.getUserMedia
     ) {
@@ -311,24 +415,67 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     void startVoiceRecording();
   };
 
+  const startOrToggleRealtimeVoice = async () => {
+    if (voiceAgent) {
+      if (!realtimeVoiceAvailable) return;
+      if (!isRealtimeVoiceActive && !realtimeVoiceReady) {
+        notifyError('Voice connection is not ready.');
+        return;
+      }
+
+      if (!isRealtimeVoiceActive) {
+        try {
+          setIsRealtimeCallActive(true);
+          setHasUserEndedRealtimeCall(false);
+          await voiceAgent.startCall();
+        } catch (error) {
+          setIsRealtimeCallActive(false);
+          setHasUserEndedRealtimeCall(false);
+          notifyError(error instanceof Error ? error.message : 'Unable to start voice call');
+        }
+        return;
+      }
+
+      voiceAgent.endCall();
+      setIsRealtimeCallActive(false);
+      setHasUserEndedRealtimeCall(true);
+      return;
+    }
+
+    if (onStartRealtimeVoice && canUseVoice && !isVoiceBusy) {
+      await onStartRealtimeVoice(selectedAgent, localExecutionMode);
+    }
+  };
+
   useEffect(() => {
     setLocalExecutionMode(executionMode);
   }, [executionMode]);
+
+  useEffect(() => {
+    voiceAgentRef.current = voiceAgent;
+  }, [voiceAgent]);
 
   useEffect(() => {
     isMountedRef.current = true;
 
     return () => {
       isMountedRef.current = false;
+      const activeVoiceAgent = voiceAgentRef.current;
+      if (activeVoiceAgent && activeVoiceAgent.status !== 'idle') {
+        activeVoiceAgent.endCall();
+      }
       stopRecordingTimer();
       releaseRecordingStream();
       mediaRecorderRef.current = null;
+      attachments.forEach((attachment) => {
+        if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (heading) {
+    if (!showHeading || heading) {
       return;
     }
 
@@ -339,9 +486,13 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     }, CHAT_HEADING_ROTATION_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [currentLanguage, heading]);
+  }, [currentLanguage, heading, showHeading]);
 
   useEffect(() => {
+    if (!showHeading) {
+      return;
+    }
+
     const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (shouldReduceMotion) {
@@ -362,11 +513,10 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     }, CHAT_HEADING_TYPE_MS);
 
     return () => window.clearInterval(timeoutId);
-  }, [displayHeading]);
+  }, [displayHeading, showHeading]);
 
-  // Keep selectedAgent scoped to the current user's agent list.
   useEffect(() => {
-    if (agents.length === 0) {
+    if (!showAgentSelector || compact || isAnonymous || !user || agents.length === 0) {
       setSelectedAgent(null);
       return;
     }
@@ -378,26 +528,8 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     if (!selectedAgentStillAvailable) {
       setSelectedAgent(agents.find((a) => a.isDefault) ?? agents[0]);
     }
-  }, [agents, selectedAgent, user?.publicId]);
+  }, [agents, compact, isAnonymous, selectedAgent, showAgentSelector, user]);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node) &&
-        plusButtonRef.current &&
-        !plusButtonRef.current.contains(e.target as Node)
-      ) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
-
-  // Close agent dropdown when clicking outside
   useEffect(() => {
     if (!agentDropdownOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -409,94 +541,112 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [agentDropdownOpen]);
 
-  // Auto-resize textarea whenever content changes
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-  }, [inputValue]);
+    textarea.style.height = `${Math.min(textarea.scrollHeight, compact ? 120 : 200)}px`;
+  }, [compact, inputValue]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
+  useEffect(() => {
+    if (!realtimeVoiceAvailable || !voiceAgent) {
+      setIsRealtimeCallActive(false);
+      setHasUserEndedRealtimeCall(false);
+      return;
     }
-  };
 
-  const handleSend = useCallback(async () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || isSubmitting || isVoiceBusy) return;
-
-    await onSend(trimmed, selectedImage ?? undefined, selectedAgent, localExecutionMode);
-    setInputValue('');
-    setSelectedImage(null);
-    setUploadError(null);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+    if (realtimeVoiceStatus === 'idle') {
+      setIsRealtimeCallActive(false);
+      setHasUserEndedRealtimeCall(false);
+      return;
     }
-  }, [
-    inputValue,
-    isSubmitting,
-    isVoiceBusy,
-    localExecutionMode,
-    selectedAgent,
-    selectedImage,
-    onSend,
-  ]);
+
+    if (hasUserEndedRealtimeCall) {
+      return;
+    }
+
+    setIsRealtimeCallActive(true);
+  }, [hasUserEndedRealtimeCall, realtimeVoiceAvailable, realtimeVoiceStatus, voiceAgent]);
+
+  useEffect(() => {
+    if (voiceAgent?.error) {
+      notifyError(voiceAgent.error, { preventDuplicate: true });
+    }
+  }, [notifyError, voiceAgent?.error]);
 
   const handleExecutionModeChange = (mode: ChatExecutionMode) => {
     setLocalExecutionMode(mode);
     onExecutionModeChange?.(mode);
   };
 
-  const handleStartRealtimeVoice = async () => {
-    if (!onStartRealtimeVoice || isSubmitting || isVoiceBusy) {
-      return;
-    }
-
-    await onStartRealtimeVoice(selectedAgent, localExecutionMode);
-  };
-
-  const handleImageUploadClick = () => {
-    setMenuOpen(false);
+  const handleFileButtonClick = () => {
+    if (isSubmitting || isGenerating || isVoiceBusy || isRealtimeVoiceActive) return;
     fileInputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Reset input so the same file can be re-selected
+    const inputFiles = Array.from(e.target.files ?? []);
+    const selectedFiles = multipleAttachments ? inputFiles : inputFiles.slice(0, 1);
     e.target.value = '';
+    if (selectedFiles.length === 0) return;
 
-    if (!file) return;
+    const nextFiles = [...attachments.map((attachment) => attachment.file), ...selectedFiles];
+    const validationError = validateAttachments(nextFiles);
 
-    // For anonymous users, enforce image-only + 5 MB limit
-    if (isAnonymous) {
-      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-        setUploadError(
-          'Only image files are supported (PNG, JPG, GIF, WebP, etc.) in anonymous mode.'
-        );
-        return;
-      }
-      if (file.size > MAX_ANON_FILE_SIZE) {
-        setUploadError(
-          `Image must be smaller than 5 MB (selected: ${(file.size / 1024 / 1024).toFixed(1)} MB).`
-        );
-        return;
-      }
+    if (validationError) {
+      setUploadError(validationError);
+      return;
     }
 
     setUploadError(null);
-    setSelectedImage(file);
+    const newAttachments = selectedFiles.map((file) => ({
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+    }));
+    setAttachments((prev) => [...prev, ...newAttachments]);
   };
 
-  const handleRemoveImage = () => {
-    setSelectedImage(null);
+  const handleRemoveFile = (index: number) => {
+    setAttachments((prev) => {
+      const item = prev[index];
+      if (item?.previewUrl) {
+        if (selectedPreview?.url === item.previewUrl) {
+          setSelectedPreview(null);
+        }
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
     setUploadError(null);
+  };
+
+  const triggerDownload = (url: string, fileName: string) => {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.rel = 'noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
+
+  const handleSend = useCallback(async () => {
+    if (!canSubmit) return;
+
+    try {
+      await submitMessage(inputValue);
+    } catch (error) {
+      if (isMountedRef.current) {
+        setUploadError(error instanceof Error ? error.message : 'Failed to send message');
+      }
+    }
+  }, [canSubmit, inputValue, submitMessage]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      void handleSend();
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -504,63 +654,105 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
     textareaRef.current?.focus();
   };
 
-  const canSend = inputValue.trim().length > 0 && !isSubmitting && !isVoiceBusy;
+  const rootClassName = compact ? 'p-4' : 'flex w-full flex-col items-center px-4';
+  const shellClassName = compact ? 'w-full' : 'w-full max-w-2xl';
+  const inputBoxClassName = compact
+    ? 'relative rounded-xl border border-gray-200 bg-white shadow-sm transition-colors focus-within:border-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:border-slate-500'
+    : `relative rounded-2xl border bg-white shadow-lg transition-colors dark:bg-[#0F1F38] ${
+        canSendText
+          ? 'border-blue-400 dark:border-slate-500'
+          : 'border-gray-200 dark:border-slate-700'
+      } focus-within:border-blue-400 dark:focus-within:border-slate-500`;
+  const textareaClassName = compact
+    ? 'w-full resize-none bg-transparent px-4 pb-14 pt-4 text-sm leading-5 text-gray-900 placeholder-gray-500 focus:outline-none disabled:cursor-wait dark:text-slate-100 dark:placeholder-slate-400'
+    : 'w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none disabled:cursor-wait dark:text-white dark:placeholder-slate-500';
 
   return (
-    <div className="flex w-full flex-col items-center px-4">
-      {/* Heading */}
-      <h1
-        aria-label={displayHeading}
-        className="mb-8 min-h-[2.5rem] overflow-hidden text-center text-3xl font-semibold text-gray-900 dark:text-white sm:min-h-[3rem] sm:text-4xl"
-      >
-        <span className="chat-typewriter inline-block" aria-hidden="true">
-          {typedHeading}
-          <span className="chat-typewriter-cursor" />
-        </span>
-      </h1>
-
-      {/* Input box */}
-      <div className="w-full max-w-2xl">
-        <div
-          className={`relative rounded-2xl border bg-white shadow-lg transition-colors dark:bg-[#0F1F38] ${
-            canSend
-              ? 'border-blue-400 dark:border-slate-500'
-              : 'border-gray-200 dark:border-slate-700'
-          } focus-within:border-blue-400 dark:focus-within:border-slate-500`}
+    <div className={rootClassName}>
+      {showHeading && (
+        <h1
+          aria-label={displayHeading}
+          className="mb-8 min-h-[2.5rem] overflow-hidden text-center text-3xl font-semibold text-gray-900 dark:text-white sm:min-h-[3rem] sm:text-4xl"
         >
-          {/* Image preview pill */}
-          {selectedImage && (
-            <div className="flex items-center gap-1.5 px-4 pt-3">
-              <span className="max-w-[200px] truncate rounded-md border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                {selectedImage.name}
-              </span>
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                className="text-gray-400 transition-colors hover:text-gray-900 dark:text-slate-400 dark:hover:text-white"
-                title="Remove image"
+          <span className="chat-typewriter inline-block" aria-hidden="true">
+            {typedHeading}
+            <span className="chat-typewriter-cursor" />
+          </span>
+        </h1>
+      )}
+
+      <div className={shellClassName}>
+        {warningText && (
+          <p className="px-4 py-2 text-center text-xs italic text-gray-400 dark:text-slate-500">
+            {warningText}
+          </p>
+        )}
+
+        {attachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {attachments.map((attachment, index) => (
+              <div
+                key={`${attachment.file.name}-${index}`}
+                className="relative flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-slate-600 dark:bg-slate-700"
               >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
+                {attachment.previewUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedPreview({
+                        url: attachment.previewUrl as string,
+                        fileName: attachment.file.name,
+                      })
+                    }
+                    title={`Preview ${attachment.file.name}`}
+                    className="block h-12 w-12 cursor-zoom-in overflow-hidden rounded"
+                  >
+                    <img
+                      src={attachment.previewUrl}
+                      alt={attachment.file.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded bg-blue-50 dark:bg-blue-900/30">
+                    <FileIcon size={20} className="text-blue-500" />
+                  </div>
+                )}
+                <div className="max-w-[140px]">
+                  <p className="truncate text-xs font-medium text-gray-700 dark:text-slate-300">
+                    {attachment.file.name}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">
+                    {(attachment.file.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveFile(index)}
+                  className="absolute -right-1.5 -top-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-gray-400 text-white transition-colors hover:bg-gray-600 dark:bg-slate-500 dark:hover:bg-slate-300"
+                  title="Remove attachment"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
-          {/* Upload error */}
-          {uploadError && (
-            <div className="flex items-center gap-1.5 px-4 pt-3">
-              <span className="text-xs text-red-400">{uploadError}</span>
-            </div>
-          )}
+        {uploadError && (
+          <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+            {uploadError}
+          </div>
+        )}
 
-          {/* Agent Selector — only shown for registered users with at least one agent */}
-          {!isAnonymous && user && agents.length > 0 && (
+        <div className={inputBoxClassName}>
+          {showAgentSelector && !compact && !isAnonymous && user && agents.length > 0 && (
             <div ref={agentSelectorRef} className="relative px-3 pt-3">
               <button
                 type="button"
                 onClick={() => setAgentDropdownOpen((prev) => !prev)}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700/60"
               >
-                {/* Avatar */}
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                   {selectedAgent ? (
                     <AvatarMedia
@@ -574,11 +766,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                     <Bot className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" />
                   )}
                 </div>
-
-                {/* Agent name */}
                 <span className="font-medium">{selectedAgent?.name ?? 'Select Agent'}</span>
-
-                {/* Chevron */}
                 <ChevronDown
                   className={`h-3.5 w-3.5 text-gray-400 transition-transform dark:text-slate-500 ${
                     agentDropdownOpen ? 'rotate-180' : ''
@@ -586,7 +774,6 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                 />
               </button>
 
-              {/* Dropdown list */}
               {agentDropdownOpen && (
                 <div className="absolute left-3 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-[#0F1F38]">
                   {agents.map((agent) => (
@@ -603,7 +790,6 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                           : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white'
                       }`}
                     >
-                      {/* Agent avatar */}
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                         <AvatarMedia
                           src={agent.avatarUrl}
@@ -615,9 +801,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                           }
                         />
                       </div>
-
                       <span className="truncate font-medium">{agent.name}</span>
-
                       {agent.isDefault && (
                         <span className="ml-auto shrink-0 text-[10px] text-gray-400 dark:text-slate-500">
                           Default
@@ -630,81 +814,63 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
             </div>
           )}
 
-          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={inputValue}
-            onChange={handleChange}
+            onChange={(event) => setInputValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={displayPlaceholder}
-            disabled={isSubmitting || isVoiceBusy}
+            disabled={
+              isSubmitting || isGenerating || isVoiceBusy || isSending || isRealtimeVoiceActive
+            }
             rows={1}
-            className="w-full resize-none bg-transparent px-4 pb-14 pt-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none disabled:cursor-wait dark:text-white dark:placeholder-slate-500"
-            style={{ minHeight: '56px', maxHeight: '200px' }}
+            className={textareaClassName}
+            style={{ minHeight: compact ? '56px' : '56px', maxHeight: compact ? '120px' : '200px' }}
           />
 
-          {/* Bottom toolbar */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-            {/* Plus / upload button + dropdown menu */}
-            <div className="relative">
-              <button
-                ref={plusButtonRef}
-                type="button"
-                onClick={() => setMenuOpen((prev) => !prev)}
-                disabled={isSubmitting || isVoiceBusy}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                  menuOpen
-                    ? 'bg-gray-200 text-gray-900 dark:bg-slate-700/70 dark:text-white'
-                    : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:text-slate-600'
-                }`}
-                title="Attach"
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleFileButtonClick}
+              disabled={isSubmitting || isGenerating || isVoiceBusy || isRealtimeVoiceActive}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:text-slate-600"
+              title={isAnonymous ? 'Upload image' : 'Upload image or file'}
+              aria-label={isAnonymous ? 'Upload image' : 'Upload image or file'}
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+
+            <div className="flex min-w-0 items-center gap-2">
+              <select
+                value={localExecutionMode}
+                onChange={(event) =>
+                  handleExecutionModeChange(event.target.value as ChatExecutionMode)
+                }
+                disabled={
+                  isSubmitting || isGenerating || isVoiceBusy || isSending || isRealtimeVoiceActive
+                }
+                aria-label="Model mode"
+                className="h-8 max-w-[112px] rounded-lg border border-gray-200 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-400 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-[#0F1F38] dark:text-slate-300 dark:focus:border-slate-500 sm:max-w-none"
               >
-                <Plus className="h-5 w-5" />
-              </button>
+                {CHAT_EXECUTION_MODE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
 
-              {/* Dropdown menu */}
-              {menuOpen && (
-                <div
-                  ref={menuRef}
-                  className="absolute bottom-full left-0 mb-2 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-[#0F1F38]"
-                >
-                  <button
-                    type="button"
-                    onClick={handleImageUploadClick}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
-                  >
-                    {!isAnonymous ? (
-                      <>
-                        <FileUp className="h-4 w-4 shrink-0 text-teal-400" />
-                        Upload image or file
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="h-4 w-4 shrink-0 text-teal-400" />
-                        Upload image
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Send button */}
-            <div className="flex items-center gap-2">
               {voiceInputEnabled && (
                 <button
                   type="button"
                   onClick={toggleVoiceRecording}
-                  disabled={isSubmitting || isTranscribingVoice}
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                  disabled={!canUseVoice || isTranscribingVoice || isRealtimeVoiceActive}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                     isRecordingVoice
                       ? 'bg-red-500 text-white hover:bg-red-600'
                       : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-600'
                   }`}
-                  title={isRecordingVoice ? 'Stop REST voice recording' : 'REST voice to text'}
-                  aria-label={
-                    isRecordingVoice ? 'Stop REST voice recording' : 'REST voice to text'
-                  }
+                  title={isRecordingVoice ? 'Stop voice recording' : 'Voice message'}
+                  aria-label={isRecordingVoice ? 'Stop voice recording' : 'Voice message'}
                 >
                   {isTranscribingVoice ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -716,62 +882,110 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
                 </button>
               )}
 
-              {onStartRealtimeVoice && (
+              {(voiceAgent || onStartRealtimeVoice) && (
                 <button
                   type="button"
-                  onClick={() => void handleStartRealtimeVoice()}
-                  disabled={isSubmitting || isVoiceBusy}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-600"
-                  title="Start realtime voice chat"
-                  aria-label="Start realtime voice chat"
+                  onClick={() => void startOrToggleRealtimeVoice()}
+                  disabled={
+                    !canUseVoice ||
+                    isVoiceBusy ||
+                    Boolean(
+                      voiceAgent &&
+                      (!realtimeVoiceAvailable || (!isRealtimeVoiceActive && !realtimeVoiceReady))
+                    )
+                  }
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    isRealtimeVoiceActive
+                      ? 'bg-red-500 text-white hover:bg-red-600'
+                      : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-300 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-600'
+                  }`}
+                  title={
+                    isRealtimeVoiceActive ? 'End realtime voice call' : 'Start realtime voice chat'
+                  }
+                  aria-label={
+                    isRealtimeVoiceActive ? 'End realtime voice call' : 'Start realtime voice chat'
+                  }
                 >
-                  <PhoneCall className="h-4 w-4" />
+                  {isRealtimeVoiceActive ? (
+                    <PhoneOff className="h-4 w-4" />
+                  ) : (
+                    <PhoneCall className="h-4 w-4" />
+                  )}
                 </button>
               )}
 
-              <select
-                value={localExecutionMode}
-                onChange={(event) =>
-                  handleExecutionModeChange(event.target.value as ChatExecutionMode)
-                }
-                disabled={isSubmitting || isVoiceBusy}
-                aria-label="Model mode"
-                className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-medium capitalize text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-400 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-[#0F1F38] dark:text-slate-300 dark:focus:border-slate-500"
-              >
-                {CHAT_EXECUTION_MODE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              {isRealtimeVoiceActive && voiceAgent && (
+                <button
+                  type="button"
+                  onClick={voiceAgent.toggleMute}
+                  disabled={isSubmitting || isGenerating}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    voiceAgent.isMuted
+                      ? 'bg-gray-800 text-white hover:bg-gray-900'
+                      : 'text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-700/70 dark:hover:text-white'
+                  }`}
+                  title={voiceAgent.isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                  aria-label={voiceAgent.isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                >
+                  {voiceAgent.isMuted ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => void handleSend()}
-                disabled={!canSend}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                  canSend
-                    ? 'bg-teal-500 text-white hover:bg-teal-600'
-                    : 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-slate-700 dark:text-slate-500'
-                }`}
-                title="Send message"
-              >
-                <ArrowUp className="h-4 w-4" />
-              </button>
+              {isGenerating && onCancel ? (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+                  title="Cancel response"
+                  aria-label="Cancel response"
+                >
+                  <StopCircle className="h-4 w-4" />
+                </button>
+              ) : canSendText ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSend()}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white transition-colors hover:bg-teal-600"
+                  title="Send message"
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
 
-        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
+          multiple={multipleAttachments}
           accept={isAnonymous ? 'image/*' : '*/*'}
           className="hidden"
           onChange={handleFileChange}
         />
 
-        {isVoiceBusy && (
+        {isRealtimeVoiceActive && voiceAgent && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-slate-400">
+            <span>{realtimeVoiceStatusLabel}</span>
+            <span className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+              <span
+                className="block h-full rounded-full bg-teal-500 transition-[width]"
+                style={{ width: `${Math.round(Math.min(voiceAgent.audioLevel, 1) * 100)}%` }}
+              />
+            </span>
+            {voiceAgent.interimTranscript && (
+              <span className="min-w-0 flex-1 truncate italic">{voiceAgent.interimTranscript}</span>
+            )}
+          </div>
+        )}
+
+        {!isRealtimeVoiceActive && isVoiceBusy && (
           <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-slate-500">
             {isRecordingVoice
               ? `Recording voice message${recordingSeconds > 0 ? ` - ${recordingSeconds}s / ${MAX_VOICE_RECORDING_SECONDS}s` : ''}`
@@ -779,30 +993,42 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
           </p>
         )}
 
-        {/* Hint */}
-        <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-slate-600">
-          Press Enter to send &nbsp;·&nbsp; Shift+Enter for new line
-        </p>
+        {!compact && (
+          <p className="mt-2.5 text-center text-xs text-gray-400 dark:text-slate-600">
+            Press Enter to send &nbsp;·&nbsp; Shift+Enter for new line
+          </p>
+        )}
       </div>
 
-      {/* Suggestion chips */}
       {suggestions && suggestions.length > 0 && (
         <div
           key={suggestions.join('|')}
           className="chat-copy-slide mt-6 flex flex-wrap justify-center gap-2"
         >
-          {suggestions.map((s) => (
+          {suggestions.map((suggestion) => (
             <button
-              key={s}
+              key={suggestion}
               type="button"
-              onClick={() => handleSuggestionClick(s)}
+              onClick={() => handleSuggestionClick(suggestion)}
               className="rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white"
             >
-              {s}
+              {suggestion}
             </button>
           ))}
         </div>
       )}
+
+      <ImagePreviewModal
+        open={Boolean(selectedPreview)}
+        src={selectedPreview?.url || ''}
+        alt={selectedPreview?.fileName || 'Image preview'}
+        onClose={() => setSelectedPreview(null)}
+        onDownload={
+          selectedPreview
+            ? () => triggerDownload(selectedPreview.url, selectedPreview.fileName)
+            : undefined
+        }
+      />
     </div>
   );
 };

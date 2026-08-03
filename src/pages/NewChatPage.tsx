@@ -49,12 +49,13 @@ const NewChatPage: React.FC = () => {
 
   const handleSend = async (
     message: string,
-    file?: File,
+    files?: File[],
     selectedAgent?: Agent | null,
     mode: ChatExecutionMode = executionMode
   ) => {
     if (!message.trim() || isStartingChat || loading) return;
 
+    const file = files?.[0] ?? null;
     setExecutionMode(mode);
     setIsStartingChat(true);
     try {
@@ -162,6 +163,7 @@ const NewChatPage: React.FC = () => {
           onExecutionModeChange={setExecutionMode}
           voiceInputEnabled
           onStartRealtimeVoice={handleStartRealtimeVoice}
+          multipleAttachments={false}
         />
       </div>
     </div>
