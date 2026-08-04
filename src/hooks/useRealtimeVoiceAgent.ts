@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useVoiceAgent } from '@cloudflare/voice/react';
 import type { TranscriptMessage, VoiceStatus } from '@cloudflare/voice/react';
 import { getStoredAppLocale } from '../i18n/types';
@@ -28,6 +28,35 @@ export interface RealtimeVoiceAgentState {
   startCall: () => Promise<void>;
   endCall: () => void;
   toggleMute: () => void;
+}
+
+const REALTIME_VOICE_UNAVAILABLE_MESSAGE =
+  'Voice call is temporarily unavailable. Please try again later.';
+const MICROPHONE_ACCESS_DENIED_MESSAGE = 'Microphone access was denied.';
+const AUDIO_OUTPUT_UNAVAILABLE_MESSAGE =
+  'Audio output is unavailable. Check your speaker or browser audio settings.';
+
+function getErrorMessage(error: unknown): string | null {
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) return error.message;
+  return null;
+}
+
+export function getRealtimeVoicePublicErrorMessage(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'NotAllowedError') {
+    return MICROPHONE_ACCESS_DENIED_MESSAGE;
+  }
+
+  const message = getErrorMessage(error);
+  if (message && /microphone|permission|notallowed/i.test(message)) {
+    return MICROPHONE_ACCESS_DENIED_MESSAGE;
+  }
+
+  if (message && /audio output|output device|speaker/i.test(message)) {
+    return AUDIO_OUTPUT_UNAVAILABLE_MESSAGE;
+  }
+
+  return REALTIME_VOICE_UNAVAILABLE_MESSAGE;
 }
 
 function normalizeAgentHost(serverUrl: string): string | undefined {
@@ -93,14 +122,30 @@ export function useRealtimeVoiceAgent({
       return null;
     }
 
-    return typeof payload.message === 'string'
-      ? payload.message
-      : typeof payload.error === 'string'
-        ? payload.error
-        : 'Realtime voice failed';
+    const message =
+      typeof payload.message === 'string'
+        ? payload.message
+        : typeof payload.error === 'string'
+          ? payload.error
+          : 'Realtime voice failed';
+
+    return getRealtimeVoicePublicErrorMessage(message);
   }, [voice.lastCustomMessage]);
 
-  const error = serverError || voice.error || voice.outputDeviceError;
+  const outputDeviceError = voice.outputDeviceError
+    ? getRealtimeVoicePublicErrorMessage(voice.outputDeviceError)
+    : null;
+  const error =
+    serverError ||
+    (voice.error ? getRealtimeVoicePublicErrorMessage(voice.error) : null) ||
+    outputDeviceError;
+  const startCall = useCallback(async () => {
+    try {
+      await voice.startCall();
+    } catch (error) {
+      throw new Error(getRealtimeVoicePublicErrorMessage(error));
+    }
+  }, [voice]);
 
   return {
     enabled,
@@ -112,9 +157,9 @@ export function useRealtimeVoiceAgent({
     audioLevel: voice.audioLevel,
     isMuted: voice.isMuted,
     error,
-    outputDeviceError: voice.outputDeviceError,
+    outputDeviceError,
     lastCustomMessage: voice.lastCustomMessage,
-    startCall: voice.startCall,
+    startCall,
     endCall: voice.endCall,
     toggleMute: voice.toggleMute,
   };

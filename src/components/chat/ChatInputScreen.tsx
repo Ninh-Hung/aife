@@ -23,7 +23,10 @@ import { ImagePreviewModal } from './ImagePreviewModal';
 import { getChatInputContent, getRandomChatHeading } from './chatInputContent';
 import type { Agent } from '../../types';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
-import type { RealtimeVoiceAgentState } from '../../hooks/useRealtimeVoiceAgent';
+import {
+  getRealtimeVoicePublicErrorMessage,
+  type RealtimeVoiceAgentState,
+} from '../../hooks/useRealtimeVoiceAgent';
 import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
 import { transcribeVoiceAudio } from '../../services/api';
 
@@ -431,7 +434,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
         } catch (error) {
           setIsRealtimeCallActive(false);
           setHasUserEndedRealtimeCall(false);
-          notifyError(error instanceof Error ? error.message : 'Unable to start voice call');
+          notifyError(getRealtimeVoicePublicErrorMessage(error));
         }
         return;
       }
