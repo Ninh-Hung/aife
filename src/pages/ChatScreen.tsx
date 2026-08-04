@@ -16,7 +16,10 @@ import {
 } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import { useChatAgent, type ChatExecutionMode } from '../hooks/useChatAgent';
-import { useRealtimeVoiceAgent } from '../hooks/useRealtimeVoiceAgent';
+import {
+  getRealtimeVoicePublicErrorMessage,
+  useRealtimeVoiceAgent,
+} from '../hooks/useRealtimeVoiceAgent';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { ChatConversation } from '../components/chat/ChatConversation';
 import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
@@ -966,7 +969,7 @@ export const ChatScreen: React.FC = () => {
 
     initialRealtimeVoiceStartRef.current = startKey;
     void realtimeVoiceAgent.startCall().catch((error) => {
-      showError(error instanceof Error ? error.message : 'Unable to start realtime voice chat');
+      showError(getRealtimeVoicePublicErrorMessage(error));
     });
     navigate(location.pathname, { replace: true, state: null });
   }, [

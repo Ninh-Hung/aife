@@ -20,7 +20,10 @@ import {
 } from 'lucide-react';
 import { IconButton } from '@mui/material';
 import type { ChatExecutionMode } from '../../hooks/useChatAgent';
-import type { RealtimeVoiceAgentState } from '../../hooks/useRealtimeVoiceAgent';
+import {
+  getRealtimeVoicePublicErrorMessage,
+  type RealtimeVoiceAgentState,
+} from '../../hooks/useRealtimeVoiceAgent';
 import { useNotification } from '../../hooks/useNotification';
 import { CHAT_EXECUTION_MODE_OPTIONS } from '../../common/chatExecutionMode';
 import { ImagePreviewModal } from './ImagePreviewModal';
@@ -90,8 +93,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const realtimeVoiceReady = Boolean(realtimeVoiceAvailable && voiceAgent?.connected);
   const isRealtimeVoiceActive = Boolean(
     realtimeVoiceAvailable &&
-      voiceAgent &&
-      (isRealtimeCallActive || (realtimeVoiceStatus !== 'idle' && !hasUserEndedRealtimeCall))
+    voiceAgent &&
+    (isRealtimeCallActive || (realtimeVoiceStatus !== 'idle' && !hasUserEndedRealtimeCall))
   );
   const realtimeVoiceStatusLabel =
     realtimeVoiceStatus === 'listening'
@@ -193,10 +196,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node;
-      if (
-        actionMenuRef.current?.contains(target) ||
-        actionButtonRef.current?.contains(target)
-      ) {
+      if (actionMenuRef.current?.contains(target) || actionButtonRef.current?.contains(target)) {
         return;
       }
 
@@ -440,7 +440,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       } catch (error) {
         setIsRealtimeCallActive(false);
         setHasUserEndedRealtimeCall(false);
-        setVoiceError(error instanceof Error ? error.message : 'Unable to start voice call');
+        setVoiceError(getRealtimeVoicePublicErrorMessage(error));
       }
       return;
     }
@@ -762,11 +762,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               },
             }}
           >
-            {isTranscribing ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Square size={16} />
-            )}
+            {isTranscribing ? <Loader2 size={18} className="animate-spin" /> : <Square size={16} />}
           </IconButton>
         )}
 
