@@ -15,6 +15,7 @@ import { getRandomChatSuggestions } from '../components/chat/chatInputContent';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../hooks/useNotification';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { isAnonymousLimitError } from '../utils/error-handler';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
@@ -46,6 +47,7 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { agents } = useAgents();
   const { ensureAnonymousSession } = useAuth();
+  const { error: showError } = useNotification();
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode();
   const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
   const [suggestions, setSuggestions] = useState(() => getRandomChatSuggestions(currentLanguage));
@@ -112,7 +114,7 @@ const HomePage: React.FC = () => {
           return;
         }
 
-        openSignInModal();
+        showError(sessionResponse.error || 'Failed to start guest chat. Please try again.');
         return;
       }
 
@@ -126,7 +128,9 @@ const HomePage: React.FC = () => {
         return;
       }
 
-      openSignInModal();
+      showError(
+        error instanceof Error ? error.message : 'Failed to start guest chat. Please try again.'
+      );
     }
   };
 
