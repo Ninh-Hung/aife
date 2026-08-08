@@ -12,6 +12,7 @@ import { useAgents } from '../contexts/AgentsContext';
 import {
   ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY,
   ANONYMOUS_CURRENT_SESSION_STORAGE_KEY,
+  ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY,
   useAuth,
 } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
@@ -476,6 +477,15 @@ export const ChatScreen: React.FC = () => {
 
       if (isAnonymous && !allowAnonymousSessionRef.current) {
         navigate('/', { replace: true });
+        return;
+      }
+
+      if (
+        !isAnonymous &&
+        window.sessionStorage.getItem(ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY) ===
+          routeSessionId
+      ) {
+        navigate('/new-chat', { replace: true });
         return;
       }
 

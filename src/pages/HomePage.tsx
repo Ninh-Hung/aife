@@ -14,6 +14,7 @@ import { MatrixRainBackground } from '../components/common/MatrixRainBackground'
 import { getRandomChatSuggestions } from '../components/chat/chatInputContent';
 import { createChatSession } from '../services/api';
 import { useAgents } from '../contexts/AgentsContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useStoredChatExecutionMode } from '../hooks/useStoredChatExecutionMode';
 import { isAnonymousLimitError } from '../utils/error-handler';
 import type { ChatExecutionMode } from '../hooks/useChatAgent';
@@ -44,6 +45,7 @@ const HomePage: React.FC = () => {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(Boolean(authMode));
   const navigate = useNavigate();
   const { agents } = useAgents();
+  const { ensureAnonymousSession } = useAuth();
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode();
   const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
   const [suggestions, setSuggestions] = useState(() => getRandomChatSuggestions(currentLanguage));
@@ -90,10 +92,15 @@ const HomePage: React.FC = () => {
     const image = files?.[0] ?? null;
     setExecutionMode(mode);
     try {
-      // Get default agent or first available agent
-      const defaultAgent = agents.find((a) => a.isDefault) ?? agents[0];
+      const activeUser = await ensureAnonymousSession();
+      const isGuest =
+        activeUser.authProvider === 'ANONYMOUS' ||
+        activeUser.email.endsWith('@anonymous.appaihelp.local') ||
+        activeUser.userName.startsWith('anon_');
 
-      // Anonymous visitors already have a token-backed User from AuthContext.
+      // Get default agent or first available agent
+      const defaultAgent = isGuest ? null : (agents.find((a) => a.isDefault) ?? agents[0]);
+
       const sessionResponse = await createChatSession(
         defaultAgent ? defaultAgent.publicId || defaultAgent.id : null,
         'New Chat'

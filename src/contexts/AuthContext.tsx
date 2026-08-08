@@ -5,7 +5,14 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { User, UserQuota, SubscriptionInfo } from '../types';
-import axiosInstance, { setAccessToken, clearAccessToken, refreshAccessToken } from '../lib/axios';
+import axiosInstance, {
+  setAccessToken,
+  clearAccessToken,
+  refreshAccessToken,
+  markRefreshSessionPresent,
+  clearRefreshSessionMarker,
+  hasRefreshSessionMarker,
+} from '../lib/axios';
 import type { AxiosError } from 'axios';
 import { getQuota, getSubscription } from '../services/quota.service';
 import { listChatMessages, updateMyProfile, type UpdateMyProfileInput } from '../services/api';
@@ -24,6 +31,7 @@ interface AuthContextValue {
   refreshQuota: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
   updateProfile: (input: UpdateMyProfileInput) => Promise<void>;
+  ensureAnonymousSession: () => Promise<User>;
   login: (identifier: string, password: string) => Promise<void>;
   completeOAuthLogin: () => Promise<void>;
   logout: () => Promise<void>;
@@ -73,7 +81,6 @@ export const ANONYMOUS_CURRENT_SESSION_HAS_MESSAGES_STORAGE_KEY =
   'anonymousCurrentSessionHasMessages';
 export const ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY = 'anonymousPendingMergeSessionId';
 const ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY = 'anonymousBootstrapCooldownUntil';
-const REGISTERED_REFRESH_SESSION_STORAGE_KEY = 'registeredRefreshSessionSeen';
 const ANONYMOUS_BOOTSTRAP_COOLDOWN_MS = 30_000;
 const ENABLE_SUBSCRIPTION_QUOTA_CHECKS = false;
 const PRESERVED_STORAGE_KEYS = new Set(['theme-mode']);
@@ -147,30 +154,6 @@ const clearAnonymousBootstrapCooldown = () => {
   window.sessionStorage.removeItem(ANONYMOUS_BOOTSTRAP_COOLDOWN_STORAGE_KEY);
 };
 
-const hasRegisteredRefreshSession = () => {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.localStorage.getItem(REGISTERED_REFRESH_SESSION_STORAGE_KEY) === 'true';
-};
-
-const rememberRegisteredRefreshSession = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(REGISTERED_REFRESH_SESSION_STORAGE_KEY, 'true');
-};
-
-const clearRegisteredRefreshSession = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.removeItem(REGISTERED_REFRESH_SESSION_STORAGE_KEY);
-};
-
 const isAnonymousUser = (user: User | null): boolean => {
   if (!user) {
     return false;
@@ -231,6 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial auth check
   const initializingRef = useRef(false); // Prevent multiple simultaneous initializations
+  const anonymousSessionPromiseRef = useRef<Promise<User> | null>(null);
 
   const applyUserData = useCallback((userData: AuthUserData): User => {
     const mappedUser: User = {
@@ -277,7 +261,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [applyUserData]
   );
 
-  const createAnonymousSession = useCallback(async () => {
+  const createAnonymousSession = useCallback(async (): Promise<User> => {
     try {
       const anonymousResponse = await axiosInstance.post('/auth/anonymous', undefined, {
         skipAuthRefresh: true,
@@ -290,22 +274,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       clearAnonymousBootstrapCooldown();
-      clearRegisteredRefreshSession();
       setAccessToken(anonymousResponse.data.data.accessToken);
+      markRefreshSessionPresent();
 
       if (anonymousResponse.data.data.user) {
-        applyUserData(anonymousResponse.data.data.user);
-      } else {
-        await fetchAndApplyCurrentUser({
-          skipAuthRefresh: true,
-          skipErrorToast: true,
-        });
+        return applyUserData(anonymousResponse.data.data.user);
       }
+
+      return await fetchAndApplyCurrentUser({
+        skipAuthRefresh: true,
+        skipErrorToast: true,
+      });
     } catch (error) {
       rememberAnonymousBootstrapFailure();
       throw error;
     }
   }, [applyUserData, fetchAndApplyCurrentUser]);
+
+  const ensureAnonymousSession = useCallback(async (): Promise<User> => {
+    if (user) {
+      return user;
+    }
+
+    if (isAnonymousBootstrapCooldownActive()) {
+      throw new Error('Anonymous session creation is cooling down');
+    }
+
+    if (!anonymousSessionPromiseRef.current) {
+      anonymousSessionPromiseRef.current = createAnonymousSession().finally(() => {
+        anonymousSessionPromiseRef.current = null;
+      });
+    }
+
+    return anonymousSessionPromiseRef.current;
+  }, [createAnonymousSession, user]);
 
   // ============================================
   // Initialize Authentication on App Mount
@@ -333,49 +335,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         console.log('[AuthContext] Starting auth initialization...');
 
-        if (isAnonymousBootstrapCooldownActive()) {
-          console.info('[AuthContext] Anonymous bootstrap is cooling down; skipping auth retry');
+        if (!hasRefreshSessionMarker()) {
+          console.log('[AuthContext] No refresh session marker; skipping auth refresh');
+          clearAccessToken();
+          clearUserScopedClientStorage();
+          setUser(null);
+          setQuota(null);
+          setSubscription(null);
           return;
         }
 
         try {
-          if (!hasRegisteredRefreshSession()) {
-            console.log('[AuthContext] No registered session marker, creating anonymous session...');
-            await createAnonymousSession();
-            return;
-          }
-
           // Attempt to refresh access token using HttpOnly refresh token
           await refreshAccessToken();
           console.log('[AuthContext] Access token set successfully');
-          const mappedUser = await fetchAndApplyCurrentUser({
+          await fetchAndApplyCurrentUser({
             skipAuthRefresh: true,
             skipErrorToast: true,
           });
-          if (isAnonymousUser(mappedUser)) {
-            clearRegisteredRefreshSession();
-          } else {
-            rememberRegisteredRefreshSession();
-          }
           clearAnonymousBootstrapCooldown();
         } catch (refreshError) {
-          clearRegisteredRefreshSession();
           console.log(
-            '[AuthContext] No valid session, creating anonymous session...',
+            '[AuthContext] No valid session; continuing as signed-out visitor',
             refreshError
           );
-
-          if (isAnonymousBootstrapCooldownActive()) {
-            console.info('[AuthContext] Anonymous bootstrap is cooling down; skipping retry');
-            return;
-          }
-
-          await createAnonymousSession();
+          clearAccessToken();
+          clearRefreshSessionMarker();
+          clearUserScopedClientStorage();
+          setUser(null);
+          setQuota(null);
+          setSubscription(null);
         }
       } catch (error) {
         // Silent fail - user is not authenticated
         console.error('[AuthContext] Auth initialization failed:', error);
         clearAccessToken();
+        clearRefreshSessionMarker();
         clearUserScopedClientStorage();
         setUser(null);
         setQuota(null);
@@ -387,7 +382,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initAuth();
-  }, [createAnonymousSession, fetchAndApplyCurrentUser]);
+  }, [fetchAndApplyCurrentUser]);
 
   // ============================================
   // Listen for auth:logout events from axios interceptor
@@ -399,7 +394,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setQuota(null);
       setSubscription(null);
       clearAccessToken();
-      clearRegisteredRefreshSession();
+      clearRefreshSessionMarker();
       clearUserScopedClientStorage();
     };
 
@@ -464,6 +459,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Store access token in memory
         setAccessToken(accessToken);
+        markRefreshSessionPresent();
         console.log('[AuthContext] Access token stored');
 
         // Map server field names to frontend field names
@@ -478,12 +474,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           quota: userData.quota,
           subscription: userData.subscription,
         };
-
-        if (isAnonymousUser(mappedUser)) {
-          clearRegisteredRefreshSession();
-        } else {
-          rememberRegisteredRefreshSession();
-        }
 
         // Store user in state
         setUser(mappedUser);
@@ -553,20 +543,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setQuota(null);
     setSubscription(null);
 
-    let mappedUser: User;
-    try {
-      await refreshAccessToken();
-      mappedUser = await fetchAndApplyCurrentUser();
-      if (isAnonymousUser(mappedUser)) {
-        clearRegisteredRefreshSession();
-      } else {
-        rememberRegisteredRefreshSession();
-      }
-    } catch (error) {
-      clearRegisteredRefreshSession();
-      await createAnonymousSession();
-      throw error;
-    }
+    markRefreshSessionPresent();
+    await refreshAccessToken();
+    const mappedUser = await fetchAndApplyCurrentUser();
 
     if (
       pendingAnonymousSessionId &&
@@ -692,7 +671,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Clear access token from memory
       clearAccessToken();
-      clearRegisteredRefreshSession();
+      clearRefreshSessionMarker();
       clearUserScopedClientStorage();
 
       // Clear user-related state (user profile, permissions, cached auth data)
@@ -702,19 +681,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('[AuthContext] Local auth state cleared');
 
-      try {
-        await createAnonymousSession();
-      } catch (anonymousError) {
-        console.error(
-          '[AuthContext] Failed to create anonymous session after logout:',
-          anonymousError
-        );
-        clearAccessToken();
-        clearUserScopedClientStorage();
-        setUser(null);
-        setQuota(null);
-        setSubscription(null);
-      }
+      anonymousSessionPromiseRef.current = null;
     }
   };
 
@@ -732,6 +699,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshQuota,
     refreshSubscription,
     updateProfile,
+    ensureAnonymousSession,
     login,
     completeOAuthLogin,
     logout,
