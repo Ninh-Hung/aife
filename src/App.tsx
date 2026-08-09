@@ -63,7 +63,7 @@ import { useQuotaErrorHandler } from './hooks/useQuotaErrorHandler';
 import { UpgradeModal } from './components/subscription';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { FeedbackDialog } from './components/feedback/FeedbackDialog';
-import { listChatMessages, mergeAnonymousSession } from './services/api';
+import { mergeAnonymousSession } from './services/api';
 import { ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY } from './contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 
@@ -97,15 +97,6 @@ const ChatScreenRoute: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   return <ChatScreen key={sessionId ?? 'missing-session'} />;
 };
-
-const hasChatMessageContent = (message: {
-  content?: string | null;
-  reasoning?: string | null;
-  attachments?: unknown[] | null;
-}) =>
-  Boolean(message.content?.trim()) ||
-  Boolean(message.reasoning?.trim()) ||
-  Boolean(message.attachments?.length);
 
 interface SettingsDialogProps {
   open: boolean;
@@ -164,7 +155,6 @@ const AppContent: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pendingMergeSessionId, setPendingMergeSessionId] = useState<string | null>(null);
   const [isMergingAnonymousSession, setIsMergingAnonymousSession] = useState(false);
-  const [isCheckingPendingMergeSession, setIsCheckingPendingMergeSession] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     agents.find((a) => a.isDefault)?.id || agents[0]?.id || ''
   );
@@ -209,6 +199,10 @@ const AppContent: React.FC = () => {
       const detail = (event as CustomEvent<{ sessionId?: string }>).detail;
       if (detail?.sessionId) {
         setPendingMergeSessionId(detail.sessionId);
+
+        if (location.pathname === `/chat/${detail.sessionId}`) {
+          navigate('/new-chat', { replace: true });
+        }
       }
     };
 
@@ -216,7 +210,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('anonymous:merge-pending', handlePendingMerge);
     };
-  }, []);
+  }, [location.pathname, navigate]);
 
   useEffect(() => {
     if (!user || isAnonymous) {
@@ -230,39 +224,6 @@ const AppContent: React.FC = () => {
       setPendingMergeSessionId(storedSessionId);
     }
   }, [isAnonymous, user]);
-
-  useEffect(() => {
-    if (!pendingMergeSessionId || !user || isAnonymous) {
-      setIsCheckingPendingMergeSession(false);
-      return;
-    }
-
-    let cancelled = false;
-    setIsCheckingPendingMergeSession(true);
-
-    void (async () => {
-      try {
-        const response = await listChatMessages(pendingMergeSessionId);
-        if (cancelled) {
-          return;
-        }
-
-        if (response.success && response.data && !response.data.some(hasChatMessageContent)) {
-          window.sessionStorage.removeItem(ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY);
-          setPendingMergeSessionId(null);
-          return;
-        }
-      } finally {
-        if (!cancelled) {
-          setIsCheckingPendingMergeSession(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAnonymous, pendingMergeSessionId, user]);
 
   const handleSkipAnonymousMerge = () => {
     window.sessionStorage.removeItem(ANONYMOUS_PENDING_MERGE_SESSION_STORAGE_KEY);
@@ -520,12 +481,7 @@ const AppContent: React.FC = () => {
         isAnonymousLimit={errorState.isAnonymousLimit}
       />
       <ConfirmDialog
-        open={
-          Boolean(pendingMergeSessionId) &&
-          Boolean(user) &&
-          !isAnonymous &&
-          !isCheckingPendingMergeSession
-        }
+        open={Boolean(pendingMergeSessionId) && Boolean(user) && !isAnonymous}
         title={t('anonymousMerge.title')}
         message={t('anonymousMerge.message')}
         confirmText={t('anonymousMerge.confirm')}

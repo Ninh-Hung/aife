@@ -54,6 +54,8 @@ const removeContentTypeHeader = (config: InternalAxiosRequestConfig) => {
 // ============================================
 
 let accessToken: string | null = null;
+const REFRESH_SESSION_MARKER_COOKIE = 'aibe_refresh_session';
+const REFRESH_SESSION_MARKER_STORAGE_KEY = 'refreshSessionPresent';
 
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
@@ -65,6 +67,46 @@ export const getAccessToken = (): string | null => {
 
 export const clearAccessToken = () => {
   accessToken = null;
+};
+
+const canUseBrowserStorage = () => typeof window !== 'undefined';
+
+const hasCookie = (name: string): boolean => {
+  if (!canUseBrowserStorage()) {
+    return false;
+  }
+
+  return document.cookie
+    .split(';')
+    .some((cookie) => cookie.trim().startsWith(`${encodeURIComponent(name)}=`));
+};
+
+export const markRefreshSessionPresent = () => {
+  if (!canUseBrowserStorage()) {
+    return;
+  }
+
+  window.localStorage.setItem(REFRESH_SESSION_MARKER_STORAGE_KEY, 'true');
+};
+
+export const clearRefreshSessionMarker = () => {
+  if (!canUseBrowserStorage()) {
+    return;
+  }
+
+  window.localStorage.removeItem(REFRESH_SESSION_MARKER_STORAGE_KEY);
+  document.cookie = `${REFRESH_SESSION_MARKER_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`;
+};
+
+export const hasRefreshSessionMarker = (): boolean => {
+  if (!canUseBrowserStorage()) {
+    return false;
+  }
+
+  return (
+    window.localStorage.getItem(REFRESH_SESSION_MARKER_STORAGE_KEY) === 'true' ||
+    hasCookie(REFRESH_SESSION_MARKER_COOKIE)
+  );
 };
 
 let refreshPromise: Promise<string> | null = null;
@@ -103,6 +145,10 @@ refreshClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 export const refreshAccessToken = async (): Promise<string> => {
+  if (!hasRefreshSessionMarker()) {
+    throw new Error('No refresh session marker');
+  }
+
   if (!refreshPromise) {
     refreshPromise = refreshClient
       .post('/auth/refresh', undefined, {
@@ -117,10 +163,12 @@ export const refreshAccessToken = async (): Promise<string> => {
         }
 
         setAccessToken(newAccessToken);
+        markRefreshSessionPresent();
         return newAccessToken;
       })
       .catch((error) => {
         clearAccessToken();
+        clearRefreshSessionMarker();
         throw error;
       })
       .finally(() => {
@@ -226,6 +274,10 @@ axiosInstance.interceptors.response.use(
 
       try {
         console.log('[Axios] Attempting token refresh...');
+
+        if (!hasRefreshSessionMarker()) {
+          throw new Error('No refresh session marker');
+        }
 
         const newAccessToken = await refreshAccessToken();
         console.log('[Axios] New access token set, retrying request');

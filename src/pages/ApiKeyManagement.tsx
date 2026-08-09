@@ -52,6 +52,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   createApiKey,
   createIntegrationClient,
+  buildServerUrl,
   listAgents,
   listApiKeys,
   listApiScopeCatalog,
@@ -250,8 +251,6 @@ interface ApiKeyCurlExample {
   command: string;
 }
 
-const API_EXAMPLE_BASE_URL = '${API_BASE_URL:-https://api.appaihelp.com}';
-
 const buildCurlCommand = ({
   apiKey,
   method,
@@ -266,7 +265,7 @@ const buildCurlCommand = ({
   headers?: Record<string, string>;
 }) => {
   const lines = [
-    `curl -X ${method} "${API_EXAMPLE_BASE_URL}${path}"`,
+    `curl -X ${method} "${buildServerUrl(path)}"`,
     `  -H "x-api-key: ${apiKey}"`,
   ];
 
@@ -289,6 +288,27 @@ const getFirstScopedResourcePublicId = (
   scopes?.find((scope) => scope.resourceType === resourceType && scope.resourcePublicId)
     ?.resourcePublicId;
 
+const enrichCreatedApiKeyScopes = (
+  data: CreateApiKeyResponse,
+  inputs: ApiKeyApiScopeInput[]
+): CreateApiKeyResponse => ({
+  ...data,
+  scopes: data.scopes?.map((scope) => {
+    if (scope.resourcePublicId) return scope;
+
+    const matchingInput = inputs.find(
+      (input) =>
+        input.scope === scope.scope &&
+        (input.resourceType ?? null) === (scope.resourceType ?? null) &&
+        input.resourcePublicId
+    );
+
+    return matchingInput?.resourcePublicId
+      ? { ...scope, resourcePublicId: matchingInput.resourcePublicId }
+      : scope;
+  }),
+});
+
 const buildApiKeyCurlExamples = (data: CreateApiKeyResponse | null): ApiKeyCurlExample[] => {
   const scopes = data?.scopes ?? [];
   if (!data?.apiKey || scopes.length === 0) return [];
@@ -301,7 +321,14 @@ const buildApiKeyCurlExamples = (data: CreateApiKeyResponse | null): ApiKeyCurlE
     }
   };
 
-  if (grantedScopes.has('translations:create')) {
+  const translationScope = scopes.find((scope) => scope.scope === 'translations:create');
+
+  if (translationScope) {
+    const agentPublicId =
+      translationScope.resourceType === 'agent'
+        ? (translationScope.resourcePublicId ?? '{agent_public_id}')
+        : undefined;
+
     addExample({
       key: 'translation',
       titleKey: 'apiKeys.oneTime.exampleTranslation',
@@ -314,6 +341,7 @@ const buildApiKeyCurlExamples = (data: CreateApiKeyResponse | null): ApiKeyCurlE
           text: 'Hello, welcome to our service.',
           sourceLang: 'auto',
           targetLang: ['vi'],
+          ...(agentPublicId && { agentPublicId }),
         },
       }),
     });
@@ -2638,7 +2666,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ open, onClose, on
     const response = await createApiKey(input);
 
     if (response.success && response.data?.apiKey) {
-      onSuccess(response.data);
+      onSuccess(enrichCreatedApiKeyScopes(response.data, apiScopesInput));
       resetForm();
     } else {
       error(response.error || t('apiKeys.errors.createFailed'));
@@ -3212,6 +3240,7 @@ interface OneTimeKeyModalProps {
 const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, onCopy }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const [copiedCurlExampleKey, setCopiedCurlExampleKey] = useState<string | null>(null);
   const curlExamples = buildApiKeyCurlExamples(data);
 
   const handleCopy = () => {
@@ -3220,6 +3249,12 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleCopyCurlExample = (example: ApiKeyCurlExample) => {
+    onCopy(example.command);
+    setCopiedCurlExampleKey(example.key);
+    setTimeout(() => setCopiedCurlExampleKey(null), 2000);
   };
 
   return (
@@ -3288,8 +3323,27 @@ const OneTimeKeyModal: React.FC<OneTimeKeyModalProps> = ({ open, data, onClose, 
                   key={example.key}
                   className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700"
                 >
-                  <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                    {t(example.titleKey, { defaultValue: example.title })}
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                    <span>{t(example.titleKey, { defaultValue: example.title })}</span>
+                    <Tooltip
+                      title={
+                        copiedCurlExampleKey === example.key
+                          ? t('apiKeys.oneTime.copied')
+                          : t('apiKeys.oneTime.copy')
+                      }
+                    >
+                      <IconButton
+                        aria-label={t('apiKeys.oneTime.copyCurlExample')}
+                        size="small"
+                        onClick={() => handleCopyCurlExample(example)}
+                      >
+                        {copiedCurlExampleKey === example.key ? (
+                          <CheckCircle2 size={16} className="text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy size={16} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
                   </div>
                   <pre className="overflow-x-auto bg-gray-100 p-3 text-xs leading-5 text-gray-800 dark:bg-slate-950 dark:text-slate-200">
                     <code>{example.command}</code>

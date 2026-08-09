@@ -1561,6 +1561,7 @@
       "warningStrong": "This API key will only be shown once.",
       "warning": "Please copy and store it securely. You will not be able to retrieve it again.",
       "copy": "Copy",
+      "copyCurlExample": "Copy curl example",
       "copied": "Copied!",
       "capabilitiesGranted": "Capabilities granted:",
       "curlExamplesTitle": "Example requests",
