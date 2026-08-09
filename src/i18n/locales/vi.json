@@ -1561,6 +1561,7 @@
       "warningStrong": "API key này chỉ hiển thị một lần.",
       "warning": "Vui lòng copy và lưu trữ an toàn. Bạn sẽ không thể xem lại key này.",
       "copy": "Copy",
+      "copyCurlExample": "Copy ví dụ curl",
       "copied": "Đã copy!",
       "capabilitiesGranted": "Khả năng đã cấp:",
       "curlExamplesTitle": "Ví dụ request",
