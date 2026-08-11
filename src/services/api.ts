@@ -104,8 +104,8 @@ type VoiceTranscribeRawResponse =
 const hasVoiceTranscript = (value: unknown): value is VoiceTranscribeResponse => {
   return Boolean(
     value &&
-      typeof value === 'object' &&
-      typeof (value as VoiceTranscribeResponse).transcript === 'string'
+    typeof value === 'object' &&
+    typeof (value as VoiceTranscribeResponse).transcript === 'string'
   );
 };
 
@@ -397,8 +397,7 @@ export const transcribeVoiceAudio = async (
     return {
       success: true,
       data,
-      message:
-        ('message' in rawPayload && rawPayload.message) || 'Audio transcribed successfully',
+      message: ('message' in rawPayload && rawPayload.message) || 'Audio transcribed successfully',
     };
   } catch (error) {
     console.error('Transcribe voice audio error:', error);
@@ -2379,6 +2378,34 @@ export const getChatSession = async (sessionId: string): Promise<ApiResponse<Cha
         axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
         'Failed to load chat session',
+    };
+  }
+};
+
+export const warmChatSessionRuntime = async (
+  sessionId: string,
+  options?: { mode?: string; agentPublicId?: string }
+): Promise<ApiResponse<{ warmed: boolean; taskConfigFailures?: string[] }>> => {
+  try {
+    const response = await axiosInstance.post(`/v1/chat/sessions/${sessionId}/runtime/warmup`, {
+      ...(options?.mode ? { mode: options.mode } : {}),
+      ...(options?.agentPublicId ? { agentPublicId: options.agentPublicId } : {}),
+    });
+
+    return {
+      success: true,
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error('Warm chat runtime error:', error);
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+
+    return {
+      success: false,
+      error:
+        axiosError.response?.data?.error ||
+        axiosError.response?.data?.message ||
+        'Failed to warm chat runtime',
     };
   }
 };

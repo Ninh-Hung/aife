@@ -102,6 +102,7 @@ export function useChatAgent({
   enabled = true,
 }: UseChatAgentOptions) {
   const [isSocketOpen, setIsSocketOpen] = useState(false);
+  const [sendError, setSendError] = useState<Error | undefined>(undefined);
   const lastAnonymousLimitEventRef = useRef<string | null>(null);
   const shouldConnect =
     enabled && Boolean(conversationId) && Boolean(agentPublicId) && sessionId !== null;
@@ -185,12 +186,18 @@ export function useChatAgent({
     addToolOutput,
     clearHistory,
     status: chatStatus,
+    error: chatError,
     stop,
   } = useAgentChat<unknown, UIMessage>({
     agent,
     getInitialMessages: null,
     resume: false,
     experimental_throttle: 50,
+    onError: (error) => {
+      if (import.meta.env.DEV) {
+        console.error('[useChatAgent] chat stream failed', error);
+      }
+    },
   });
 
   const extractText = useCallback((message: UIMessage): string => {
@@ -476,6 +483,7 @@ export function useChatAgent({
         return;
       }
 
+      setSendError(undefined);
       void agentSendMessage({
         text: trimmed,
         files: fileParts.length > 0 ? fileParts : undefined,
@@ -488,8 +496,10 @@ export function useChatAgent({
           ...(capability ? { capability } : {}),
         },
       }).catch((error) => {
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        setSendError(normalizedError);
         if (import.meta.env.DEV) {
-          console.error('[useChatAgent] send message failed', error);
+          console.error('[useChatAgent] send message failed', normalizedError);
         }
       });
     },
@@ -506,6 +516,7 @@ export function useChatAgent({
   );
 
   const isAgentConnected = shouldConnect && isSocketOpen && agent.identified;
+  const effectiveChatError = chatError ?? sendError;
 
   return {
     messages,
@@ -513,10 +524,11 @@ export function useChatAgent({
     status: isAgentConnected ? 'connected' : 'disconnected',
     isConnected: isAgentConnected,
     isConnecting: shouldConnect && !isSocketOpen,
-    error: undefined,
+    error: effectiveChatError,
     addToolResult: addToolOutput,
     clearHistory,
     stop,
     chatStatus,
+    chatError: effectiveChatError,
   };
 }

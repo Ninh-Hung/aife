@@ -27,7 +27,13 @@ import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { SignInModal } from '../components/auth/SignInModal';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
-import { cancelChatResponse, getChatSession, listChatMessages, getAgent } from '../services/api';
+import {
+  cancelChatResponse,
+  getChatSession,
+  listChatMessages,
+  getAgent,
+  warmChatSessionRuntime,
+} from '../services/api';
 import { parseAgentResponse } from '../utils/agentResponse';
 
 const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
@@ -164,6 +170,7 @@ export const ChatScreen: React.FC = () => {
   const lastAppliedConversationTitleRef = useRef<string | null>(null);
   const lastVoiceTranscriptSyncRef = useRef<string | null>(null);
   const initialRealtimeVoiceStartRef = useRef<string | null>(null);
+  const lastChatErrorRef = useRef<string | null>(null);
   const messageLoadRequestRef = useRef(0);
   const initialState = location.state as {
     initialMessage?: string;
@@ -193,6 +200,7 @@ export const ChatScreen: React.FC = () => {
     isConnected,
     isConnecting,
     chatStatus,
+    chatError,
     stop: stopAgentResponse,
   } = useChatAgent({
     conversationId: activeSessionId || '',
@@ -547,6 +555,14 @@ export const ChatScreen: React.FC = () => {
         };
       }
 
+      await warmChatSessionRuntime(currentSession.id, {
+        mode: executionMode,
+        agentPublicId: currentSession.agentPublicId,
+      });
+      if (cancelled) {
+        return;
+      }
+
       setAgent(resolvedAgent);
       addOrUpdateConversation(currentSession);
 
@@ -740,6 +756,17 @@ export const ChatScreen: React.FC = () => {
   }, [activeSessionId, loadInitialMessages]);
 
   useEffect(() => {
+    if (!activeSessionId || !agent?.publicId) {
+      return;
+    }
+
+    void warmChatSessionRuntime(activeSessionId, {
+      mode: executionMode,
+      agentPublicId: agent.publicId,
+    });
+  }, [activeSessionId, agent?.publicId, executionMode]);
+
+  useEffect(() => {
     if (!activeSessionId || realtimeVoiceAgent.transcript.length === 0) {
       return;
     }
@@ -801,6 +828,21 @@ export const ChatScreen: React.FC = () => {
   }, [activeSessionId, agentMessages, chatStatus, loadInitialMessages]);
 
   useEffect(() => {
+    if (!chatError) {
+      return;
+    }
+
+    const errorKey = `${activeSessionId ?? 'none'}:${chatError.message}`;
+    if (lastChatErrorRef.current === errorKey) {
+      return;
+    }
+
+    lastChatErrorRef.current = errorKey;
+    setIsAwaitingResponse(false);
+    showError(chatError.message || t('chat.errors.sendFailed'));
+  }, [activeSessionId, chatError, showError, t]);
+
+  useEffect(() => {
     if (!activeSessionId) return;
 
     const hasPendingPersistedResponse = initialMessages.some(
@@ -834,6 +876,14 @@ export const ChatScreen: React.FC = () => {
       setCancelledResponseSessionId(null);
 
       try {
+        const warmup = await warmChatSessionRuntime(activeSessionId, {
+          mode: executionMode,
+          agentPublicId: agent?.publicId,
+        });
+        if (!warmup.success) {
+          throw new Error(warmup.error || t('chat.errors.sendFailed'));
+        }
+
         // Send message via WebSocket - agent handles everything
         await agentSendMessage(content, files);
 
@@ -857,7 +907,9 @@ export const ChatScreen: React.FC = () => {
     [
       isConnected,
       activeSessionId,
+      agent?.publicId,
       agentSendMessage,
+      executionMode,
       showError,
       sessions,
       addOrUpdateConversation,
