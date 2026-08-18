@@ -118,6 +118,7 @@ const normalizeVoiceTranscribeResponse = (
 
 interface DatabaseLanguage {
   key: string;
+  aliases?: string[];
   name: string;
   active?: boolean;
   flag?: string;
@@ -427,6 +428,7 @@ export const getSupportedLanguages = async (): Promise<ApiResponse<Language[]>> 
       .filter((language) => language.active !== false)
       .map((language) => ({
         code: language.key,
+        aliases: language.aliases ?? [],
         name: language.name,
         nativeName: language.name,
         flagUrl: language.flagUrl || language.flag,

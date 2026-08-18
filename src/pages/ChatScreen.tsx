@@ -151,6 +151,7 @@ const hasRenderableMessageContent = (message: ChatMessage) => {
   return (
     parseAgentResponse(message.content).content.trim().length > 0 ||
     Boolean(message.attachments?.length) ||
+    Boolean(message.reasoning?.trim()) ||
     stripStreamProgressLines(message.reasoning).length > 0
   );
 };
@@ -193,6 +194,8 @@ export const ChatScreen: React.FC = () => {
   const [cancelledResponseSessionId, setCancelledResponseSessionId] = useState<string | null>(null);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode(initialState?.initialMode);
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
+  const optimisticAttachmentUrlsRef = useRef<Set<string>>(new Set());
 
   const {
     messages: agentMessages,
@@ -219,6 +222,17 @@ export const ChatScreen: React.FC = () => {
   });
 
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+  const revokeOptimisticMessageUrls = useCallback((messagesToRevoke: ChatMessage[]) => {
+    for (const message of messagesToRevoke) {
+      for (const attachment of message.attachments || []) {
+        const url = attachment.fileUrl;
+        if (url && optimisticAttachmentUrlsRef.current.has(url)) {
+          URL.revokeObjectURL(url);
+          optimisticAttachmentUrlsRef.current.delete(url);
+        }
+      }
+    }
+  }, []);
   const isActiveRouteSession = Boolean(routeSessionId && activeSessionId === routeSessionId);
   const realtimeVoiceMessages = useMemo(() => {
     if (!activeSessionId || !isActiveRouteSession || !realtimeVoiceAgent.enabled) {
@@ -274,14 +288,19 @@ export const ChatScreen: React.FC = () => {
     }
 
     const liveMessages = [...agentMessages, ...realtimeVoiceMessages];
+    const visibleOptimisticMessages = removePersistedMessagesDuplicatedByLiveMessages(
+      optimisticMessages,
+      liveMessages
+    );
+    const liveAndOptimisticMessages = [...visibleOptimisticMessages, ...liveMessages];
 
-    if (liveMessages.length === 0) {
+    if (liveAndOptimisticMessages.length === 0) {
       return initialMessages;
     }
 
     const dedupedInitialMessages = removePersistedMessagesDuplicatedByLiveMessages(
       initialMessages,
-      liveMessages
+      liveAndOptimisticMessages
     );
 
     const enrichedAgentMessages = enrichLiveMessagesWithPersistedMetadata(
@@ -289,12 +308,13 @@ export const ChatScreen: React.FC = () => {
       liveMessages
     );
 
-    return [...dedupedInitialMessages, ...enrichedAgentMessages];
+    return [...dedupedInitialMessages, ...visibleOptimisticMessages, ...enrichedAgentMessages];
   }, [
     agentMessages,
     initialMessages,
     initialMessagesLoaded,
     isActiveRouteSession,
+    optimisticMessages,
     realtimeVoiceMessages,
   ]);
   const activeSession = useMemo(
@@ -454,7 +474,55 @@ export const ChatScreen: React.FC = () => {
     lastSyncedAgentMessageRef.current = null;
     lastSyncedResponseMetadataRef.current = null;
     lastAppliedConversationTitleRef.current = null;
-  }, [activeSessionId]);
+    setOptimisticMessages((currentMessages) => {
+      revokeOptimisticMessageUrls(currentMessages);
+      return [];
+    });
+  }, [activeSessionId, revokeOptimisticMessageUrls]);
+
+  useEffect(() => {
+    return () => {
+      for (const url of optimisticAttachmentUrlsRef.current) {
+        URL.revokeObjectURL(url);
+      }
+      optimisticAttachmentUrlsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (optimisticMessages.length === 0 || agentMessages.length === 0) {
+      return;
+    }
+
+    const liveUserMessageCounts = new Map<string, number>();
+    for (const message of agentMessages) {
+      if (message.role !== 'user') continue;
+      const key = getMessageDedupeKey(message);
+      liveUserMessageCounts.set(key, (liveUserMessageCounts.get(key) ?? 0) + 1);
+    }
+
+    setOptimisticMessages((currentMessages) => {
+      const removedMessages: ChatMessage[] = [];
+      const nextMessages = currentMessages.filter((message) => {
+        const key = getMessageDedupeKey(message);
+        const liveCount = liveUserMessageCounts.get(key) ?? 0;
+        if (liveCount <= 0) {
+          return true;
+        }
+
+        liveUserMessageCounts.set(key, liveCount - 1);
+        removedMessages.push(message);
+        return false;
+      });
+
+      if (removedMessages.length === 0) {
+        return currentMessages;
+      }
+
+      revokeOptimisticMessageUrls(removedMessages);
+      return nextMessages;
+    });
+  }, [agentMessages, optimisticMessages.length, revokeOptimisticMessageUrls]);
 
   useEffect(() => {
     if (!routeSessionId || routeSessionId === activeSessionId) {
@@ -872,19 +940,38 @@ export const ChatScreen: React.FC = () => {
         return;
       }
 
+      const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const optimisticAttachments = (files || []).map((file, index) => {
+        const fileUrl = URL.createObjectURL(file);
+        optimisticAttachmentUrlsRef.current.add(fileUrl);
+
+        return {
+          publicId: `${optimisticId}-attachment-${index}`,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          fileSize: file.size,
+          fileUrl,
+        };
+      });
+      const optimisticMessage: ChatMessage = {
+        id: optimisticId,
+        sessionId: activeSessionId,
+        role: 'user',
+        content,
+        attachments: optimisticAttachments,
+        timestamp: new Date(),
+        status: 'sending',
+      };
+
+      setOptimisticMessages((currentMessages) => [...currentMessages, optimisticMessage]);
       setIsAwaitingResponse(true);
       setCancelledResponseSessionId(null);
+      void warmChatSessionRuntime(activeSessionId, {
+        mode: executionMode,
+        agentPublicId: agent?.publicId,
+      });
 
       try {
-        const warmup = await warmChatSessionRuntime(activeSessionId, {
-          mode: executionMode,
-          agentPublicId: agent?.publicId,
-        });
-        if (!warmup.success) {
-          throw new Error(warmup.error || t('chat.errors.sendFailed'));
-        }
-
-        // Send message via WebSocket - agent handles everything
         await agentSendMessage(content, files);
 
         const currentSession = sessions.find((s) => s.id === activeSessionId);
@@ -899,6 +986,11 @@ export const ChatScreen: React.FC = () => {
         }
       } catch (err) {
         setIsAwaitingResponse(false);
+        setOptimisticMessages((currentMessages) =>
+          currentMessages.map((message) =>
+            message.id === optimisticId ? { ...message, status: 'failed' as const } : message
+          )
+        );
         const error = err instanceof Error ? err : new Error(t('chat.errors.sendFailed'));
         showError(error.message);
         throw error;

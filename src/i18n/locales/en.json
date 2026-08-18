@@ -1637,7 +1637,9 @@
     },
     "targets": {
       "title": "Target Languages",
-      "selected": "{{count}} selected"
+      "selected": "{{count}} selected",
+      "searchPlaceholder": "Search languages",
+      "emptySearch": "No matching languages found."
     },
     "result": {
       "copy": "Copy translation",

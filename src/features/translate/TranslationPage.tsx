@@ -14,14 +14,15 @@ import {
   Chip,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   MenuItem,
   Select,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { ChevronDown, FileText, Languages, Mic, Upload } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, FileText, Languages, Mic, Search, Upload } from 'lucide-react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ResultCard } from '../../components/translate/ResultCard';
 import { getSupportedLanguages, translateText } from '../../services/api';
@@ -32,6 +33,182 @@ interface TranslationPageProps {
   onCreateAgent?: () => void;
   selectedAgentId?: string;
 }
+
+const getFlagUrl = (language: Language) =>
+  language.flagUrl ||
+  (language.countryCode ? `https://flagcdn.com/24x18/${language.countryCode}.png` : null);
+
+interface TargetLanguageSelectorProps {
+  selectedTargets: Language[];
+  supportedLanguages: Language[];
+  selectedTargetCodes: string[];
+  onToggleTargetLanguage: (code: string) => void;
+}
+
+const TargetLanguageSelector = memo(function TargetLanguageSelector({
+  selectedTargets,
+  supportedLanguages,
+  selectedTargetCodes,
+  onToggleTargetLanguage,
+}: TargetLanguageSelectorProps) {
+  const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredLanguages = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+    if (!keyword) return supportedLanguages;
+
+    return supportedLanguages.filter((language) =>
+      [language.name, language.nativeName, language.code].some((value) =>
+        value.toLowerCase().includes(keyword)
+      )
+    );
+  }, [searchQuery, supportedLanguages]);
+
+  const renderLanguageLabel = (language: Language) => {
+    const flagUrl = getFlagUrl(language);
+
+    return (
+      <Box className="flex min-w-0 items-center gap-2">
+        {flagUrl ? (
+          <Box
+            component="img"
+            src={flagUrl}
+            alt=""
+            className="h-[18px] w-[18px] rounded-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <Box className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-gray-200 text-[9px] font-semibold text-gray-700 dark:bg-slate-600 dark:text-slate-100">
+            {language.code.toUpperCase()}
+          </Box>
+        )}
+        <Box className="min-w-0">
+          <Typography variant="body2" className="truncate text-gray-900 dark:text-white">
+            {language.name}
+          </Typography>
+          <Typography
+            variant="caption"
+            className="block truncate text-gray-500 dark:text-slate-400"
+          >
+            {language.nativeName}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+
+  return (
+    <Accordion
+      disableGutters
+      className="shrink-0 border-b border-gray-200 bg-white shadow-none before:hidden dark:border-slate-700 dark:bg-slate-800"
+    >
+      <AccordionSummary
+        expandIcon={<ChevronDown size={18} />}
+        className="min-h-[56px] border-b border-gray-200 px-4 dark:border-slate-700"
+      >
+        <Box className="min-w-0">
+          <Typography variant="subtitle1" className="font-semibold text-gray-900 dark:text-white">
+            {t('translate.targets.title')}
+          </Typography>
+          <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
+            {t('translate.targets.selected', { count: selectedTargets.length })}
+          </Typography>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails className="px-4 py-3">
+        <Box className="mb-3 flex flex-wrap gap-2">
+          {selectedTargets.map((language) => {
+            const flagUrl = getFlagUrl(language);
+            return (
+              <Chip
+                key={language.code}
+                size="small"
+                label={language.name}
+                avatar={
+                  flagUrl ? (
+                    <Box
+                      component="img"
+                      src={flagUrl}
+                      alt=""
+                      className="h-[18px] w-[18px] rounded-full object-cover"
+                    />
+                  ) : undefined
+                }
+              />
+            );
+          })}
+        </Box>
+        <TextField
+          size="small"
+          fullWidth
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t('translate.targets.searchPlaceholder')}
+          className="mb-3"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={16} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Box className="max-h-[260px] overflow-y-auto">
+          {filteredLanguages.length === 0 ? (
+            <Typography variant="body2" className="px-1 py-3 text-gray-500 dark:text-slate-400">
+              {t('translate.targets.emptySearch')}
+            </Typography>
+          ) : (
+            filteredLanguages.map((language) => (
+              <FormControlLabel
+                key={language.code}
+                className="m-0 flex w-full rounded px-1 py-1 hover:bg-gray-50 dark:hover:bg-slate-700"
+                control={
+                  <Checkbox
+                    checked={selectedTargetCodes.includes(language.code)}
+                    onChange={() => onToggleTargetLanguage(language.code)}
+                  />
+                }
+                label={renderLanguageLabel(language)}
+              />
+            ))
+          )}
+        </Box>
+      </AccordionDetails>
+    </Accordion>
+  );
+});
+
+interface TranslationResultsPanelProps {
+  errorMessage: string | null;
+  results: TranslationResult[];
+}
+
+const TranslationResultsPanel = memo(function TranslationResultsPanel({
+  errorMessage,
+  results,
+}: TranslationResultsPanelProps) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+
+      <Box className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        {results.length === 0 ? (
+          <Box className="flex h-full min-h-[240px] items-center justify-center text-center">
+            <Typography variant="body2" className="text-gray-500 dark:text-slate-500">
+              {t('translate.response.empty')}
+            </Typography>
+          </Box>
+        ) : (
+          results.map((result) => <ResultCard key={result.id} result={result} />)
+        )}
+      </Box>
+    </>
+  );
+});
 
 export const TranslationPage: React.FC<TranslationPageProps> = ({
   agents,
@@ -49,7 +226,10 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const selectedAgent = agents.find((agent) => agent.id === selectedAgentId);
+  const selectedAgent = useMemo(
+    () => agents.find((agent) => agent.id === selectedAgentId),
+    [agents, selectedAgentId]
+  );
   const selectedTargets = useMemo(
     () => supportedLanguages.filter((language) => selectedTargetCodes.includes(language.code)),
     [selectedTargetCodes, supportedLanguages]
@@ -92,51 +272,14 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
     };
   }, []);
 
-  const getFlagUrl = (language: Language) =>
-    language.flagUrl ||
-    (language.countryCode ? `https://flagcdn.com/24x18/${language.countryCode}.png` : null);
-
-  const renderLanguageLabel = (language: Language) => {
-    const flagUrl = getFlagUrl(language);
-
-    return (
-      <Box className="flex min-w-0 items-center gap-2">
-        {flagUrl ? (
-          <Box
-            component="img"
-            src={flagUrl}
-            alt=""
-            className="h-[18px] w-[18px] rounded-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <Box className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-gray-200 text-[9px] font-semibold text-gray-700 dark:bg-slate-600 dark:text-slate-100">
-            {language.code.toUpperCase()}
-          </Box>
-        )}
-        <Box className="min-w-0">
-          <Typography variant="body2" className="truncate text-gray-900 dark:text-white">
-            {language.name}
-          </Typography>
-          <Typography
-            variant="caption"
-            className="block truncate text-gray-500 dark:text-slate-400"
-          >
-            {language.nativeName}
-          </Typography>
-        </Box>
-      </Box>
-    );
-  };
-
-  const toggleTargetLanguage = (code: string) => {
+  const toggleTargetLanguage = useCallback((code: string) => {
     setSelectedTargetCodes((current) => {
       if (current.includes(code)) {
         return current.filter((item) => item !== code);
       }
       return [...current, code];
     });
-  };
+  }, []);
 
   const buildPendingResults = (): TranslationResult[] =>
     selectedTargets.map((language) => ({
@@ -223,29 +366,12 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
           </Box>
 
           <Box className="min-h-0 flex-1 overflow-hidden p-4">
-            <TextField
-              multiline
-              fullWidth
+            <textarea
+              aria-label={t('translate.source.title')}
               placeholder={t('translate.source.placeholder')}
               value={sourceText}
               onChange={(event) => setSourceText(event.target.value)}
-              variant="standard"
-              InputProps={{
-                disableUnderline: true,
-                className: 'text-gray-900 dark:text-slate-300',
-              }}
-              sx={{
-                height: '100%',
-                '& .MuiInputBase-root': {
-                  height: '100%',
-                  minHeight: 0,
-                  alignItems: 'flex-start',
-                },
-                '& textarea': {
-                  height: '100% !important',
-                  overflow: 'auto !important',
-                },
-              }}
+              className="h-full w-full resize-none border-0 bg-transparent p-0 text-base leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 dark:text-slate-300 dark:placeholder:text-slate-500"
             />
           </Box>
 
@@ -302,80 +428,14 @@ export const TranslationPage: React.FC<TranslationPageProps> = ({
             </Box>
           </Box>
 
-          <Accordion
-            disableGutters
-            className="shrink-0 border-b border-gray-200 bg-white shadow-none before:hidden dark:border-slate-700 dark:bg-slate-800"
-          >
-            <AccordionSummary
-              expandIcon={<ChevronDown size={18} />}
-              className="min-h-[56px] border-b border-gray-200 px-4 dark:border-slate-700"
-            >
-              <Box className="min-w-0">
-                <Typography
-                  variant="subtitle1"
-                  className="font-semibold text-gray-900 dark:text-white"
-                >
-                  {t('translate.targets.title')}
-                </Typography>
-                <Typography variant="caption" className="text-gray-500 dark:text-slate-400">
-                  {t('translate.targets.selected', { count: selectedTargets.length })}
-                </Typography>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails className="px-4 py-3">
-              <Box className="mb-3 flex flex-wrap gap-2">
-                {selectedTargets.map((language) => {
-                  const flagUrl = getFlagUrl(language);
-                  return (
-                    <Chip
-                      key={language.code}
-                      size="small"
-                      label={language.name}
-                      avatar={
-                        flagUrl ? (
-                          <Box
-                            component="img"
-                            src={flagUrl}
-                            alt=""
-                            className="h-[18px] w-[18px] rounded-full object-cover"
-                          />
-                        ) : undefined
-                      }
-                    />
-                  );
-                })}
-              </Box>
-              <Box className="max-h-[260px] overflow-y-auto">
-                {supportedLanguages.map((language) => (
-                  <FormControlLabel
-                    key={language.code}
-                    className="m-0 flex w-full rounded px-1 py-1 hover:bg-gray-50 dark:hover:bg-slate-700"
-                    control={
-                      <Checkbox
-                        checked={selectedTargetCodes.includes(language.code)}
-                        onChange={() => toggleTargetLanguage(language.code)}
-                      />
-                    }
-                    label={renderLanguageLabel(language)}
-                  />
-                ))}
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+          <TargetLanguageSelector
+            selectedTargets={selectedTargets}
+            supportedLanguages={supportedLanguages}
+            selectedTargetCodes={selectedTargetCodes}
+            onToggleTargetLanguage={toggleTargetLanguage}
+          />
 
-          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-
-          <Box className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-            {results.length === 0 ? (
-              <Box className="flex h-full min-h-[240px] items-center justify-center text-center">
-                <Typography variant="body2" className="text-gray-500 dark:text-slate-500">
-                  {t('translate.response.empty')}
-                </Typography>
-              </Box>
-            ) : (
-              results.map((result) => <ResultCard key={result.id} result={result} />)
-            )}
-          </Box>
+          <TranslationResultsPanel errorMessage={errorMessage} results={results} />
         </Box>
       </Box>
     </Box>
