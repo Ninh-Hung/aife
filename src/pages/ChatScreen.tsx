@@ -143,17 +143,85 @@ const stripStreamProgressLines = (value: string | null | undefined) => {
     .trim();
 };
 
+const hasAgentAnswerContent = (message: ChatMessage) =>
+  parseAgentResponse(message.content).content.trim().length > 0 ||
+  Boolean(message.attachments?.length);
+
+const hasAgentNonProgressReasoning = (message: ChatMessage) =>
+  stripStreamProgressLines(message.reasoning).length > 0;
+
+const isProgressOnlyAgentMessage = (message: ChatMessage) =>
+  message.role === 'agent' &&
+  !hasAgentAnswerContent(message) &&
+  !hasAgentNonProgressReasoning(message) &&
+  Boolean(message.reasoning?.trim());
+
 const hasRenderableMessageContent = (message: ChatMessage) => {
   if (message.role === 'user') {
     return message.content.trim().length > 0 || Boolean(message.attachments?.length);
   }
 
   return (
-    parseAgentResponse(message.content).content.trim().length > 0 ||
-    Boolean(message.attachments?.length) ||
-    Boolean(message.reasoning?.trim()) ||
-    stripStreamProgressLines(message.reasoning).length > 0
+    hasAgentAnswerContent(message) ||
+    hasAgentNonProgressReasoning(message) ||
+    Boolean(message.reasoning?.trim())
   );
+};
+
+const MESSAGE_ROLE_ORDER: Record<ChatMessage['role'], number> = {
+  user: 0,
+  agent: 1,
+};
+
+const LIVE_TURN_TIMESTAMP_TOLERANCE_MS = 1500;
+
+const orderMessagesForDisplay = (messages: ChatMessage[]) =>
+  messages
+    .map((message, index) => ({ message, index }))
+    .sort((left, right) => {
+      const leftTime = left.message.timestamp.getTime();
+      const rightTime = right.message.timestamp.getTime();
+      const timeDiff = leftTime - rightTime;
+
+      if (
+        Number.isFinite(leftTime) &&
+        Number.isFinite(rightTime) &&
+        Math.abs(timeDiff) > LIVE_TURN_TIMESTAMP_TOLERANCE_MS
+      ) {
+        return timeDiff;
+      }
+
+      if (left.message.role !== right.message.role) {
+        return MESSAGE_ROLE_ORDER[left.message.role] - MESSAGE_ROLE_ORDER[right.message.role];
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ message }) => message);
+
+const shouldHideStaleProgressOnlyAgentMessage = (
+  message: ChatMessage,
+  index: number,
+  messages: ChatMessage[]
+) => {
+  if (!isProgressOnlyAgentMessage(message)) {
+    return false;
+  }
+
+  const previousUserIndex = messages
+    .slice(0, index)
+    .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
+    .reverse()
+    .find(({ candidate }) => candidate.role === 'user')?.candidateIndex;
+  const nextUserIndex = messages.findIndex(
+    (candidate, candidateIndex) => candidateIndex > index && candidate.role === 'user'
+  );
+  const turnStartIndex = previousUserIndex !== undefined ? previousUserIndex + 1 : 0;
+  const turnEndIndex = nextUserIndex >= 0 ? nextUserIndex : messages.length;
+
+  return messages
+    .slice(turnStartIndex, turnEndIndex)
+    .some((candidate) => candidate.role === 'agent' && hasAgentAnswerContent(candidate));
 };
 
 export const ChatScreen: React.FC = () => {
@@ -295,7 +363,7 @@ export const ChatScreen: React.FC = () => {
     const liveAndOptimisticMessages = [...visibleOptimisticMessages, ...liveMessages];
 
     if (liveAndOptimisticMessages.length === 0) {
-      return initialMessages;
+      return orderMessagesForDisplay(initialMessages);
     }
 
     const dedupedInitialMessages = removePersistedMessagesDuplicatedByLiveMessages(
@@ -308,7 +376,11 @@ export const ChatScreen: React.FC = () => {
       liveMessages
     );
 
-    return [...dedupedInitialMessages, ...visibleOptimisticMessages, ...enrichedAgentMessages];
+    return orderMessagesForDisplay([
+      ...dedupedInitialMessages,
+      ...visibleOptimisticMessages,
+      ...enrichedAgentMessages,
+    ]);
   }, [
     agentMessages,
     initialMessages,
@@ -323,16 +395,16 @@ export const ChatScreen: React.FC = () => {
   );
   const visibleMessages = useMemo(
     () =>
-      allMessages.filter((message) => {
+      allMessages.filter((message, index) => {
         if (message.role !== 'agent') {
           return true;
         }
 
-        if (hasRenderableMessageContent(message)) {
-          return true;
+        if (!hasRenderableMessageContent(message)) {
+          return false;
         }
 
-        return false;
+        return !shouldHideStaleProgressOnlyAgentMessage(message, index, allMessages);
       }),
     [allMessages]
   );
@@ -481,11 +553,12 @@ export const ChatScreen: React.FC = () => {
   }, [activeSessionId, revokeOptimisticMessageUrls]);
 
   useEffect(() => {
+    const optimisticAttachmentUrls = optimisticAttachmentUrlsRef.current;
     return () => {
-      for (const url of optimisticAttachmentUrlsRef.current) {
+      for (const url of optimisticAttachmentUrls) {
         URL.revokeObjectURL(url);
       }
-      optimisticAttachmentUrlsRef.current.clear();
+      optimisticAttachmentUrls.clear();
     };
   }, []);
 
