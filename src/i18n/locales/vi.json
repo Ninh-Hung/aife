@@ -1637,7 +1637,9 @@
     },
     "targets": {
       "title": "Ngôn ngữ đích",
-      "selected": "Đã chọn {{count}}"
+      "selected": "Đã chọn {{count}}",
+      "searchPlaceholder": "Tìm ngôn ngữ",
+      "emptySearch": "Không tìm thấy ngôn ngữ phù hợp."
     },
     "result": {
       "copy": "Copy bản dịch",

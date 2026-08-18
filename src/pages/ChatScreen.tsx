@@ -27,7 +27,13 @@ import { AgentInfoPanel } from '../components/chat/AgentInfoPanel';
 import { SignInModal } from '../components/auth/SignInModal';
 import { useSidebarConversations } from '../components/layout/useSidebarConversations';
 import { CircularProgress } from '@mui/material';
-import { cancelChatResponse, getChatSession, listChatMessages, getAgent } from '../services/api';
+import {
+  cancelChatResponse,
+  getChatSession,
+  listChatMessages,
+  getAgent,
+  warmChatSessionRuntime,
+} from '../services/api';
 import { parseAgentResponse } from '../utils/agentResponse';
 
 const DEFAULT_SESSION_TITLES = new Set(['new chat', 'chat with ai assistant']);
@@ -137,16 +143,85 @@ const stripStreamProgressLines = (value: string | null | undefined) => {
     .trim();
 };
 
+const hasAgentAnswerContent = (message: ChatMessage) =>
+  parseAgentResponse(message.content).content.trim().length > 0 ||
+  Boolean(message.attachments?.length);
+
+const hasAgentNonProgressReasoning = (message: ChatMessage) =>
+  stripStreamProgressLines(message.reasoning).length > 0;
+
+const isProgressOnlyAgentMessage = (message: ChatMessage) =>
+  message.role === 'agent' &&
+  !hasAgentAnswerContent(message) &&
+  !hasAgentNonProgressReasoning(message) &&
+  Boolean(message.reasoning?.trim());
+
 const hasRenderableMessageContent = (message: ChatMessage) => {
   if (message.role === 'user') {
     return message.content.trim().length > 0 || Boolean(message.attachments?.length);
   }
 
   return (
-    parseAgentResponse(message.content).content.trim().length > 0 ||
-    Boolean(message.attachments?.length) ||
-    stripStreamProgressLines(message.reasoning).length > 0
+    hasAgentAnswerContent(message) ||
+    hasAgentNonProgressReasoning(message) ||
+    Boolean(message.reasoning?.trim())
   );
+};
+
+const MESSAGE_ROLE_ORDER: Record<ChatMessage['role'], number> = {
+  user: 0,
+  agent: 1,
+};
+
+const LIVE_TURN_TIMESTAMP_TOLERANCE_MS = 1500;
+
+const orderMessagesForDisplay = (messages: ChatMessage[]) =>
+  messages
+    .map((message, index) => ({ message, index }))
+    .sort((left, right) => {
+      const leftTime = left.message.timestamp.getTime();
+      const rightTime = right.message.timestamp.getTime();
+      const timeDiff = leftTime - rightTime;
+
+      if (
+        Number.isFinite(leftTime) &&
+        Number.isFinite(rightTime) &&
+        Math.abs(timeDiff) > LIVE_TURN_TIMESTAMP_TOLERANCE_MS
+      ) {
+        return timeDiff;
+      }
+
+      if (left.message.role !== right.message.role) {
+        return MESSAGE_ROLE_ORDER[left.message.role] - MESSAGE_ROLE_ORDER[right.message.role];
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ message }) => message);
+
+const shouldHideStaleProgressOnlyAgentMessage = (
+  message: ChatMessage,
+  index: number,
+  messages: ChatMessage[]
+) => {
+  if (!isProgressOnlyAgentMessage(message)) {
+    return false;
+  }
+
+  const previousUserIndex = messages
+    .slice(0, index)
+    .map((candidate, candidateIndex) => ({ candidate, candidateIndex }))
+    .reverse()
+    .find(({ candidate }) => candidate.role === 'user')?.candidateIndex;
+  const nextUserIndex = messages.findIndex(
+    (candidate, candidateIndex) => candidateIndex > index && candidate.role === 'user'
+  );
+  const turnStartIndex = previousUserIndex !== undefined ? previousUserIndex + 1 : 0;
+  const turnEndIndex = nextUserIndex >= 0 ? nextUserIndex : messages.length;
+
+  return messages
+    .slice(turnStartIndex, turnEndIndex)
+    .some((candidate) => candidate.role === 'agent' && hasAgentAnswerContent(candidate));
 };
 
 export const ChatScreen: React.FC = () => {
@@ -164,6 +239,7 @@ export const ChatScreen: React.FC = () => {
   const lastAppliedConversationTitleRef = useRef<string | null>(null);
   const lastVoiceTranscriptSyncRef = useRef<string | null>(null);
   const initialRealtimeVoiceStartRef = useRef<string | null>(null);
+  const lastChatErrorRef = useRef<string | null>(null);
   const messageLoadRequestRef = useRef(0);
   const initialState = location.state as {
     initialMessage?: string;
@@ -186,6 +262,8 @@ export const ChatScreen: React.FC = () => {
   const [cancelledResponseSessionId, setCancelledResponseSessionId] = useState<string | null>(null);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [executionMode, setExecutionMode] = useStoredChatExecutionMode(initialState?.initialMode);
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
+  const optimisticAttachmentUrlsRef = useRef<Set<string>>(new Set());
 
   const {
     messages: agentMessages,
@@ -193,6 +271,7 @@ export const ChatScreen: React.FC = () => {
     isConnected,
     isConnecting,
     chatStatus,
+    chatError,
     stop: stopAgentResponse,
   } = useChatAgent({
     conversationId: activeSessionId || '',
@@ -211,6 +290,17 @@ export const ChatScreen: React.FC = () => {
   });
 
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+  const revokeOptimisticMessageUrls = useCallback((messagesToRevoke: ChatMessage[]) => {
+    for (const message of messagesToRevoke) {
+      for (const attachment of message.attachments || []) {
+        const url = attachment.fileUrl;
+        if (url && optimisticAttachmentUrlsRef.current.has(url)) {
+          URL.revokeObjectURL(url);
+          optimisticAttachmentUrlsRef.current.delete(url);
+        }
+      }
+    }
+  }, []);
   const isActiveRouteSession = Boolean(routeSessionId && activeSessionId === routeSessionId);
   const realtimeVoiceMessages = useMemo(() => {
     if (!activeSessionId || !isActiveRouteSession || !realtimeVoiceAgent.enabled) {
@@ -266,14 +356,19 @@ export const ChatScreen: React.FC = () => {
     }
 
     const liveMessages = [...agentMessages, ...realtimeVoiceMessages];
+    const visibleOptimisticMessages = removePersistedMessagesDuplicatedByLiveMessages(
+      optimisticMessages,
+      liveMessages
+    );
+    const liveAndOptimisticMessages = [...visibleOptimisticMessages, ...liveMessages];
 
-    if (liveMessages.length === 0) {
-      return initialMessages;
+    if (liveAndOptimisticMessages.length === 0) {
+      return orderMessagesForDisplay(initialMessages);
     }
 
     const dedupedInitialMessages = removePersistedMessagesDuplicatedByLiveMessages(
       initialMessages,
-      liveMessages
+      liveAndOptimisticMessages
     );
 
     const enrichedAgentMessages = enrichLiveMessagesWithPersistedMetadata(
@@ -281,12 +376,17 @@ export const ChatScreen: React.FC = () => {
       liveMessages
     );
 
-    return [...dedupedInitialMessages, ...enrichedAgentMessages];
+    return orderMessagesForDisplay([
+      ...dedupedInitialMessages,
+      ...visibleOptimisticMessages,
+      ...enrichedAgentMessages,
+    ]);
   }, [
     agentMessages,
     initialMessages,
     initialMessagesLoaded,
     isActiveRouteSession,
+    optimisticMessages,
     realtimeVoiceMessages,
   ]);
   const activeSession = useMemo(
@@ -295,16 +395,16 @@ export const ChatScreen: React.FC = () => {
   );
   const visibleMessages = useMemo(
     () =>
-      allMessages.filter((message) => {
+      allMessages.filter((message, index) => {
         if (message.role !== 'agent') {
           return true;
         }
 
-        if (hasRenderableMessageContent(message)) {
-          return true;
+        if (!hasRenderableMessageContent(message)) {
+          return false;
         }
 
-        return false;
+        return !shouldHideStaleProgressOnlyAgentMessage(message, index, allMessages);
       }),
     [allMessages]
   );
@@ -446,7 +546,56 @@ export const ChatScreen: React.FC = () => {
     lastSyncedAgentMessageRef.current = null;
     lastSyncedResponseMetadataRef.current = null;
     lastAppliedConversationTitleRef.current = null;
-  }, [activeSessionId]);
+    setOptimisticMessages((currentMessages) => {
+      revokeOptimisticMessageUrls(currentMessages);
+      return [];
+    });
+  }, [activeSessionId, revokeOptimisticMessageUrls]);
+
+  useEffect(() => {
+    const optimisticAttachmentUrls = optimisticAttachmentUrlsRef.current;
+    return () => {
+      for (const url of optimisticAttachmentUrls) {
+        URL.revokeObjectURL(url);
+      }
+      optimisticAttachmentUrls.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (optimisticMessages.length === 0 || agentMessages.length === 0) {
+      return;
+    }
+
+    const liveUserMessageCounts = new Map<string, number>();
+    for (const message of agentMessages) {
+      if (message.role !== 'user') continue;
+      const key = getMessageDedupeKey(message);
+      liveUserMessageCounts.set(key, (liveUserMessageCounts.get(key) ?? 0) + 1);
+    }
+
+    setOptimisticMessages((currentMessages) => {
+      const removedMessages: ChatMessage[] = [];
+      const nextMessages = currentMessages.filter((message) => {
+        const key = getMessageDedupeKey(message);
+        const liveCount = liveUserMessageCounts.get(key) ?? 0;
+        if (liveCount <= 0) {
+          return true;
+        }
+
+        liveUserMessageCounts.set(key, liveCount - 1);
+        removedMessages.push(message);
+        return false;
+      });
+
+      if (removedMessages.length === 0) {
+        return currentMessages;
+      }
+
+      revokeOptimisticMessageUrls(removedMessages);
+      return nextMessages;
+    });
+  }, [agentMessages, optimisticMessages.length, revokeOptimisticMessageUrls]);
 
   useEffect(() => {
     if (!routeSessionId || routeSessionId === activeSessionId) {
@@ -545,6 +694,14 @@ export const ChatScreen: React.FC = () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         };
+      }
+
+      await warmChatSessionRuntime(currentSession.id, {
+        mode: executionMode,
+        agentPublicId: currentSession.agentPublicId,
+      });
+      if (cancelled) {
+        return;
       }
 
       setAgent(resolvedAgent);
@@ -740,6 +897,17 @@ export const ChatScreen: React.FC = () => {
   }, [activeSessionId, loadInitialMessages]);
 
   useEffect(() => {
+    if (!activeSessionId || !agent?.publicId) {
+      return;
+    }
+
+    void warmChatSessionRuntime(activeSessionId, {
+      mode: executionMode,
+      agentPublicId: agent.publicId,
+    });
+  }, [activeSessionId, agent?.publicId, executionMode]);
+
+  useEffect(() => {
     if (!activeSessionId || realtimeVoiceAgent.transcript.length === 0) {
       return;
     }
@@ -801,6 +969,21 @@ export const ChatScreen: React.FC = () => {
   }, [activeSessionId, agentMessages, chatStatus, loadInitialMessages]);
 
   useEffect(() => {
+    if (!chatError) {
+      return;
+    }
+
+    const errorKey = `${activeSessionId ?? 'none'}:${chatError.message}`;
+    if (lastChatErrorRef.current === errorKey) {
+      return;
+    }
+
+    lastChatErrorRef.current = errorKey;
+    setIsAwaitingResponse(false);
+    showError(chatError.message || t('chat.errors.sendFailed'));
+  }, [activeSessionId, chatError, showError, t]);
+
+  useEffect(() => {
     if (!activeSessionId) return;
 
     const hasPendingPersistedResponse = initialMessages.some(
@@ -830,11 +1013,38 @@ export const ChatScreen: React.FC = () => {
         return;
       }
 
+      const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const optimisticAttachments = (files || []).map((file, index) => {
+        const fileUrl = URL.createObjectURL(file);
+        optimisticAttachmentUrlsRef.current.add(fileUrl);
+
+        return {
+          publicId: `${optimisticId}-attachment-${index}`,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          fileSize: file.size,
+          fileUrl,
+        };
+      });
+      const optimisticMessage: ChatMessage = {
+        id: optimisticId,
+        sessionId: activeSessionId,
+        role: 'user',
+        content,
+        attachments: optimisticAttachments,
+        timestamp: new Date(),
+        status: 'sending',
+      };
+
+      setOptimisticMessages((currentMessages) => [...currentMessages, optimisticMessage]);
       setIsAwaitingResponse(true);
       setCancelledResponseSessionId(null);
+      void warmChatSessionRuntime(activeSessionId, {
+        mode: executionMode,
+        agentPublicId: agent?.publicId,
+      });
 
       try {
-        // Send message via WebSocket - agent handles everything
         await agentSendMessage(content, files);
 
         const currentSession = sessions.find((s) => s.id === activeSessionId);
@@ -849,6 +1059,11 @@ export const ChatScreen: React.FC = () => {
         }
       } catch (err) {
         setIsAwaitingResponse(false);
+        setOptimisticMessages((currentMessages) =>
+          currentMessages.map((message) =>
+            message.id === optimisticId ? { ...message, status: 'failed' as const } : message
+          )
+        );
         const error = err instanceof Error ? err : new Error(t('chat.errors.sendFailed'));
         showError(error.message);
         throw error;
@@ -857,7 +1072,9 @@ export const ChatScreen: React.FC = () => {
     [
       isConnected,
       activeSessionId,
+      agent?.publicId,
       agentSendMessage,
+      executionMode,
       showError,
       sessions,
       addOrUpdateConversation,

@@ -394,6 +394,7 @@ export type TranslationStatus = 'pending' | 'processing' | 'completed' | 'failed
 
 export interface Language {
   code: string; // ISO 639-1 code (e.g., 'en', 'fr', 'ja')
+  aliases?: string[]; // Additional accepted translation keys mapped to this language
   name: string; // Display name (e.g., 'English', 'French', 'Japanese')
   nativeName: string; // Native name (e.g., 'English', 'Français', '日本語')
   countryCode?: string; // ISO 3166-1 alpha-2 code used for flag image URLs
