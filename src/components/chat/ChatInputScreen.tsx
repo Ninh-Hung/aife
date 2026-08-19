@@ -118,6 +118,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const [isTranscribingVoice, setIsTranscribingVoice] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isRealtimeCallActive, setIsRealtimeCallActive] = useState(false);
+  const [hasUserRequestedRealtimeCall, setHasUserRequestedRealtimeCall] = useState(false);
   const [hasUserEndedRealtimeCall, setHasUserEndedRealtimeCall] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [selectedPreview, setSelectedPreview] = useState<{
@@ -133,6 +134,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   const recordingTimerRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
   const voiceAgentRef = useRef<RealtimeVoiceAgentState | undefined>(voiceAgent);
+  const lastRealtimeVoiceErrorRef = useRef<string | null>(null);
   const displayHeading = heading ?? rotatingHeading;
   const isVoiceBusy = isRecordingVoice || isTranscribingVoice;
   const realtimeVoiceAvailable = Boolean(voiceAgent?.available);
@@ -429,6 +431,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
       if (!isRealtimeVoiceActive) {
         try {
           setIsRealtimeCallActive(true);
+          setHasUserRequestedRealtimeCall(true);
           setHasUserEndedRealtimeCall(false);
           await voiceAgent.startCall();
         } catch (error) {
@@ -441,6 +444,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
 
       voiceAgent.endCall();
       setIsRealtimeCallActive(false);
+      setHasUserRequestedRealtimeCall(false);
       setHasUserEndedRealtimeCall(true);
       return;
     }
@@ -554,6 +558,7 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   useEffect(() => {
     if (!realtimeVoiceAvailable || !voiceAgent) {
       setIsRealtimeCallActive(false);
+      setHasUserRequestedRealtimeCall(false);
       setHasUserEndedRealtimeCall(false);
       return;
     }
@@ -572,10 +577,23 @@ export const ChatInputScreen: React.FC<ChatInputScreenProps> = ({
   }, [hasUserEndedRealtimeCall, realtimeVoiceAvailable, realtimeVoiceStatus, voiceAgent]);
 
   useEffect(() => {
-    if (voiceAgent?.error) {
-      notifyError(voiceAgent.error, { preventDuplicate: true });
+    const visibleRealtimeVoiceError =
+      (hasUserRequestedRealtimeCall || isRealtimeVoiceActive) && voiceAgent?.error
+        ? voiceAgent.error
+        : null;
+
+    if (!visibleRealtimeVoiceError) {
+      lastRealtimeVoiceErrorRef.current = null;
+      return;
     }
-  }, [notifyError, voiceAgent?.error]);
+
+    if (lastRealtimeVoiceErrorRef.current === visibleRealtimeVoiceError) {
+      return;
+    }
+
+    lastRealtimeVoiceErrorRef.current = visibleRealtimeVoiceError;
+    notifyError(visibleRealtimeVoiceError, { preventDuplicate: true });
+  }, [hasUserRequestedRealtimeCall, isRealtimeVoiceActive, notifyError, voiceAgent?.error]);
 
   const handleExecutionModeChange = (mode: ChatExecutionMode) => {
     setLocalExecutionMode(mode);

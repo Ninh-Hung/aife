@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNotification } from '../../hooks/useNotification';
+import {
+  useChatRealtimeEvents,
+  type ConversationTitleUpdatedEvent,
+} from '../../hooks/useChatRealtimeEvents';
 import { listChatSessions, updateChatSession } from '../../services/api';
 import type { ChatSession } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -90,6 +94,49 @@ export const SidebarConversationsProvider: React.FC<{ children: React.ReactNode 
       ]);
     });
   }, []);
+
+  const applyConversationTitleUpdate = useCallback(
+    (event: ConversationTitleUpdatedEvent) => {
+      const title = event.data.title.trim();
+      if (!title) {
+        return;
+      }
+
+      setSessions((prev) => {
+        const found = prev.some((session) => session.id === event.data.sessionPublicId);
+        if (!found) {
+          window.setTimeout(() => void refreshConversations(), 0);
+          return prev;
+        }
+
+        const next = prev.map((session) => {
+          if (session.id !== event.data.sessionPublicId) {
+            return session;
+          }
+
+          return {
+            ...session,
+            title,
+            status: event.data.status as ChatSession['status'],
+            updatedAt: new Date(event.data.updatedAt),
+            lastMessageAt: event.data.lastMessageAt
+              ? new Date(event.data.lastMessageAt)
+              : session.lastMessageAt,
+            agentPublicId: event.data.agentPublicId || session.agentPublicId,
+            agentName: event.data.agentName || session.agentName,
+          };
+        });
+
+        return found ? sortConversationsByActivity(next) : prev;
+      });
+    },
+    [refreshConversations]
+  );
+
+  useChatRealtimeEvents({
+    enabled: isAuthenticated && !isAnonymous,
+    onConversationTitleUpdated: applyConversationTitleUpdate,
+  });
 
   const renameConversation = useCallback(async (sessionId: string, newTitle: string) => {
     const response = await updateChatSession(sessionId, { title: newTitle });
