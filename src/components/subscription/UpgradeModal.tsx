@@ -63,13 +63,13 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     >
       <DialogTitle className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
         <Box className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-yellow-500" />
+          <Zap className="h-5 w-5 text-yellow-500" />
           <Typography variant="h6" className="font-semibold">
             {title || (isAnonymousLimit ? 'Guest Limit Reached' : 'Quota Exceeded')}
           </Typography>
         </Box>
         <IconButton onClick={onClose} size="small">
-          <X className="w-5 h-5" />
+          <X className="h-5 w-5" />
         </IconButton>
       </DialogTitle>
 
@@ -80,11 +80,11 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
         {/* Show quota info if available */}
         {remainingTokens !== undefined && quotaLimit !== undefined && (
-          <Box className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-            <Typography variant="caption" className="text-gray-600 dark:text-gray-400 mb-2 block">
+          <Box className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+            <Typography variant="caption" className="mb-2 block text-gray-600 dark:text-gray-400">
               Current Usage
             </Typography>
-            <Box className="flex justify-between items-center">
+            <Box className="flex items-center justify-between">
               <Typography variant="body2" className="font-semibold">
                 Tokens Remaining
               </Typography>
@@ -97,26 +97,26 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
         {/* Benefits list */}
         <Box className="mt-6">
-          <Typography variant="body2" className="font-semibold mb-3">
+          <Typography variant="body2" className="mb-3 font-semibold">
             {isAnonymousLimit ? 'Sign up for free to unlock:' : 'Upgrade your plan to get:'}
           </Typography>
           <Box className="space-y-2">
             {isAnonymousLimit ? (
               <>
                 <Box className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                   <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
                     Unlimited chat sessions
                   </Typography>
                 </Box>
                 <Box className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                   <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
                     100K tokens per month (FREE plan)
                   </Typography>
                 </Box>
                 <Box className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                   <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
                     Create and customize AI agents
                   </Typography>
@@ -125,19 +125,19 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
             ) : (
               <>
                 <Box className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                   <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
                     Higher monthly token quota
                   </Typography>
                 </Box>
                 <Box className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                   <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
                     Priority support
                   </Typography>
                 </Box>
                 <Box className="flex items-start gap-2">
-                  <Zap className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
                   <Typography variant="body2" className="text-gray-600 dark:text-gray-400">
                     Advanced AI models
                   </Typography>
@@ -148,7 +148,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
         </Box>
       </DialogContent>
 
-      <DialogActions className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <DialogActions className="border-t border-gray-200 p-4 dark:border-gray-700">
         <Button onClick={onClose} variant="outlined" className="mr-2">
           Cancel
         </Button>
@@ -157,7 +157,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
             onClick={handleRegister}
             variant="contained"
             color="primary"
-            endIcon={<ArrowRight className="w-4 h-4" />}
+            endIcon={<ArrowRight className="h-4 w-4" />}
           >
             Sign Up Free
           </Button>
@@ -166,7 +166,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
             onClick={handleUpgrade}
             variant="contained"
             color="primary"
-            endIcon={<ArrowRight className="w-4 h-4" />}
+            endIcon={<ArrowRight className="h-4 w-4" />}
           >
             View Plans
           </Button>
