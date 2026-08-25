@@ -722,12 +722,15 @@ export interface CurrentSubscription {
 
 export interface BillingHistoryItem {
   publicId: string;
+  type?: 'subscription' | 'token_pack';
   packageName: string;
   amount: number;
+  currency?: string;
   status: 'PAID' | 'PENDING' | 'FAILED' | 'REFUNDED';
   paymentDate: string;
   invoiceUrl?: string;
   createdAt: string;
+  tokenAmount?: number;
 }
 
 export interface TokenPack {
@@ -746,6 +749,20 @@ export interface TokenPackPrice {
   currency: string;
   amountMinor: string;
   isActive: boolean;
+}
+
+export interface AdvanceTokenPurchaseLimits {
+  dailyTokenLimit: number | null;
+  monthlyTokenLimit: number | null;
+  dailyPurchasedTokens: number;
+  monthlyPurchasedTokens: number;
+  dailyRemainingTokens: number | null;
+  monthlyRemainingTokens: number | null;
+}
+
+export interface TokenPackListResult {
+  tokenPacks: TokenPack[];
+  purchaseLimits?: AdvanceTokenPurchaseLimits;
 }
 
 export interface TokenPackPurchaseResult {
