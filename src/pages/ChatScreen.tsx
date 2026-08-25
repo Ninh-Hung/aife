@@ -442,6 +442,11 @@ export const ChatScreen: React.FC = () => {
     (hasPendingAgentPlaceholder || isResponseInFlight || isRealtimeVoiceThinking) &&
     !latestResponseHasRenderableContent &&
     latestVisibleMessage?.role !== 'agent';
+  const hasPendingInitialSend = Boolean(
+    initialMessage?.trim() &&
+      activeSessionId &&
+      initialSendRef.current !== `${activeSessionId}\u0000${initialMessage}`
+  );
 
   useEffect(() => {
     const latestAgentMessage = agentMessages[agentMessages.length - 1];
@@ -1252,8 +1257,8 @@ export const ChatScreen: React.FC = () => {
         <ChatConversation
           agent={agent}
           messages={visibleMessages}
-          isLoading={shouldShowThinkingIndicator}
-          isGenerating={isResponseInFlight}
+          isLoading={shouldShowThinkingIndicator || hasPendingInitialSend}
+          isGenerating={isResponseInFlight || hasPendingInitialSend}
           isInputDisabled={isConnecting}
           onSendMessage={handleSendMessage}
           onCancelResponse={isResponseInFlight ? handleCancelResponse : undefined}

@@ -82,7 +82,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
           sourceContext: 'CHAT_MESSAGE_ACTION',
           conversationId: message.sessionId,
           messageId: message.id,
-          agentId: agent.publicId || agent.id,
+          chatconverd: agent.publicId || agent.id,
           reportedMessageSnapshot: message.content,
           previousUserMessageSnapshot: previousUserMessage?.content,
         },

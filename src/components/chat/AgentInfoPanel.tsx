@@ -206,7 +206,7 @@ export const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const { updateAgentAvatar } = useAgents();
-  const { isAnonymous, user } = useAuth();
+  const { isAnonymous } = useAuth();
   const notification = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(agent.avatarUrl ?? null);
@@ -217,7 +217,7 @@ export const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
   const [avatarMenuAnchor, setAvatarMenuAnchor] = useState<HTMLElement | null>(null);
   const avatarMenuOpen = Boolean(avatarMenuAnchor);
 
-  const showInternalInfo = agent.ownerType !== 'SYSTEM';
+  const showInternalInfo = !isAnonymous && agent.ownerType !== 'SYSTEM';
 
   const [detailedAgent, setDetailedAgent] = useState<Agent>(agent);
   const [resolvedCharacteristics, setResolvedCharacteristics] = useState<Characteristic[]>([]);
@@ -229,36 +229,43 @@ export const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    if (isVisible && showInternalInfo) {
-      // Fetch detailed agent to get the characteristicIds and knowledgeIds
-      getAgent(agent.publicId).then(async (res) => {
-        if (!isMounted || !res.success || !res.data) return;
-        
-        setDetailedAgent((prev) => ({ ...prev, ...res.data }));
-        const cIds = res.data.characteristicIds || [];
-        const kIds = res.data.knowledgeIds || [];
-        
-        // Parallel fetch characteristics and knowledge lists
-        const [sysCharsRes, userCharsRes, knRes] = await Promise.all([
-          listCharacteristics('system'),
-          listCharacteristics('user'),
-          listKnowledge('all'),
-        ]);
 
-        if (isMounted) {
-          const allChars = [
-            ...(sysCharsRes.success && sysCharsRes.data ? sysCharsRes.data : []),
-            ...(userCharsRes.success && userCharsRes.data ? userCharsRes.data : []),
-          ];
-          const matchedChars = allChars.filter(c => cIds.includes(c.publicId));
-          setResolvedCharacteristics(matchedChars);
-
-          const allKns = knRes.success && knRes.data ? knRes.data : [];
-          const matchedKns = allKns.filter(k => kIds.includes(k.publicId));
-          setResolvedKnowledges(matchedKns);
-        }
-      });
+    if (!isVisible || !showInternalInfo) {
+      setResolvedCharacteristics([]);
+      setResolvedKnowledges([]);
+      return () => {
+        isMounted = false;
+      };
     }
+
+    // Fetch detailed agent to get the characteristicIds and knowledgeIds.
+    getAgent(agent.publicId).then(async (res) => {
+      if (!isMounted || !res.success || !res.data) return;
+
+      setDetailedAgent((prev) => ({ ...prev, ...res.data }));
+      const cIds = res.data.characteristicIds || [];
+      const kIds = res.data.knowledgeIds || [];
+
+      const [sysCharsRes, userCharsRes, knRes] = await Promise.all([
+        listCharacteristics('system'),
+        listCharacteristics('user'),
+        listKnowledge('all'),
+      ]);
+
+      if (isMounted) {
+        const allChars = [
+          ...(sysCharsRes.success && sysCharsRes.data ? sysCharsRes.data : []),
+          ...(userCharsRes.success && userCharsRes.data ? userCharsRes.data : []),
+        ];
+        const matchedChars = allChars.filter((c) => cIds.includes(c.publicId));
+        setResolvedCharacteristics(matchedChars);
+
+        const allKns = knRes.success && knRes.data ? knRes.data : [];
+        const matchedKns = allKns.filter((k) => kIds.includes(k.publicId));
+        setResolvedKnowledges(matchedKns);
+      }
+    });
+
     return () => {
       isMounted = false;
     };
