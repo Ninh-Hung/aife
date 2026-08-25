@@ -41,6 +41,18 @@ export const BillingHistory: React.FC<BillingHistoryProps> = ({ history }) => {
     });
   };
 
+  const formatAmount = (amount: number, currency?: string): string => {
+    if (!currency) {
+      return `$${amount.toFixed(2)}`;
+    }
+
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(amount);
+  };
+
   if (history.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-800">
@@ -60,7 +72,7 @@ export const BillingHistory: React.FC<BillingHistoryProps> = ({ history }) => {
                 Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
-                Plan Name
+                Item
               </th>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
                 Amount
@@ -83,10 +95,15 @@ export const BillingHistory: React.FC<BillingHistoryProps> = ({ history }) => {
                   {formatDate(item.paymentDate)}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-slate-100">
-                  {item.packageName}
+                  <div>{item.packageName}</div>
+                  {item.type === 'token_pack' && item.tokenAmount ? (
+                    <div className="text-xs font-normal text-gray-500 dark:text-slate-400">
+                      {item.tokenAmount.toLocaleString()} tokens
+                    </div>
+                  ) : null}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-slate-100">
-                  ${item.amount.toFixed(2)}
+                  {formatAmount(item.amount, item.currency)}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
                   <Chip label={item.status} color={getStatusColor(item.status)} size="small" />
@@ -121,6 +138,11 @@ export const BillingHistory: React.FC<BillingHistoryProps> = ({ history }) => {
                 <div className="font-semibold text-gray-900 dark:text-slate-100">
                   {item.packageName}
                 </div>
+                {item.type === 'token_pack' && item.tokenAmount ? (
+                  <div className="text-sm text-gray-500 dark:text-slate-400">
+                    {item.tokenAmount.toLocaleString()} tokens
+                  </div>
+                ) : null}
                 <div className="text-sm text-gray-500 dark:text-slate-400">
                   {formatDate(item.paymentDate)}
                 </div>
@@ -129,7 +151,7 @@ export const BillingHistory: React.FC<BillingHistoryProps> = ({ history }) => {
             </div>
             <div className="flex items-center justify-between">
               <div className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                ${item.amount.toFixed(2)}
+                {formatAmount(item.amount, item.currency)}
               </div>
               {item.invoiceUrl && (
                 <a

@@ -1483,15 +1483,25 @@ import type {
   Package,
   CurrentSubscription,
   BillingHistoryItem,
+  AdvanceTokenPurchaseLimits,
   TokenPack,
+  TokenPackListResult,
   TokenPackPurchaseResult,
 } from '../types';
 
 type SubscriptionHistoryResponse = {
   subscriptions?: BackendSubscriptionHistoryItem[];
+  billingItems?: BackendBillingHistoryItem[];
   total?: number;
   limit?: number;
   offset?: number;
+};
+
+type BackendPackagePrice = {
+  currency: string;
+  amountMinor: string | number;
+  billingPeriod?: string;
+  isActive?: boolean;
 };
 
 type BackendSubscriptionHistoryItem = {
@@ -1502,7 +1512,28 @@ type BackendSubscriptionHistoryItem = {
   package?: {
     name?: string;
     price?: number;
+    tokensPerMonth?: number;
+    prices?: BackendPackagePrice[];
   };
+};
+
+type BackendBillingHistoryItem = {
+  publicId: string;
+  type?: 'subscription' | 'token_pack';
+  packageName?: string;
+  itemName?: string;
+  amount: number;
+  currency?: string;
+  status: BillingHistoryItem['status'];
+  paymentDate: string;
+  invoiceUrl?: string;
+  createdAt: string;
+  tokenAmount?: number;
+};
+
+type BackendTokenPackListResponse = {
+  data?: TokenPack[] | TokenPackListResult;
+  purchaseLimits?: AdvanceTokenPurchaseLimits;
 };
 
 /**
@@ -1567,13 +1598,18 @@ export const getBillingHistory = async (): Promise<ApiResponse<BillingHistoryIte
   try {
     const response = await axiosInstance.get('/v1/subscriptions/history');
     const payload = response.data.data || response.data;
+    const billingItems = Array.isArray((payload as SubscriptionHistoryResponse).billingItems)
+      ? ((payload as SubscriptionHistoryResponse).billingItems ?? [])
+      : null;
     const subscriptions = Array.isArray(payload)
       ? payload
       : ((payload as SubscriptionHistoryResponse).subscriptions ?? []);
 
     return {
       success: true,
-      data: subscriptions.map(mapSubscriptionToBillingHistoryItem),
+      data: billingItems
+        ? billingItems.map(mapBackendBillingHistoryItem)
+        : subscriptions.map(mapSubscriptionToBillingHistoryItem),
     };
   } catch (error) {
     console.error('Get billing history error:', error);
@@ -1589,6 +1625,36 @@ export const getBillingHistory = async (): Promise<ApiResponse<BillingHistoryIte
   }
 };
 
+const getPackagePriceAmount = (
+  prices?: BackendPackagePrice[]
+): { amount: number; currency?: string } => {
+  const price = prices?.find((item) => item.currency === 'USD') || prices?.[0];
+
+  if (!price) {
+    return { amount: 0 };
+  }
+
+  const value = Number(price.amountMinor);
+
+  return {
+    amount: price.currency === 'USD' ? value / 100 : value,
+    currency: price.currency,
+  };
+};
+
+const mapBackendBillingHistoryItem = (item: BackendBillingHistoryItem): BillingHistoryItem => ({
+  publicId: item.publicId,
+  type: item.type,
+  packageName: item.packageName || item.itemName || 'Unknown item',
+  amount: item.amount,
+  currency: item.currency,
+  status: item.status,
+  paymentDate: item.paymentDate,
+  invoiceUrl: item.invoiceUrl,
+  createdAt: item.createdAt,
+  tokenAmount: item.tokenAmount,
+});
+
 const mapSubscriptionToBillingHistoryItem = (
   subscription: BackendSubscriptionHistoryItem | BillingHistoryItem
 ): BillingHistoryItem => {
@@ -1596,13 +1662,17 @@ const mapSubscriptionToBillingHistoryItem = (
     return subscription;
   }
 
+  const packagePrice = getPackagePriceAmount(subscription.package?.prices);
+
   return {
     publicId: subscription.publicId,
     packageName: subscription.package?.name || 'Unknown package',
-    amount: subscription.package?.price || 0,
+    amount: subscription.package?.price ?? packagePrice.amount,
+    currency: packagePrice.currency,
     status: subscription.status === 'trialing' ? 'PENDING' : 'PAID',
     paymentDate: subscription.startAt,
     createdAt: subscription.startAt,
+    tokenAmount: subscription.package?.tokensPerMonth,
   };
 };
 
@@ -1667,13 +1737,24 @@ export const subscribe = async (packagePublicId: string): Promise<ApiResponse> =
   }
 };
 
-export const getTokenPacks = async (): Promise<ApiResponse<TokenPack[]>> => {
+export const getTokenPacks = async (): Promise<ApiResponse<TokenPackListResult>> => {
   try {
     const response = await axiosInstance.get('/v1/subscriptions/token-packs');
+    const responseBody = response.data as BackendTokenPackListResponse;
+    const payload = responseBody.data || response.data;
+    const tokenPacks = Array.isArray(payload)
+      ? payload
+      : ((payload as TokenPackListResult).tokenPacks ?? []);
+    const purchaseLimits =
+      (Array.isArray(payload) ? undefined : (payload as TokenPackListResult).purchaseLimits) ||
+      responseBody.purchaseLimits;
 
     return {
       success: true,
-      data: response.data.data || response.data,
+      data: {
+        tokenPacks,
+        purchaseLimits,
+      },
     };
   } catch (error) {
     console.error('Get token packs error:', error);
@@ -1706,14 +1787,15 @@ export const purchaseTokenPack = async (
     };
   } catch (error) {
     console.error('Purchase token pack error:', error);
-    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    const axiosError = error as AxiosError<{ message?: string; error?: string; data?: unknown }>;
 
     return {
       success: false,
       error:
-        axiosError.response?.data?.error ||
         axiosError.response?.data?.message ||
+        axiosError.response?.data?.error ||
         'Failed to purchase token pack',
+      errorCode: axiosError.response?.data?.error,
       message: axiosError.response?.data?.message,
     };
   }
