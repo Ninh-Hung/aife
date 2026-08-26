@@ -17,7 +17,10 @@ interface AnonymousLimitBannerProps {
   sessionId?: string;
 }
 
-const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className = '', sessionId }) => {
+const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({
+  className = '',
+  sessionId,
+}) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<AnonymousUserStats | null>(null);
@@ -52,9 +55,7 @@ const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className =
   const sessionPercentage = (sessionsUsed / maxSessions) * 100;
 
   // Find current session message count if sessionId provided
-  const currentSession = sessionId
-    ? stats.sessions.find(s => s.publicId === sessionId)
-    : null;
+  const currentSession = sessionId ? stats.sessions.find((s) => s.publicId === sessionId) : null;
 
   const messageCount = currentSession?.messageCount || 0;
   const maxMessagesPerSession = 10; // Should match backend config
@@ -88,14 +89,14 @@ const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className =
     <Alert
       severity={getSeverity()}
       className={`${className}`}
-      icon={<MessageCircle className="w-5 h-5" />}
+      icon={<MessageCircle className="h-5 w-5" />}
       action={
         <Button
           size="small"
           variant="contained"
           color="primary"
           onClick={() => navigate('/', { state: { authMode: 'signup' } })}
-          startIcon={<UserPlus className="w-4 h-4" />}
+          startIcon={<UserPlus className="h-4 w-4" />}
           className="whitespace-nowrap"
         >
           Sign Up Free
@@ -103,16 +104,16 @@ const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className =
       }
     >
       <AlertTitle className="font-semibold">Limited Guest Access</AlertTitle>
-      <Box className="mb-2">
-        {getMessage()}
-      </Box>
+      <Box className="mb-2">{getMessage()}</Box>
 
       {/* Session usage progress */}
       {shouldShowSessionWarning && (
         <Box className="mb-2">
-          <Box className="flex justify-between items-center mb-1">
+          <Box className="mb-1 flex items-center justify-between">
             <span className="text-xs">Sessions</span>
-            <span className="text-xs font-semibold">{sessionsUsed}/{maxSessions}</span>
+            <span className="text-xs font-semibold">
+              {sessionsUsed}/{maxSessions}
+            </span>
           </Box>
           <LinearProgress
             variant="determinate"
@@ -126,9 +127,11 @@ const AnonymousLimitBanner: React.FC<AnonymousLimitBannerProps> = ({ className =
       {/* Message usage progress */}
       {shouldShowMessageWarning && currentSession && (
         <Box>
-          <Box className="flex justify-between items-center mb-1">
+          <Box className="mb-1 flex items-center justify-between">
             <span className="text-xs">Messages in this session</span>
-            <span className="text-xs font-semibold">{messageCount}/{maxMessagesPerSession}</span>
+            <span className="text-xs font-semibold">
+              {messageCount}/{maxMessagesPerSession}
+            </span>
           </Box>
           <LinearProgress
             variant="determinate"

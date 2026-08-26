@@ -23,10 +23,23 @@ const CONTENT_KEYS = [
   'message',
 ];
 
-const normalize = (value: string) => value.replace(/\n{3,}/g, '\n\n').trim();
 const TOOL_CODE_BLOCK_PATTERN = /<tool_code>\s*([\s\S]*?)\s*<\/tool_code>/gi;
 const TOOL_CODE_LABEL_PATTERN = /^\s*tool_code\s*:?\s*$/gim;
-const TOOL_CALL_PATTERN = /^\s*(?:print\()?\s*(?:default_api\.)?[A-Za-z_][A-Za-z0-9_]*\([\s\S]*\)\s*\)?\s*$/;
+const TOOL_CALL_PATTERN =
+  /^\s*(?:print\()?\s*(?:default_api\.)?[A-Za-z_][A-Za-z0-9_]*\([\s\S]*\)\s*\)?\s*$/;
+const HARMONY_TOOL_SECTION_PATTERN =
+  /<\|tool_calls_section_begin\|>[\s\S]*?(?:<\|tool_calls_section_end\|>|$)/gi;
+const HARMONY_TOOL_CALL_PATTERN = /<\|tool_call_begin\|>[\s\S]*?(?:<\|tool_call_end\|>|$)/gi;
+const HARMONY_TOOL_TOKEN_PATTERN =
+  /<\|(?:tool_calls_section_begin|tool_calls_section_end|tool_call_begin|tool_call_argument_begin|tool_call_end)\|>/gi;
+
+const normalize = (value: string) =>
+  value
+    .replace(HARMONY_TOOL_SECTION_PATTERN, '')
+    .replace(HARMONY_TOOL_CALL_PATTERN, '')
+    .replace(HARMONY_TOOL_TOKEN_PATTERN, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
 const stringifyValue = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -122,12 +135,25 @@ const parseTaggedResponse = (rawContent: string): ParsedAgentResponse | null => 
 
 const parseToolCodeResponse = (rawContent: string): ParsedAgentResponse | null => {
   const trimmed = rawContent.trim();
-  const withoutLabels = trimmed.replace(TOOL_CODE_LABEL_PATTERN, '').trim();
+  const withoutHarmony = trimmed
+    .replace(HARMONY_TOOL_SECTION_PATTERN, '')
+    .replace(HARMONY_TOOL_CALL_PATTERN, '')
+    .replace(HARMONY_TOOL_TOKEN_PATTERN, '')
+    .trim();
+  const withoutLabels = withoutHarmony.replace(TOOL_CODE_LABEL_PATTERN, '').trim();
   const hasToolCodeBlock = /<tool_code>/i.test(trimmed);
+  const hasHarmonyToolCall = /<\|tool_call/.test(trimmed);
+
+  if (hasHarmonyToolCall) {
+    return {
+      reasoning: null,
+      content: normalize(withoutLabels),
+    };
+  }
 
   if (hasToolCodeBlock) {
     const content = normalize(
-      trimmed.replace(TOOL_CODE_BLOCK_PATTERN, '').replace(TOOL_CODE_LABEL_PATTERN, ''),
+      trimmed.replace(TOOL_CODE_BLOCK_PATTERN, '').replace(TOOL_CODE_LABEL_PATTERN, '')
     );
     return {
       reasoning: null,

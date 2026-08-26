@@ -394,6 +394,7 @@ export type TranslationStatus = 'pending' | 'processing' | 'completed' | 'failed
 
 export interface Language {
   code: string; // ISO 639-1 code (e.g., 'en', 'fr', 'ja')
+  aliases?: string[]; // Additional accepted translation keys mapped to this language
   name: string; // Display name (e.g., 'English', 'French', 'Japanese')
   nativeName: string; // Native name (e.g., 'English', 'Français', '日本語')
   countryCode?: string; // ISO 3166-1 alpha-2 code used for flag image URLs
@@ -721,12 +722,15 @@ export interface CurrentSubscription {
 
 export interface BillingHistoryItem {
   publicId: string;
+  type?: 'subscription' | 'token_pack';
   packageName: string;
   amount: number;
+  currency?: string;
   status: 'PAID' | 'PENDING' | 'FAILED' | 'REFUNDED';
   paymentDate: string;
   invoiceUrl?: string;
   createdAt: string;
+  tokenAmount?: number;
 }
 
 export interface TokenPack {
@@ -745,6 +749,20 @@ export interface TokenPackPrice {
   currency: string;
   amountMinor: string;
   isActive: boolean;
+}
+
+export interface AdvanceTokenPurchaseLimits {
+  dailyTokenLimit: number | null;
+  monthlyTokenLimit: number | null;
+  dailyPurchasedTokens: number;
+  monthlyPurchasedTokens: number;
+  dailyRemainingTokens: number | null;
+  monthlyRemainingTokens: number | null;
+}
+
+export interface TokenPackListResult {
+  tokenPacks: TokenPack[];
+  purchaseLimits?: AdvanceTokenPurchaseLimits;
 }
 
 export interface TokenPackPurchaseResult {

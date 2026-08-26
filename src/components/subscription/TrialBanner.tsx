@@ -59,14 +59,14 @@ const TrialBanner: React.FC<TrialBannerProps> = ({ className = '', onUpgrade }) 
     <Alert
       severity={getSeverity()}
       className={`${className}`}
-      icon={<Clock className="w-5 h-5" />}
+      icon={<Clock className="h-5 w-5" />}
       action={
         <Button
           size="small"
           variant="contained"
           color={getSeverity() === 'error' ? 'error' : 'primary'}
           onClick={handleUpgrade}
-          endIcon={<ArrowRight className="w-4 h-4" />}
+          endIcon={<ArrowRight className="h-4 w-4" />}
           className="whitespace-nowrap"
         >
           Upgrade Now

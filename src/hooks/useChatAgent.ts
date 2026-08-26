@@ -102,7 +102,9 @@ export function useChatAgent({
   enabled = true,
 }: UseChatAgentOptions) {
   const [isSocketOpen, setIsSocketOpen] = useState(false);
+  const [sendError, setSendError] = useState<Error | undefined>(undefined);
   const lastAnonymousLimitEventRef = useRef<string | null>(null);
+  const messageTimestampFallbacksRef = useRef<Map<string, Date>>(new Map());
   const shouldConnect =
     enabled && Boolean(conversationId) && Boolean(agentPublicId) && sessionId !== null;
   const serverUrl = import.meta.env.VITE_SERVER_URL || '';
@@ -111,6 +113,7 @@ export function useChatAgent({
 
   useEffect(() => {
     setIsSocketOpen(false);
+    messageTimestampFallbacksRef.current.clear();
   }, [agentPublicId, conversationId, sessionId]);
 
   const agent = useAgent({
@@ -185,12 +188,18 @@ export function useChatAgent({
     addToolOutput,
     clearHistory,
     status: chatStatus,
+    error: chatError,
     stop,
   } = useAgentChat<unknown, UIMessage>({
     agent,
     getInitialMessages: null,
     resume: false,
     experimental_throttle: 50,
+    onError: (error) => {
+      if (import.meta.env.DEV) {
+        console.error('[useChatAgent] chat stream failed', error);
+      }
+    },
   });
 
   const extractText = useCallback((message: UIMessage): string => {
@@ -345,6 +354,23 @@ export function useChatAgent({
     return typeof raw.metadata?.conversationId === 'string' ? raw.metadata.conversationId : null;
   }, []);
 
+  const resolveMessageTimestamp = useCallback((message: UIMessage, index: number): Date => {
+    const raw = message as unknown as { createdAt?: string | number | Date };
+    if (raw.createdAt) {
+      return new Date(raw.createdAt);
+    }
+
+    const fallbackKey = `${message.role}:${message.id || index}`;
+    const existing = messageTimestampFallbacksRef.current.get(fallbackKey);
+    if (existing) {
+      return existing;
+    }
+
+    const fallback = new Date(Date.now() + index);
+    messageTimestampFallbacksRef.current.set(fallbackKey, fallback);
+    return fallback;
+  }, []);
+
   const extractAnonymousLimit = useCallback(
     (message: UIMessage): AnonymousLimitError | undefined => {
       const metadata = (message as unknown as { metadata?: unknown }).metadata;
@@ -414,14 +440,13 @@ export function useChatAgent({
       .filter((msg) => {
         return isCurrentConversationMessage(msg);
       })
-      .map((msg) => {
+      .map((msg, index) => {
         const content = extractText(msg);
         const reasoning = extractReasoning(msg);
         const sources = extractSources(msg);
         const attachments = extractAttachments(msg);
         const conversationTitle = extractConversationTitle(msg);
         const anonymousLimit = extractAnonymousLimit(msg);
-        const createdAt = (msg as unknown as { createdAt?: string | Date }).createdAt;
 
         return {
           id: msg.id || `${msg.role}-${Date.now()}`,
@@ -433,7 +458,7 @@ export function useChatAgent({
           attachments,
           conversationTitle,
           anonymousLimit,
-          timestamp: createdAt ? new Date(createdAt) : new Date(),
+          timestamp: resolveMessageTimestamp(msg, index),
           status: 'sent' as const,
         };
       })
@@ -457,6 +482,7 @@ export function useChatAgent({
     extractReasoning,
     extractSources,
     extractText,
+    resolveMessageTimestamp,
     sessionId,
     shouldConnect,
   ]);
@@ -476,6 +502,7 @@ export function useChatAgent({
         return;
       }
 
+      setSendError(undefined);
       void agentSendMessage({
         text: trimmed,
         files: fileParts.length > 0 ? fileParts : undefined,
@@ -488,8 +515,10 @@ export function useChatAgent({
           ...(capability ? { capability } : {}),
         },
       }).catch((error) => {
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        setSendError(normalizedError);
         if (import.meta.env.DEV) {
-          console.error('[useChatAgent] send message failed', error);
+          console.error('[useChatAgent] send message failed', normalizedError);
         }
       });
     },
@@ -506,6 +535,7 @@ export function useChatAgent({
   );
 
   const isAgentConnected = shouldConnect && isSocketOpen && agent.identified;
+  const effectiveChatError = chatError ?? sendError;
 
   return {
     messages,
@@ -513,10 +543,11 @@ export function useChatAgent({
     status: isAgentConnected ? 'connected' : 'disconnected',
     isConnected: isAgentConnected,
     isConnecting: shouldConnect && !isSocketOpen,
-    error: undefined,
+    error: effectiveChatError,
     addToolResult: addToolOutput,
     clearHistory,
     stop,
     chatStatus,
+    chatError: effectiveChatError,
   };
 }

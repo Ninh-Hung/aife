@@ -144,7 +144,9 @@ export const AgentCreationWizard: React.FC<AgentCreationWizardProps> = ({
       });
 
       if (!response.success || !response.data) {
-        throw new Error(response.error || response.message || t('agents.wizard.errors.draftFailed'));
+        throw new Error(
+          response.error || response.message || t('agents.wizard.errors.draftFailed')
+        );
       }
 
       setDraft(response.data);
@@ -276,9 +278,7 @@ export const AgentCreationWizard: React.FC<AgentCreationWizardProps> = ({
               disabled={isBusy}
               startIcon={isDrafting ? <CircularProgress size={16} /> : <RefreshCw size={16} />}
             >
-              {isDrafting
-                ? t('agents.wizard.actions.drafting')
-                : t('agents.wizard.actions.retry')}
+              {isDrafting ? t('agents.wizard.actions.drafting') : t('agents.wizard.actions.retry')}
             </Button>
             <Button
               variant="outlined"
@@ -295,9 +295,7 @@ export const AgentCreationWizard: React.FC<AgentCreationWizardProps> = ({
               startIcon={isCreating ? <CircularProgress size={16} /> : <Sparkles size={16} />}
               className="bg-indigo-600 text-white hover:bg-indigo-700"
             >
-              {isCreating
-                ? t('agents.wizard.actions.creating')
-                : t('agents.wizard.actions.create')}
+              {isCreating ? t('agents.wizard.actions.creating') : t('agents.wizard.actions.create')}
             </Button>
           </>
         ) : activeStep === steps.length - 1 ? (
@@ -528,7 +526,10 @@ const ReviewStep: React.FC<{ draft: AgentWizardDraft }> = ({ draft }) => {
       <Divider />
 
       <Box>
-        <Typography variant="subtitle1" className="mb-3 font-semibold text-gray-900 dark:text-slate-100">
+        <Typography
+          variant="subtitle1"
+          className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+        >
           {t('agents.wizard.review.characteristics')}
         </Typography>
         <Box className="space-y-3">
@@ -538,7 +539,10 @@ const ReviewStep: React.FC<{ draft: AgentWizardDraft }> = ({ draft }) => {
               className="rounded-lg border border-gray-200 p-3 dark:border-slate-700"
             >
               <Box className="mb-2 flex flex-wrap items-center gap-2">
-                <Typography variant="subtitle2" className="font-semibold text-gray-900 dark:text-slate-100">
+                <Typography
+                  variant="subtitle2"
+                  className="font-semibold text-gray-900 dark:text-slate-100"
+                >
                   {characteristic.name}
                 </Typography>
                 <Chip
@@ -561,7 +565,10 @@ const ReviewStep: React.FC<{ draft: AgentWizardDraft }> = ({ draft }) => {
       <Divider />
 
       <Box>
-        <Typography variant="subtitle1" className="mb-3 font-semibold text-gray-900 dark:text-slate-100">
+        <Typography
+          variant="subtitle1"
+          className="mb-3 font-semibold text-gray-900 dark:text-slate-100"
+        >
           {t('agents.wizard.review.knowledge')}
         </Typography>
         {draft.knowledges.length === 0 ? (
@@ -575,7 +582,10 @@ const ReviewStep: React.FC<{ draft: AgentWizardDraft }> = ({ draft }) => {
                 key={knowledge.name}
                 className="rounded-lg border border-gray-200 p-3 dark:border-slate-700"
               >
-                <Typography variant="subtitle2" className="font-semibold text-gray-900 dark:text-slate-100">
+                <Typography
+                  variant="subtitle2"
+                  className="font-semibold text-gray-900 dark:text-slate-100"
+                >
                   {knowledge.name}
                 </Typography>
                 {knowledge.description && (

@@ -40,16 +40,7 @@ export const AvatarMedia: React.FC<AvatarMediaProps> = ({
   const isVideo = type === 'video' || (type === undefined && isVideoUrl(src));
 
   if (isVideo) {
-    return (
-      <video
-        src={src}
-        className={mediaClassName}
-        muted
-        autoPlay
-        loop
-        playsInline
-      />
-    );
+    return <video src={src} className={mediaClassName} muted autoPlay loop playsInline />;
   }
 
   return <img src={src} alt={alt} className={mediaClassName} />;

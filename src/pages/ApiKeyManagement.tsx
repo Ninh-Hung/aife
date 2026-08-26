@@ -264,10 +264,7 @@ const buildCurlCommand = ({
   body?: Record<string, unknown>;
   headers?: Record<string, string>;
 }) => {
-  const lines = [
-    `curl -X ${method} "${buildServerUrl(path)}"`,
-    `  -H "x-api-key: ${apiKey}"`,
-  ];
+  const lines = [`curl -X ${method} "${buildServerUrl(path)}"`, `  -H "x-api-key: ${apiKey}"`];
 
   Object.entries(headers).forEach(([name, value]) => {
     lines.push(`  -H "${name}: ${value}"`);

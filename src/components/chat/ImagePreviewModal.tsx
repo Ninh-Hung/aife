@@ -30,7 +30,7 @@ export const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-h-[min(92vh,calc(100dvh-3.5rem))] overflow-hidden rounded-t-2xl border-t border-white/15 bg-black sm:inline-block sm:w-auto sm:max-h-[90vh] sm:max-w-[90vw] sm:rounded-md sm:border-0 sm:bg-transparent"
+        className="relative max-h-[min(92vh,calc(100dvh-3.5rem))] w-full overflow-hidden rounded-t-2xl border-t border-white/15 bg-black sm:inline-block sm:max-h-[90vh] sm:w-auto sm:max-w-[90vw] sm:rounded-md sm:border-0 sm:bg-transparent"
         onClick={(event) => event.stopPropagation()}
       >
         <img

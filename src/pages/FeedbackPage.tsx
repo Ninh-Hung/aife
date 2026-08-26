@@ -171,7 +171,10 @@ const FeedbackDetailDialog: React.FC<{
           </Typography>
           {ticket && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Chip label={t(`feedback.types.${ticket.type}`, { defaultValue: ticket.type })} size="small" />
+              <Chip
+                label={t(`feedback.types.${ticket.type}`, { defaultValue: ticket.type })}
+                size="small"
+              />
               <Chip
                 label={t(`feedback.status.${ticket.status}`, { defaultValue: ticket.status })}
                 size="small"
@@ -535,7 +538,9 @@ export const FeedbackPage: React.FC = () => {
                     <EvidencePreviewGrid attachments={attachments} />
                   </div>
                   <div className="shrink-0 text-sm text-gray-500 dark:text-slate-400">
-                    <div className="mb-3 text-right">{formatDate(ticket.updatedAt, i18n.language)}</div>
+                    <div className="mb-3 text-right">
+                      {formatDate(ticket.updatedAt, i18n.language)}
+                    </div>
                     <Button
                       variant="outlined"
                       size="small"

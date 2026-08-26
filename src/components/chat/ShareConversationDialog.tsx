@@ -203,7 +203,11 @@ export const ShareConversationDialog: React.FC<ShareConversationDialogProps> = (
             <Button startIcon={<ExternalLink size={16} />} onClick={handleOpen} disabled={isSaving}>
               Open
             </Button>
-            <Button startIcon={<Copy size={16} />} onClick={() => void handleCopy()} disabled={isSaving}>
+            <Button
+              startIcon={<Copy size={16} />}
+              onClick={() => void handleCopy()}
+              disabled={isSaving}
+            >
               Copy
             </Button>
             <Button
