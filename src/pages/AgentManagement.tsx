@@ -42,6 +42,12 @@ type AgentLimitModalState = {
   currentAgents: number;
 };
 
+const isUserOwnedAgent = (agent: Agent) =>
+  !agent.ownerType || agent.ownerType.toUpperCase() === 'USER';
+
+const isPackageCountedAgent = (agent: Agent) =>
+  isUserOwnedAgent(agent) && agent.isActive !== false && agent.status !== 'disabled';
+
 // ============================================
 // Empty State Component
 // ============================================
@@ -110,7 +116,7 @@ export const AgentManagement: React.FC = () => {
     currentAgents: 0,
   });
 
-  const userCreatedAgentCount = agents.filter((a) => !a.ownerType || a.ownerType === 'USER').length;
+  const userCreatedAgentCount = agents.filter(isPackageCountedAgent).length;
 
   // ============================================
   // Handlers
@@ -424,7 +430,7 @@ export const AgentManagement: React.FC = () => {
                   {t('agents.stats.customAgents')}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">
-                  {agents.filter((a) => !a.ownerType || a.ownerType === 'USER').length}
+                  {agents.filter(isUserOwnedAgent).length}
                 </p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
